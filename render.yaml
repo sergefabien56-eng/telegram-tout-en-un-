@@ -6,12 +6,14 @@ services:
     name: tout-en-un-business-manager
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    # Les devDependencies (Tailwind, TypeScript) sont requises par `next build`.
+    # NODE_ENV=production les sauterait : on force --include=dev.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_ENV
-        value: production
+      # NB : pas de NODE_ENV=production ici — il ferait sauter les devDependencies
+      # pendant `npm install` et casserait `next build`.
       - key: NODE_VERSION
         value: "20"
       # --- Base de données (Neon, gratuit) ---
