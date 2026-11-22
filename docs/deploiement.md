@@ -22,8 +22,27 @@ La base reste **Neon** (déjà configurée) : aucune base payante.
 4. Renseigne les variables (voir §3) — celles marquées `sync: false`.
 5. Clique **Deploy**.
 
-Le build : `npm install && npm run build` ; le démarrage : `npm run start`.
+Le build : `npm install --include=dev && npm run build` ; le démarrage : `npm run start`.
 HealthCheck : `/api/health` (doit répondre `{"status":"ok",...}`).
+
+> ⚠️ **`NODE_ENV=production` casse le build.** Render pose `NODE_ENV=production` au runtime, mais s'il
+> est aussi présent dans les variables, `npm install` omet les `devDependencies` (Tailwind,
+> TypeScript…) → `Module not found`. C'est pour ça que le buildCommand force `--include=dev` et que
+> `NODE_ENV` n'est **jamais** déclaré dans les variables d'environnement.
+>
+> ⚠️ **Un service piloté par blueprint** (`render.yaml` sur GitHub) **ignore les modifications
+> faites via le tableau de bord ou l'API**. Il faut pousser le YAML à jour. Pour piloter autrement :
+> `render.yaml` est la source de vérité, l'API sert de filet de sécurité (et le PATCH doit viser
+> `serviceDetails.envSpecificDetails.buildCommand`, pas la racine).
+
+### Déploiement piloté par l'API (optionnel)
+
+```bash
+RENDER_API_KEY=xxx node scripts/render-deploy.mjs
+```
+
+Le script : retrouve le service → corrige le `buildCommand` → synchronise les 9 variables →
+déploiement avec purge du cache → attend `live` → vérifie `/api/health`.
 
 ## 3. Variables d'environnement de production
 
@@ -59,7 +78,24 @@ APP_URL=https://TON-URL.onrender.com node scripts/telegram-setup.mjs
 ```
 curl https://TON-URL.onrender.com/api/health
 curl -X POST https://TON-URL.onrender.com/api/telegram/webhook   # doit renvoyer 401 (secret manquant)
+node scripts/shops-smoke.mjs https://TON-URL.onrender.com        # 12 OK / 0 ÉCHEC
 ```
+
+### État du déploiement (2026-11-22, 22:45)
+
+| Élément | Valeur |
+|---|---|
+| URL de production | **https://tout-en-un-business-manager.onrender.com** |
+| Service Render | `srv-dc1m8rqfngtc7381n0rg`, plan **Free**, région **frankfurt** |
+| Tableau de bord | https://dashboard.render.com/web/srv-dc1m8rqfngtc7381n0rg |
+| Base de données | Neon, branche `production` (14 tables) |
+| Webhook Telegram | actif → `…/api/telegram/webhook` (secret vérifié, 401 sans) |
+| Pages vérifiées | `/` `/register` `/login` `/boutiques` `/mini-app` → 200 |
+| API boutiques | 12/12 OK en production |
+| `config` du healthcheck | `database` ✅ `encryptionKey` ✅ `sessionSecret` ✅ `telegramBotToken` ✅ `telegramWebhookSecret` ✅ · `storage` ❌ `aiKey` ❌ (non configurés) |
+
+**Limites du plan Free** : l'instance se met en veille après ~15 min d'inactivité (premier accès
+lent, ~30-60 s). Aucune carte bancaire, aucune facturation.
 
 ## 6. Coûts
 

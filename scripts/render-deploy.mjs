@@ -60,7 +60,7 @@ async function main() {
       repo: REPO,
       branch: "main",
       rootDir: "",
-      buildCommand: "npm install && npm run build",
+      buildCommand: "npm install --include=dev && npm run build",
       startCommand: "npm run start",
       healthCheckPath: "/api/health",
       plan: "free",
@@ -76,9 +76,20 @@ async function main() {
 
   // Le build a besoin des devDependencies (Tailwind, TypeScript…) : NODE_ENV=production
   // les sauterait au `npm install`. On force --include=dev.
+  // IMPORTANT : le champ vit dans serviceDetails.envSpecificDetails, pas à la racine.
+  // Le blueprint (render.yaml sur GitHub) reste la source de vérité ; ce PATCH ne sert
+  // que de filet de sécurité si le YAML n'est pas à jour.
+  const BUILD_COMMAND = "npm install --include=dev && npm run build";
+  const START_COMMAND = "npm run start";
   await call("PATCH", `/services/${id}`, {
-    buildCommand: "npm install --include=dev && npm run build",
+    serviceDetails: { envSpecificDetails: { buildCommand: BUILD_COMMAND, startCommand: START_COMMAND } },
   });
+  const check = await call("GET", `/services/${id}`);
+  const applied = check.serviceDetails?.envSpecificDetails?.buildCommand;
+  if (applied !== BUILD_COMMAND) {
+    console.error(`buildCommand non appliqué (lu : ${applied}). Synchronise le blueprint puis relance.`);
+    process.exit(1);
+  }
   console.log("buildCommand corrigé (devDependencies inclus).");
 
   const details = await call("GET", `/services/${id}`);
