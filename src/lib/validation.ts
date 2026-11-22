@@ -56,6 +56,44 @@ export const resetPasswordSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// ---------------------------------------------------------------------------
+// Boutiques & membres (Lot 5)
+// ---------------------------------------------------------------------------
+
+export const shopNameSchema = z.string().trim().min(2, "Le nom est trop court.").max(120);
+export const platformSchema = z.string().trim().min(2).max(40).default("jumia");
+export const externalShopIdSchema = z
+  .string()
+  .trim()
+  .min(1, "L'identifiant boutique Jumia est requis.")
+  .max(80);
+export const countrySchema = z.string().trim().min(2).max(80).optional();
+export const currencySchema = z.string().trim().length(3).regex(/^[A-Z]{3}$/);
+
+export const createShopSchema = z.object({
+  name: shopNameSchema,
+  platform: platformSchema,
+  externalShopId: externalShopIdSchema,
+  country: countrySchema,
+  currency: currencySchema.default("XOF"),
+});
+
+export const updateShopSchema = z.object({
+  name: shopNameSchema.optional(),
+  country: countrySchema,
+  currency: currencySchema.optional(),
+  status: z.enum(["pending", "connected", "error", "disconnected"]).optional(),
+});
+
+export const inviteMemberSchema = z.object({
+  email: emailSchema,
+  role: z.enum(["manager", "stock", "accountant", "assistant"]),
+});
+
+export const changeRoleSchema = z.object({
+  role: z.enum(["manager", "stock", "accountant", "assistant"]),
+});
+
 export function formatZodErrors(error: z.ZodError): string[] {
   return error.issues.map((issue) => `${issue.path.join(".") || "(formulaire)"} : ${issue.message}`);
 }

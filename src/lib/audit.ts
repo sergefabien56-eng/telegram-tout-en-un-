@@ -10,7 +10,13 @@ export type AuditAction =
   | "auth.password_reset_completed"
   | "auth.account_locked"
   | "auth.telegram_link_code"
-  | "auth.telegram_linked";
+  | "auth.telegram_linked"
+  | "shop.created"
+  | "shop.updated"
+  | "shop.disconnected"
+  | "shop.member_invited"
+  | "shop.member_removed"
+  | "shop.member_role_changed";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

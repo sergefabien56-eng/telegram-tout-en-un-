@@ -177,6 +177,24 @@ export const shopMembers = pgTable(
 // Audit, tâches, notifications, réglages
 // ---------------------------------------------------------------------------
 
+export const shopInvites = pgTable(
+  "shop_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull(), // owner | manager | stock | accountant | assistant
+    invitedById: uuid("invited_by_id").references(() => users.id, { onDelete: "set null" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("shop_invites_shop_idx").on(t.shopId, t.email)],
+);
+
 export const auditLogs = pgTable(
   "audit_logs",
   {

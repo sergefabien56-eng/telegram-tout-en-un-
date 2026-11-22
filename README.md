@@ -144,7 +144,18 @@ bash scripts/telegram-smoke.sh http://localhost:3000 "$TELEGRAM_WEBHOOK_SECRET"
 - Mini App `/mini-app` : `initData` vérifié (HMAC-SHA256) puis session posée.
 - Voir `docs/telegram.md`.
 
-## 11. Règles du projet
+## 11. Boutiques & permissions
+
+```bash
+node scripts/shops-smoke.mjs http://localhost:3000
+```
+
+- Rôles : `owner` (tout), `manager`, `stock`, `accountant`, `assistant`.
+- Permissions `module:action` vérifiées **côté serveur** (`src/lib/permissions.ts`).
+- Invitation par e-mail : ajout immédiat si le compte existe, sinon invitation en attente.
+- Voir `docs/boutiques.md`.
+
+## 12. Règles du projet
 
 - Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
 - Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».

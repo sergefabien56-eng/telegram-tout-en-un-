@@ -40,7 +40,7 @@
 - ✅ **Phase 1 — Lot 2** : schéma PostgreSQL 12 tables + migration, base **Neon** connectée.
 - ✅ **Phase 1 — Lot 3** : authentification web ([auth.md](auth.md)) — scrypt, sessions, réinitialisation, anti-abus, audit.
 - ✅ **Phase 1 — Lot 4** : bot Telegram + Mini App ([telegram.md](telegram.md)) — webhook sécurisé, liaison de compte, `initData` vérifié.
-- ⬜ **Phase 1 — Lot 5** : boutiques, rôles, permissions.
+- ✅ **Phase 1 — Lot 5** : boutiques, rôles & permissions ([boutiques.md](boutiques.md)) — API 12/12, tests 11/11.
 - ⬜ **Phase 1 — Lot 6** : interface commune (mobile + bureau).
 - ⬜ **Phase 1 — Lot 7** : audit, santé, sauvegarde.
 - ⬜ **Phase 1 — Lot 8** : CI/CD + déploiement.

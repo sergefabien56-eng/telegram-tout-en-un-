@@ -73,7 +73,8 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 - ✅ L2 Base de données & migrations (schéma Drizzle 12 tables + migration `drizzle/0000_*.sql`) · **base Neon connectée** (branche `production`, 12 tables, smoke OK)
 - ✅ L3 Auth Web (scrypt, sessions serveur, réinitialisation, anti-abus 5/15 min, audit) · smoke 8/8 sur Neon · détails `docs/auth.md`
 - ✅ L4 Telegram/Mini App (webhook + secret, liaison par code à usage unique, initData HMAC vérifié, Mini App) · smoke 8/8 + liaison réelle en base · détails `docs/telegram.md` · **en attente d'un vrai token bot + URL HTTPS publique** (déploiement Lot 8)
-- ⏳ L5 Boutiques/rôles/permissions · L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
+- ✅ L5 Boutiques/rôles/permissions (CRUD boutiques, membres, invitations, rôles owner/manager/stock/accountant/assistant, permissions module:action côté serveur) · smoke API 12/12 + 11 tests intégration · détails `docs/boutiques.md`
+- ⏳ L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
 
 ## 7. Prochaine action (après validation)
 

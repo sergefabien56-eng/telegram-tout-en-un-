@@ -60,7 +60,13 @@ export default async function DashboardPage() {
         <div className="card mt-6 p-5">
           <h2 className="text-sm font-semibold text-night">Prochaines étapes</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>· Connecter une boutique Jumia (Lot 5 — boutiques &amp; rôles).</li>
+            <li>
+              ·{" "}
+              <a href="/boutiques" className="text-primary hover:underline">
+                Connecter une boutique Jumia
+              </a>{" "}
+              et inviter ton équipe.
+            </li>
             <li>· Activer le bot Telegram (Lot 4).</li>
             <li>· Inviter des vendeurs (permissions, Lot 5).</li>
           </ul>
