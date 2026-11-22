@@ -1,4 +1,5 @@
 import { Logo } from "@/components/logo";
+import { TelegramLinkButton } from "@/components/telegram-link-button";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 
@@ -50,6 +51,10 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm font-medium text-night">Actif</p>
             <p className="mt-1 text-xs text-muted">Authentification web opérationnelle.</p>
           </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <TelegramLinkButton />
         </div>
 
         <div className="card mt-6 p-5">

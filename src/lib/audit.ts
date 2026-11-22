@@ -8,7 +8,9 @@ export type AuditAction =
   | "auth.logout"
   | "auth.password_reset_requested"
   | "auth.password_reset_completed"
-  | "auth.account_locked";
+  | "auth.account_locked"
+  | "auth.telegram_link_code"
+  | "auth.telegram_linked";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

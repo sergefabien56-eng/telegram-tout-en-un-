@@ -128,7 +128,23 @@ npm run dev
 - Anti-abus : 5 échecs / 15 min par IP ; journal d'audit `audit_logs`.
 - Voir `docs/auth.md`.
 
-## 10. Règles du projet
+## 10. Telegram
+
+```bash
+# 1. Renseigner TELEGRAM_BOT_TOKEN et TELEGRAM_WEBHOOK_SECRET dans .env.local
+# 2. Configurer le webhook (nécessite une URL HTTPS publique)
+TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... APP_URL=https://... node scripts/telegram-setup.mjs
+
+# Tests (serveur lancé avec les variables Telegram)
+bash scripts/telegram-smoke.sh http://localhost:3000 "$TELEGRAM_WEBHOOK_SECRET"
+```
+
+- Webhook `POST /api/telegram/webhook` (secret vérifié à temps constant).
+- Liaison : `POST /api/telegram/link-code` → code 8 caractères, 10 min, usage unique → `/lier CODE`.
+- Mini App `/mini-app` : `initData` vérifié (HMAC-SHA256) puis session posée.
+- Voir `docs/telegram.md`.
+
+## 11. Règles du projet
 
 - Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
 - Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».

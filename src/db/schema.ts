@@ -115,6 +115,21 @@ export const userNotificationPrefs = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.channel, t.type] })],
 );
 
+export const accountLinkCodes = pgTable(
+  "account_link_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("account_link_codes_user_idx").on(t.userId, t.createdAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Boutiques & permissions
 // ---------------------------------------------------------------------------
