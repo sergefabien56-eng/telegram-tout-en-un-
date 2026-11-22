@@ -71,7 +71,8 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 **Phase 1 — lots :**
 - ✅ L1 Initialisation & qualité (Next.js 15, TS strict, Tailwind, ESLint/Prettier, Vitest, Playwright, CI GitHub Actions, `.env.example`)
 - ✅ L2 Base de données & migrations (schéma Drizzle 12 tables + migration `drizzle/0000_*.sql`) · **base Neon connectée** (branche `production`, 12 tables, smoke OK)
-- ⏳ L3 Auth Web · L4 Telegram/Mini App · L5 Boutiques/rôles/permissions · L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
+- ✅ L3 Auth Web (scrypt, sessions serveur, réinitialisation, anti-abus 5/15 min, audit) · smoke 8/8 sur Neon · détails `docs/auth.md`
+- ⏳ L4 Telegram/Mini App · L5 Boutiques/rôles/permissions · L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
 
 ## 7. Prochaine action (après validation)
 

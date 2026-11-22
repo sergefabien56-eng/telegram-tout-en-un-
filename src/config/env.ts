@@ -15,7 +15,6 @@ const envSchema = z.object({
 
   ENCRYPTION_KEY: z.string().min(1).optional(),
   SESSION_SECRET: z.string().min(1).optional(),
-  JWT_SECRET: z.string().min(1).optional(),
 
   TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),

@@ -83,6 +83,27 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <a
+          href="/login"
+          className="rounded-lg bg-primary px-5 py-2.5 text-center text-sm font-medium text-white transition hover:bg-primary/90"
+        >
+          Se connecter
+        </a>
+        <a
+          href="/register"
+          className="rounded-lg border border-border bg-white px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
+        >
+          Créer un compte
+        </a>
+        <a
+          href="/dashboard"
+          className="rounded-lg border border-border bg-white px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
+        >
+          Tableau de bord
+        </a>
+      </section>
+
       <footer className="mt-10 border-t border-border pt-5 text-xs text-muted">
         Aucune donnée de démonstration en production. Les modules non livrés sont marqués « Bientôt
         disponible ».

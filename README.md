@@ -111,7 +111,24 @@ node scripts/db-smoke.mjs
 - **`DATABASE_URL_UNPOOLED`** (directe) → utilisée par les migrations Drizzle.
 - La config de lien locale est dans `~/.neon` et `~/.config/neon` (ignorés par Git).
 
-## 9. Règles du projet
+## 9. Authentification
+
+```bash
+npm run dev
+# inscription  → POST /api/auth/register   (ou page /register)
+# connexion    → POST /api/auth/login
+# session      → GET  /api/auth/me
+# déconnexion  → POST /api/auth/logout
+# mot de passe oublié → POST /api/auth/password-reset
+```
+
+- Hachage **scrypt** (aucune dépendance externe), comparaison à temps constant.
+- Cookie `teu_session` httpOnly ; seule l'empreinte SHA-256 du jeton est stockée.
+- Réponses inscription / réinitialisation identiques (anti-énumération).
+- Anti-abus : 5 échecs / 15 min par IP ; journal d'audit `audit_logs`.
+- Voir `docs/auth.md`.
+
+## 10. Règles du projet
 
 - Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
 - Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».
