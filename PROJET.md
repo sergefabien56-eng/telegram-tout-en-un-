@@ -7,6 +7,7 @@
 - **Créé le** : 22/11/2026
 - **Statut** : **Phase 0 validée** · **Phase 1 en cours** (Lots 1 et 2 livrés, tests + build verts)
 - **Budget** : **0 FCFA** — aucun service payant activé, aucune carte, aucun domaine
+- **Dépôt GitHub** : https://github.com/sergefabien56-eng/telegram-tout-en-un-.git
 
 ---
 
@@ -69,7 +70,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 **Phase 1 — lots :**
 - ✅ L1 Initialisation & qualité (Next.js 15, TS strict, Tailwind, ESLint/Prettier, Vitest, Playwright, CI GitHub Actions, `.env.example`)
-- ✅ L2 Base de données & migrations (schéma Drizzle 12 tables + migration `drizzle/0000_*.sql`)
+- ✅ L2 Base de données & migrations (schéma Drizzle 12 tables + migration `drizzle/0000_*.sql`) · **base Neon connectée** (branche `production`, 12 tables, smoke OK)
 - ⏳ L3 Auth Web · L4 Telegram/Mini App · L5 Boutiques/rôles/permissions · L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
 
 ## 7. Prochaine action (après validation)

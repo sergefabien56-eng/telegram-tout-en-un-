@@ -9,7 +9,9 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "",
+    // Les migrations utilisent la connexion directe (non poolée) ;
+    // l'application utilise DATABASE_URL (poolée, adaptée au serverless).
+    url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "",
   },
   strict: true,
   verbose: true,

@@ -22,6 +22,8 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@neon/config": "^1.14.6",
+    "@neon/env": "^2.1.9",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.38.4",
     "lucide-react": "^0.469.0",

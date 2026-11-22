@@ -27,3 +27,6 @@ test-results/
 .config/
 .cache/
 .ssh/
+.neon
+uploads/
+.sudo_as_admin_successful

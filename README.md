@@ -92,7 +92,26 @@ npm test          # Vitest
 npm run e2e       # Playwright (npx playwright install au préalable)
 ```
 
-## 8. Règles du projet
+## 8. Base de données (Neon)
+
+Le projet est branché sur **Neon** (PostgreSQL serverless, offre gratuite) via `neon.ts` :
+
+```bash
+# Provisionne les services déclarés dans neon.ts et récupère les variables dans .env.local
+npx neon@latest deploy
+
+# Applique les migrations (utilise DATABASE_URL_UNPOOLED)
+npm run db:migrate
+
+# Vérifie la base de bout en bout (tables + lecture/écriture)
+node scripts/db-smoke.mjs
+```
+
+- **`DATABASE_URL`** (poolée) → utilisée par l'application (serverless).
+- **`DATABASE_URL_UNPOOLED`** (directe) → utilisée par les migrations Drizzle.
+- La config de lien locale est dans `~/.neon` et `~/.config/neon` (ignorés par Git).
+
+## 9. Règles du projet
 
 - Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
 - Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».
