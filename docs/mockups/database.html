@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schéma base de données — TOUT EN UN</title>
+<style>
+  :root{--night:#101C39;--primary:#1765F5;--surface:#F5F7FB;--border:#E3E8F2;--text:#0F172A;--muted:#64748B}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--surface);color:var(--text)}
+  header{background:var(--night);color:#fff;padding:24px 32px}
+  header h1{margin:0;font-size:22px}header p{margin:4px 0 0;color:#9FB0D0;font-size:13px}
+  main{max-width:1240px;margin:0 auto;padding:24px}
+  .mod{margin-bottom:22px}
+  .mod h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;border-left:4px solid var(--primary);padding-left:10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .tbl{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .tbl .th{background:#EEF3FE;color:var(--night);font-weight:700;font-size:13px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center}
+  .tbl .th .pk{font-size:10px;font-weight:700;color:var(--primary);background:#fff;border:1px solid #C7D8FB;border-radius:6px;padding:1px 6px}
+  .tbl ul{margin:0;padding:8px 12px 10px;list-style:none}
+  .tbl li{font-size:12px;padding:3px 0;display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #EEF2F7}
+  .tbl li:last-child{border:0}
+  .tbl .c{color:var(--muted)}.tbl .t{color:var(--night);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+  .key{background:#FFFBEB;color:#92400E;border-radius:5px;padding:0 5px;font-size:10px;font-weight:700}
+  .rel{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:8px}
+  .rel h2{margin:0 0 10px;font-size:14px}
+  .rel code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--night)}
+  .note{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;border-radius:10px;padding:12px 16px;font-size:13px;margin-top:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Schéma de base de données (Phase 0)</h1>
+  <p>PostgreSQL · isolation multi-boutiques · montants entiers + devise · dates UTC</p>
+</header>
+<main>
+  <div class="mod">
+    <h2>Auth & utilisateurs</h2>
+    <div class="grid">
+      <div class="tbl"><div class="th">users <span class="pk">PK id</span></div><ul>
+        <li><span class="c">email</span><span class="t">citext UNIQUE</span></li>
+        <li><span class="c">password_hash</span><span class="t">text</span></li>
+        <li><span class="c">timezone</span><span class="t">text</span></li>
+        <li><span class="c">two_factor_secret_enc</span><span class="t">AES-256-GCM</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">sessions <span class="pk">PK id</span></div><ul>
+        <li><span class="c">user_id</span><span class="t">uuid FK</span></li>
+        <li><span class="c">token_hash</span><span class="t">text</span></li>
+        <li><span class="c">expires_at</span><span class="t">timestamptz</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">telegram_accounts <span class="pk">PK id</span></div><ul>
+        <li><span class="c">telegram_id</span><span class="t">bigint UNIQUE</span></li>
+        <li><span class="c">linked_user_id</span><span class="t">uuid FK NULL</span></li>
+        <li><span class="c">link_code</span><span class="t">usage unique</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="mod">
+    <h2>Boutiques & synchronisation</h2>
+    <div class="grid">
+      <div class="tbl"><div class="th">shops <span class="pk">PK id</span></div><ul>
+        <li><span class="c">owner_user_id</span><span class="t">uuid FK</span></li>
+        <li><span class="c">platform + external_shop_id</span><span class="t">UNIQUE</span></li>
+        <li><span class="c">currency / status</span><span class="t">char(3) / text</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">shop_members <span class="pk">(shop_id,user_id)</span></div><ul>
+        <li><span class="c">role</span><span class="t">enum</span></li>
+        <li><span class="c">permissions</span><span class="t">jsonb</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">jumia_credentials <span class="pk">PK id</span></div><ul>
+        <li><span class="c">shop_id</span><span class="t">FK UNIQUE</span></li>
+        <li><span class="c">access_token_enc</span><span class="t">AES-256-GCM</span></li>
+        <li><span class="c">expires_at</span><span class="t">timestamptz</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">sync_profiles <span class="pk">(shop_id,resource)</span></div><ul>
+        <li><span class="c">cursor</span><span class="t">text</span></li>
+        <li><span class="c">last_success_at / status</span><span class="t">timestamptz / text</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">sync_jobs <span class="pk">PK id</span></div><ul>
+        <li><span class="c">shop_id / resource</span><span class="t">FK / text</span></li>
+        <li><span class="c">status / idempotency_key</span><span class="t">text</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">sync_events <span class="pk">PK id</span></div><ul>
+        <li><span class="c">job_id</span><span class="t">FK</span></li>
+        <li><span class="c">level / message / meta</span><span class="t">text/jsonb</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="mod">
+    <h2>Catalogue, commandes, factures, finance</h2>
+    <div class="grid">
+      <div class="tbl"><div class="th">products <span class="pk">PK id</span></div><ul>
+        <li><span class="c">shop_id + sku</span><span class="t">UNIQUE</span></li>
+        <li><span class="c">price_minor / cost_minor</span><span class="t">integer</span></li>
+        <li><span class="c">stock_qty / reserved_qty</span><span class="t">integer</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">orders <span class="pk">PK id</span></div><ul>
+        <li><span class="c">shop_id + external_order_id</span><span class="t">UNIQUE</span></li>
+        <li><span class="c">status / total_minor</span><span class="t">text / integer</span></li>
+        <li><span class="c">customer / raw</span><span class="t">jsonb</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">order_items <span class="pk">PK id</span></div><ul>
+        <li><span class="c">order_id / product_id</span><span class="t">FK</span></li>
+        <li><span class="c">qty / unit_price_minor</span><span class="t">integer</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">invoices <span class="pk">PK id</span></div><ul>
+        <li><span class="c">official / type</span><span class="t">bool / text</span></li>
+        <li><span class="c">storage_key / fingerprint</span><span class="t">R2 / SHA-256</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">order_financials <span class="pk">PK id</span></div><ul>
+        <li><span class="c">commission_minor / net_payout_minor</span><span class="t">integer</span></li>
+        <li><span class="c">currency / source</span><span class="t">char(3) / text</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">finance_transactions <span class="pk">PK id</span></div><ul>
+        <li><span class="c">external_transaction_id</span><span class="t">UNIQUE(shop)</span></li>
+        <li><span class="c">matched / amount_minor</span><span class="t">bool / integer</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">exchange_rates <span class="pk">(base,quote,date)</span></div><ul>
+        <li><span class="c">rate</span><span class="t">numeric(20,10)</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">returns <span class="pk">PK id</span></div><ul>
+        <li><span class="c">status / refund_minor</span><span class="t">text / integer</span></li>
+        <li><span class="c">restocked</span><span class="t">bool</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="mod">
+    <h2>Transversal</h2>
+    <div class="grid">
+      <div class="tbl"><div class="th">audit_logs <span class="pk">PK id</span></div><ul>
+        <li><span class="c">user_id / shop_id</span><span class="t">FK</span></li>
+        <li><span class="c">action / old / new</span><span class="t">text / jsonb</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">jobs <span class="pk">PK id</span></div><ul>
+        <li><span class="c">status / run_at</span><span class="t">text / timestamptz</span></li>
+        <li><span class="c">idempotency_key</span><span class="t">text</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">notifications <span class="pk">PK id</span></div><ul>
+        <li><span class="c">user_id / type</span><span class="t">FK / text</span></li>
+        <li><span class="c">status / sent_at</span><span class="t">text / timestamptz</span></li>
+      </ul></div>
+      <div class="tbl"><div class="th">webhook_events <span class="pk">PK id</span></div><ul>
+        <li><span class="c">provider / event_id</span><span class="t">UNIQUE</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="rel">
+    <h2>Relations principales</h2>
+    <code>
+      users 1—n shop_members n—1 shops 1—n products 1—n order_items n—1 orders<br>
+      orders 1—1 invoices · orders 1—1 order_financials · orders 1—n returns<br>
+      shops 1—n sync_jobs 1—n sync_events · shops 1—n suppliers 1—n purchases<br>
+      users 1—n sessions · users 1—1 telegram_accounts · users 1—n audit_logs
+    </code>
+  </div>
+
+  <div class="note"><b>Isolation :</b> toute table métier porte <code>shop_id</code>. Le filtre boutique est appliqué <b>côté serveur</b> sur chaque requête ; une politique RLS peut être ajoutée en défense en profondeur. Une boutique réelle est unique par <code>(platform, external_shop_id)</code>.</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --night: #101c39;
+  --primary: #1765f5;
+  --surface: #f5f7fb;
+  --border: #e3e8f2;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #dc2626;
+  --ink: #0f172a;
+  --muted: #64748b;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-surface text-ink antialiased;
+  }
+  /* Accessibilité : respect de la préférence de mouvement réduit. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-border bg-white shadow-sm;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+}

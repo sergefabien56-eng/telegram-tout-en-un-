@@ -1,0 +1,101 @@
+# TOUT EN UN BUSINESS MANAGER
+
+ERP/SaaS de gestion commerciale **multi-boutiques Jumia**, accessible sur **Telegram** (bot + Mini App) et sur le **web** (PC, tablette, téléphone). Une seule application, une seule base de données, les mêmes permissions.
+
+> **Phase actuelle : Phase 1 — Fondations et interface.** Les modules non livrés sont marqués « Bientôt disponible ». Aucune donnée fictive en production.
+
+---
+
+## 1. Stack
+
+| Domaine | Choix |
+|---|---|
+| Application | **Next.js (App Router)** + **React 19** |
+| Langage | **TypeScript strict** |
+| Base de données | **PostgreSQL** via **Drizzle ORM** |
+| UI | **Tailwind CSS** + **shadcn/ui** (progressif) + **Lucide** |
+| Tests | **Vitest** (unitaires/intégration) + **Playwright** (E2E) |
+| CI/CD | **GitHub Actions** |
+| Hébergement (prévu) | **Render** ou **Netlify** (gratuit, usage commercial autorisé) |
+| Base (prévue) | **Neon** (PostgreSQL gratuit) |
+| Fichiers (prévu) | **Cloudflare R2** |
+| Notifications | **Telegram Bot API** |
+
+Détails et justifications : [`docs/architecture.md`](docs/architecture.md) · [`docs/hebergement-gratuit.md`](docs/hebergement-gratuit.md).
+
+---
+
+## 2. Prérequis
+
+- **Node.js ≥ 20** (voir `.nvmrc`)
+- npm ≥ 10
+
+## 3. Démarrage rapide
+
+```bash
+npm install
+cp .env.example .env.local     # puis renseigner les variables
+npm run dev                    # http://localhost:3000
+```
+
+## 4. Scripts
+
+| Script | Rôle |
+|---|---|
+| `npm run dev` | Développement |
+| `npm run build` | Build de production |
+| `npm run start` | Serve le build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Vérification de types (`tsc --noEmit`) |
+| `npm test` | Tests unitaires (Vitest) |
+| `npm run e2e` | Tests E2E (Playwright, navigateurs requis) |
+| `npm run format` | Prettier |
+| `npm run db:generate` | Génère une migration Drizzle |
+| `npm run db:migrate` | Applique les migrations |
+
+## 5. Variables d'environnement
+
+Copier `.env.example` → `.env.local`. **Jamais de secret versionné.** Variables principales :
+
+```
+DATABASE_URL=...            # PostgreSQL
+ENCRYPTION_KEY=...          # 32 octets en base64 (AES-256-GCM)
+SESSION_SECRET=...
+JWT_SECRET=...
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_WEBHOOK_SECRET=...
+R2_*=...                    # Stockage documents
+GEMINI_API_KEY=...          # MIMI (optionnel)
+```
+
+La page d'accueil affiche **l'état réel** de la configuration (jamais les valeurs).
+
+## 6. Structure
+
+```
+src/
+  app/                 # routes (App Router)
+    page.tsx           # accueil (état réel + modules)
+    api/health/        # santé (présences de config)
+  components/          # composants UI
+  config/env.ts        # validation Zod de l'environnement
+  lib/                 # utilitaires (money, cn, ...)
+  navigation.config.ts # navigation unique Web + Mini App
+docs/                  # documentation de conception (Phase 0)
+e2e/                   # tests Playwright
+```
+
+## 7. Tests
+
+```bash
+npm test          # Vitest
+npm run e2e       # Playwright (npx playwright install au préalable)
+```
+
+## 8. Règles du projet
+
+- Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
+- Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».
+- Montants en entiers + devise ; dates en UTC.
+- Permissions vérifiées **côté serveur**.
+- Voir [`PROJET.md`](PROJET.md) et [`docs/`](docs/index.md).

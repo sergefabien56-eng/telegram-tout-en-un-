@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord — TOUT EN UN</title>
+<style>
+  :root{--night:#101C39;--primary:#1765F5;--surface:#F5F7FB;--border:#E3E8F2;--text:#0F172A;--muted:#64748B;--success:#16A34A;--warning:#F59E0B;--danger:#DC2626}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--surface);color:var(--text)}
+  .app{display:flex;min-height:100vh}
+  .side{width:248px;background:var(--night);color:#fff;padding:18px 14px;position:sticky;top:0;height:100vh}
+  .logo{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+  .logo .mark{width:32px;height:32px;border-radius:8px;background:var(--primary);display:grid;place-items:center;font-weight:700;font-size:13px}
+  .logo .name{font-weight:700;font-size:15px}
+  .sec{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7E90B4;margin:16px 8px 6px}
+  .nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:#C6D2E8;text-decoration:none;font-size:14px}
+  .nav.active{background:rgba(23,101,245,.22);color:#fff;font-weight:600}
+  .nav .ic{width:18px;height:18px;flex:0 0 18px}
+  .main{flex:1;min-width:0}
+  .top{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:12px 22px}
+  .shopSel{border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;background:#fff}
+  .search{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-size:13px}
+  .iconbtn{width:36px;height:36px;border-radius:9px;border:1px solid var(--border);display:grid;place-items:center;background:#fff;position:relative}
+  .dot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--danger)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px}
+  .content{padding:22px;max-width:1200px}
+  .title{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .title h1{margin:0;font-size:22px}
+  .meta{color:var(--muted);font-size:12px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px}
+  .kpi .lb{font-size:12px;color:var(--muted);font-weight:600}
+  .kpi .vl{font-size:22px;font-weight:700;margin-top:6px}
+  .kpi .tr{font-size:12px;margin-top:6px;color:var(--success);font-weight:600}
+  .kpi .tr.warn{color:var(--warning)}
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px}
+  .card h3{margin:0 0 12px;font-size:15px}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:8px}
+  .bar{flex:1;background:#DCE7FF;border-radius:6px 6px 0 0;position:relative}
+  .bar.hl{background:var(--primary)}
+  .axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:8px 8px;border-bottom:1px solid var(--border)}
+  td{padding:10px 8px;border-bottom:1px solid var(--border)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600}
+  .b-ok{background:#DCFCE7;color:#15803D}.b-warn{background:#FEF3C7;color:#B45309}.b-err{background:#FEE2E2;color:#B91C1C}.b-info{background:#DBEAFE;color:#1D4ED8}
+  .shop{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+  .shop:last-child{border:0}
+  .shop .n{font-weight:600;font-size:13px}.shop .s{color:var(--muted);font-size:12px}
+  .soon{color:var(--muted);font-size:12px;border:1px dashed var(--border);border-radius:8px;padding:8px;text-align:center;margin-top:10px}
+  @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><div class="mark">TU</div><div class="name">TOUT EN UN</div></div>
+    <div class="sec">A · Tableau de bord</div>
+    <a class="nav active" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Tableau de bord</a>
+    <div class="sec">B · Ventes</div>
+    <a class="nav" href="commandes.html"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Commandes</a>
+    <div class="sec">C · Boutiques</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1.5-5h15L21 9M3 9v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9M3 9h18M9 21v-7h6v7"/></svg>Boutiques</a>
+    <div class="sec">D · Catalogue</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Produits</a>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9z"/></svg>Stocks</a>
+    <div class="sec">E · Finances</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Finances</a>
+    <div class="sec">F · Analyses</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M8 17V9m5 8V5m5 12v-6"/></svg>Rapports</a>
+    <div class="sec">G · IA</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/></svg>MIMI</a>
+    <div class="sec">H · Admin</div>
+    <a class="nav" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Administration</a>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <select class="shopSel"><option> Toutes les boutiques</option><option> Boutique Abidjan</option><option> Boutique Yopougon</option></select>
+      <div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Recherche globale…</div>
+      <div class="iconbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="dot"></span></div>
+      <div class="avatar">KD</div>
+    </div>
+
+    <div class="content">
+      <div class="title"><h1>Tableau de bord</h1><span class="meta">Période : 01/11 – 21/11/2026 · Toutes boutiques · Actualisé le 22/11/2026 à 09:12 (UTC)</span></div>
+      <div class="meta">Données réelles —.sync : 3/3 boutiques synchronisées.</div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="lb">Chiffre d'affaires livré</div><div class="vl">4 820 000 FCFA</div><div class="tr">▲ 8,2 % vs période préc.</div></div>
+        <div class="kpi"><div class="lb">Commandes</div><div class="vl">214</div><div class="tr">dont 12 à traiter</div></div>
+        <div class="kpi"><div class="lb">Marge nette estimée</div><div class="vl">764 000 FCFA</div><div class="tr warn">▲ 2,1 % ·Données estimées</div></div>
+        <div class="kpi"><div class="lb">Stocks faibles / ruptures</div><div class="vl">9 / 3</div><div class="tr warn">Action conseillée</div></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Ventes quotidiennes (FCFA)</h3>
+          <div class="bars">
+            <div class="bar" style="height:38%"></div><div class="bar" style="height:52%"></div><div class="bar" style="height:44%"></div>
+            <div class="bar" style="height:66%"></div><div class="bar" style="height:74%"></div><div class="bar hl" style="height:92%"></div>
+            <div class="bar" style="height:58%"></div><div class="bar" style="height:49%"></div><div class="bar" style="height:70%"></div>
+            <div class="bar" style="height:81%"></div><div class="bar" style="height:63%"></div>
+          </div>
+          <div class="axis"><span>12 nov</span><span>17 nov</span><span>21 nov</span></div>
+        </div>
+        <div class="card">
+          <h3>État des boutiques</h3>
+          <div class="shop"><div><div class="n">Boutique Abidjan</div><div class="s">Sync il y a 2 h</div></div><span class="badge b-ok">Synchronisé</span></div>
+          <div class="shop"><div><div class="n">Boutique Yopougon</div><div class="s">Sync il y a 5 h</div></div><span class="badge b-ok">Synchronisé</span></div>
+          <div class="shop"><div><div class="n">Boutique Plateau</div><div class="s">Sync en erreur</div></div><span class="badge b-err">Erreur</span></div>
+          <div class="shop"><div><div class="n">Boutique Cocody</div><div class="s">Jamais synchronisée</div></div><span class="badge b-warn">Reconnexion</span></div>
+          <div class="soon">Bientôt disponible : synchronisation automatique continue</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3>Dernières commandes</h3>
+        <table>
+          <thead><tr><th>N°</th><th>Boutique</th><th>Client</th><th>Montant</th><th>Statut</th><th>Mise à jour</th></tr></thead>
+          <tbody>
+            <tr><td>#10421</td><td>Abidjan</td><td>A. Koné</td><td>84 500 FCFA</td><td><span class="badge b-info">Prête</span></td><td>22/11 08:41</td></tr>
+            <tr><td>#10420</td><td>Yopougon</td><td>M. Diarra</td><td>42 000 FCFA</td><td><span class="badge b-ok">Livrée</span></td><td>22/11 08:12</td></tr>
+            <tr><td>#10419</td><td>Abidjan</td><td>S. Touré</td><td>128 900 FCFA</td><td><span class="badge b-warn">En cours</span></td><td>21/11 19:03</td></tr>
+            <tr><td>#10418</td><td>Plateau</td><td>K. N'Guessan</td><td>15 000 FCFA</td><td><span class="badge b-err">Annulée</span></td><td>21/11 17:22</td></tr>
+          </tbody>
+        </table>
+        <div class="meta" style="margin-top:10px">4 lignes sur 214 — <a href="commandes.html" style="color:var(--primary)">Tout voir →</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

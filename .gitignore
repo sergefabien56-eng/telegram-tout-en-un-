@@ -1,0 +1,29 @@
+# Dépendances
+node_modules/
+
+# Build Next.js
+.next/
+out/
+build/
+dist/
+
+# Environnement (jamais versionné)
+.env
+.env.local
+.env*.local
+
+# Tests / coverage
+coverage/
+playwright-report/
+test-results/
+
+# Divers
+*.log
+.DS_Store
+*.tsbuildinfo
+
+# Caches et configuration locale
+.npm/
+.config/
+.cache/
+.ssh/
