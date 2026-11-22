@@ -74,7 +74,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 - ✅ L3 Auth Web (scrypt, sessions serveur, réinitialisation, anti-abus 5/15 min, audit) · smoke 8/8 sur Neon · détails `docs/auth.md`
 - ✅ L4 Telegram/Mini App (webhook + secret, liaison par code à usage unique, initData HMAC vérifié, Mini App) · smoke 8/8 + liaison réelle en base · détails `docs/telegram.md` · **en attente d'un vrai token bot + URL HTTPS publique** (déploiement Lot 8)
 - ✅ L5 Boutiques/rôles/permissions (CRUD boutiques, membres, invitations, rôles owner/manager/stock/accountant/assistant, permissions module:action côté serveur) · smoke API 12/12 + 11 tests intégration · détails `docs/boutiques.md`
-- ⏳ L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement
+- ⏳ L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement (préparé : `render.yaml` + `docs/deploiement.md`, build prod prouvé 12/12)
 
 ## 7. Prochaine action (après validation)
 

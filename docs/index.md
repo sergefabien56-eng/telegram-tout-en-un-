@@ -43,4 +43,4 @@
 - ✅ **Phase 1 — Lot 5** : boutiques, rôles & permissions ([boutiques.md](boutiques.md)) — API 12/12, tests 11/11.
 - ⬜ **Phase 1 — Lot 6** : interface commune (mobile + bureau).
 - ⬜ **Phase 1 — Lot 7** : audit, santé, sauvegarde.
-- ⬜ **Phase 1 — Lot 8** : CI/CD + déploiement.
+- ⬜ **Phase 1 — Lot 8** : CI/CD + déploiement — prêt (`render.yaml`, [deploiement.md](deploiement.md)), en attente du déploiement par l'utilisateur.

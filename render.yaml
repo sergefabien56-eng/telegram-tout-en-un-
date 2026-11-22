@@ -1,0 +1,35 @@
+# Blueprint Render — TOUT EN UN Business Manager
+# Déploiement gratuit : https://render.com/deploy?repo=https://github.com/sergefabien56-eng/telegram-tout-en-un-
+# Plan « free » : le service se met en veille après 15 min d'inactivité (réveil ~50 s).
+services:
+  - type: web
+    name: tout-en-un-business-manager
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # --- Base de données (Neon, gratuit) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      # --- Sécurité ---
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      # --- Telegram ---
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false

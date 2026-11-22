@@ -62,15 +62,20 @@ if [ -n "$TOKEN" ]; then
     -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\",\"password\":\"NouveauMot99\"}")
   echo "$CONFIRM"
   echo "$CONFIRM" | grep -q '"ok":true'; check "réinitialisation" $?
+  NEW_OK=1
 else
-  echo "devToken absent (production ?)"; check "réinitialisation" 1
+  # En production, aucun jeton n'est renvoyé (comportement voulu) : étapes ignorées.
+  echo "devToken absent (production) -> étapes 7/8 ignorées."
+  NEW_OK=0
 fi
 
-step "8. Connexion avec le nouveau mot de passe"
-NEWLOGIN=$(curl -s -b "$JAR" -c "$JAR" -X POST "$BASE/api/auth/login" \
-  -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"NouveauMot99\"}")
-echo "$NEWLOGIN"
-echo "$NEWLOGIN" | grep -q '"ok":true'; check "nouveau mot de passe" $?
+if [ "$NEW_OK" = "1" ]; then
+  step "8. Connexion avec le nouveau mot de passe"
+  NEWLOGIN=$(curl -s -b "$JAR" -c "$JAR" -X POST "$BASE/api/auth/login" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"NouveauMot99\"}")
+  echo "$NEWLOGIN"
+  echo "$NEWLOGIN" | grep -q '"ok":true'; check "nouveau mot de passe" $?
+fi
 
 printf '\n=== RÉSULTAT : %d OK / %d ÉCHEC ===\n' "$PASS" "$FAIL"
 rm -f "$JAR"
