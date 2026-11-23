@@ -1,11 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
-/** Charge `.env.local` (le test runner Playwright ne le fait pas). */
+/**
+ * Charge `.env.local` (le runner Playwright ne le fait pas).
+ * Chemin fixe volontairement : le runner transpile en CommonJS.
+ */
 function loadEnvLocal() {
-  const path = new URL("../.env.local", import.meta.url);
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
+  const file = process.env.E2E_ENV_FILE ?? ".env.local";
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf8").split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eq = trimmed.indexOf("=");
