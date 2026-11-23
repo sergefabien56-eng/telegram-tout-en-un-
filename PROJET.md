@@ -86,7 +86,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 ## 7. Prochaine action
 
 **Reste à faire (par priorité)** :
-1. Actions rapides dans la barre du haut (`Nouvelle commande`, `Ajouter une boutique`).
+1. ~~Actions rapides dans la barre du haut~~ ✅ **livré** (commit `4fb888f`) — « Ajouter une boutique » ouvre une modale réelle ; « Nouvelle commande » porte le badge « Bientôt disponible » (module non branché, R1).
 2. Bottom nav + thème Telegram de la Mini App.
 3. Tests E2E complets + accessibilité (clavier, contrastes).
 4. Déploiement automatique GitHub → Render (`autoDeploy` inefficace sur Free).
