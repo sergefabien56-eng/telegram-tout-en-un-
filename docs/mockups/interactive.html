@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette interactive — TOUT EN UN Business Manager</title>
+<style>
+  /* ---- Jetons (identiques à l'application) ----------------------------- */
+  :root{
+    --night:#101C39; --primary:#1765F5; --surface:#F5F7FB; --border:#E3E8F2;
+    --text:#0F172A; --muted:#64748B; --success:#16A34A; --warning:#F59E0B; --danger:#DC2626;
+    --card:#FFFFFF; --ink-soft:#475569;
+    --shadow:0 1px 2px rgba(16,28,57,.05),0 8px 24px -12px rgba(16,28,57,.18);
+  }
+  html.dark{
+    --night:#E2E8F5; --primary:#588CFA; --surface:#090E1C; --border:#26324A;
+    --text:#E5EBF5; --muted:#8C98AC; --card:#11192C; --ink-soft:#B6C1D4;
+    --success:#22C55E; --warning:#FBBF24; --danger:#F87171;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -12px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--surface); color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  input,select{font:inherit;color:inherit}
+  svg{display:block}
+
+  /* ---- Barre d'outils de la maquette ---------------------------------- */
+  .arena{
+    position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 20px;background:var(--card);border-bottom:1px solid var(--border);
+  }
+  .arena h1{font-size:15px;margin:0;font-weight:700;letter-spacing:-.01em}
+  .arena .hint{font-size:12px;color:var(--muted)}
+  .arena .spacer{flex:1}
+  .seg{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
+  .seg button{padding:8px 14px;font-size:13px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+  .themebtn{display:flex;align-items:center;gap:8px;padding:8px 13px;border:1px solid var(--border);
+    border-radius:10px;font-size:13px;font-weight:600;background:var(--surface)}
+  .themebtn:hover{border-color:var(--primary)}
+
+  .stage{padding:22px;display:flex;justify-content:center;gap:26px;flex-wrap:wrap;align-items:flex-start}
+
+  /* ---- Cadre « navigateur » ------------------------------------------- */
+  .browser{width:1120px;max-width:100%;background:var(--card);border:1px solid var(--border);
+    border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .chrome{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
+  .dots{display:flex;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .url{flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted)}
+
+  .app{display:flex;min-height:660px}
+
+  /* ---- Sidebar --------------------------------------------------------- */
+  .side{width:248px;flex-shrink:0;background:#101C39;color:#fff;padding:16px 12px;display:flex;flex-direction:column;position:sticky;top:0;align-self:flex-start;height:660px}
+  html.dark .side{background:#0C1428}
+  .logo{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
+  .logo .mark{width:32px;height:32px;border-radius:9px;background:var(--primary);display:grid;place-items:center;color:#fff}
+  .logo .name{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .logo .tag{font-size:10px;color:#8FA3C7;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+  .navscroll{flex:1;overflow-y:auto;margin:0 -4px;padding:0 4px}
+  .secbtn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:9px 10px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;color:#8FA3C7}
+  .secbtn:hover{background:rgba(255,255,255,.07);color:#fff}
+  .secbtn svg{transition:transform .18s ease}
+  .sec.open .secbtn svg{transform:rotate(180deg)}
+  .items{max-height:0;overflow:hidden;transition:max-height .22s ease}
+  .sec.open .items{max-height:420px}
+  .nav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;color:#C6D2E8;text-decoration:none;font-size:13.5px}
+  .nav:hover{background:rgba(255,255,255,.07);color:#fff}
+  .nav.active{background:rgba(23,101,245,.26);color:#fff;font-weight:600}
+  .nav .soon{margin-left:auto;font-size:9.5px;font-weight:700;letter-spacing:.04em;color:#0C1428;background:#8FA3C7;border-radius:99px;padding:2px 7px}
+  .sidefoot{border-top:1px solid rgba(255,255,255,.1);padding:12px 8px 2px;font-size:11px;color:#8FA3C7;line-height:1.5}
+
+  /* ---- Colonne principale --------------------------------------------- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface)}
+  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:11px 20px;background:var(--card);border-bottom:1px solid var(--border)}
+  .burger{display:none;width:36px;height:36px;border:1px solid var(--border);border-radius:9px;place-items:center;color:var(--muted)}
+  .shopsel{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .shopsel select{border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:13px;font-weight:600;background:var(--surface)}
+  .search{flex:1;min-width:150px;display:flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted)}
+  .search input{flex:1;border:0;background:none;outline:none;font-size:13px}
+  .iconbtn{width:36px;height:36px;border:1px solid var(--border);border-radius:9px;display:grid;place-items:center;color:var(--muted);position:relative;background:var(--card)}
+  .iconbtn:hover{color:var(--text);border-color:var(--primary)}
+  .iconbtn .dotb{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--danger)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;border:0}
+  .content{padding:22px;max-width:1200px;width:100%}
+
+  /* ---- Cartes / composants -------------------------------------------- */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:12px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  h1.page{margin:0 0 3px;font-size:21px;letter-spacing:-.02em}
+  .meta{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+  .kpi .lab{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .kpi .val{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-.03em}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:600}
+  .b-ok{background:rgba(22,163,74,.14);color:var(--success)}
+  .b-warn{background:rgba(245,158,11,.16);color:var(--warning)}
+  .b-mut{background:rgba(100,116,139,.14);color:var(--muted)}
+  .b-soon{background:rgba(23,101,245,.12);color:var(--primary)}
+  .btn{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--card);font-size:13px;font-weight:600}
+  .btn.pri{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .btn.ghost{background:transparent}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;padding:8px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.05em}
+  td{padding:11px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  .field{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;background:var(--card);outline:none}
+  .field:focus{border-color:var(--primary)}
+  label.lab{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:5px}
+  .empty{text-align:center;padding:44px 16px;color:var(--muted)}
+  .empty .ic{width:52px;height:52px;border-radius:16px;background:rgba(23,101,245,.1);display:grid;place-items:center;margin:0 auto 12px;color:var(--primary)}
+  .empty h2{margin:0 0 6px;font-size:16px;color:var(--text)}
+  .empty p{margin:0;font-size:13px;line-height:1.6}
+  .list{display:flex;flex-direction:column;gap:9px}
+  .rowitem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border);border-radius:11px}
+  .notif{padding:11px;border:1px solid var(--border);border-radius:11px}
+  .notif b{font-size:13px}
+  .notif p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+  .notif time{font-size:11px;color:var(--muted)}
+
+  /* ---- Panneaux flottants --------------------------------------------- */
+  .pop{position:absolute;right:14px;top:52px;width:320px;background:var(--card);border:1px solid var(--border);
+    border-radius:14px;box-shadow:var(--shadow);padding:14px;z-index:30}
+  .pop[hidden]{display:none}
+  .pop h3{margin:0 0 10px;font-size:13.5px}
+  .usermenu{position:absolute;right:20px;top:56px;width:220px;background:var(--card);border:1px solid var(--border);
+    border-radius:14px;box-shadow:var(--shadow);padding:8px;z-index:30}
+  .usermenu[hidden]{display:none}
+  .usermenu button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border-radius:9px;font-size:13px}
+  .usermenu button:hover{background:var(--surface)}
+  .usermenu .mail{font-size:11.5px;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+
+  /* ---- Mobile ---------------------------------------------------------- */
+  .phone{width:392px;height:780px;background:var(--card);border:1px solid var(--border);border-radius:42px;
+    box-shadow:var(--shadow);padding:11px;position:relative}
+  .screen{width:100%;height:100%;border-radius:32px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column;position:relative}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#000;border-radius:0 0 16px 16px;z-index:5}
+  .m-top{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;padding:34px 16px 11px;background:var(--card);border-bottom:1px solid var(--border)}
+  .m-top .logo .name{font-size:14px}
+  .m-top .logo .mark{width:28px;height:28px}
+  .m-body{flex:1;overflow-y:auto;padding:16px 14px 90px}
+  .m-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-around;
+    padding:9px 8px calc(9px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--border);z-index:15}
+  .mbtn{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:600;color:var(--muted);padding:4px 8px;border-radius:10px}
+  .mbtn.active{color:var(--primary)}
+  .drawer{position:absolute;inset:0;z-index:25;background:rgba(9,14,28,.45);opacity:0;pointer-events:none;transition:opacity .2s}
+  .drawer.open{opacity:1;pointer-events:auto}
+  .drawer .panel{position:absolute;left:0;top:0;bottom:0;width:80%;background:#101C39;color:#fff;padding:16px 12px;transform:translateX(-100%);transition:transform .22s ease;overflow-y:auto}
+  .drawer.open .panel{transform:none}
+  .m-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:11px}
+  .m-sec{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
+  .m-list{display:flex;flex-direction:column;gap:8px}
+  .chk{width:16px;height:16px;accent-color:var(--primary)}
+  .switch{position:relative;width:38px;height:22px;border-radius:99px;background:var(--border);transition:background .18s}
+  .switch.on{background:var(--primary)}
+  .switch i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .18s}
+  .switch.on i{left:19px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#101C39;color:#fff;
+    padding:10px 16px;border-radius:99px;font-size:12.5px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:99}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (max-width:1180px){ .stage{gap:16px} }
+</style>
+</head>
+<body>
+
+<!-- ======================= Barre d'outils ======================= -->
+<header class="arena">
+  <div>
+    <h1>Maquette interactive — TOUT EN UN</h1>
+    <div class="hint">Ordinateur &amp; mobile · thème clair/sombre · données d'exemple cohérentes (NKSF SHOP)</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Version">
+    <button id="v-desk" aria-pressed="true">🖥️ Ordinateur</button>
+    <button id="v-mob" aria-pressed="false">📱 Mobile</button>
+  </div>
+  <button class="themebtn" id="themeBtn">🌙 <span>Thème sombre</span></button>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- ======================= VERSION ORDINATEUR ======================= -->
+<div class="stage" id="stage">
+  <section id="deskView">
+    <div class="browser">
+      <div class="chrome">
+        <div class="dots"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span></div>
+        <div class="url">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          https://tout-en-un-business-manager.onrender.com/<span id="urlPath">dashboard</span>
+        </div>
+      </div>
+      <div class="app">
+        <!-- Sidebar -->
+        <aside class="side">
+          <div class="logo">
+            <span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></span>
+            <span><span class="name">TOUT EN UN</span><br><span class="tag">Business Manager</span></span>
+          </div>
+          <nav class="navscroll" id="deskNav"></nav>
+          <div class="sidefoot">Plan gratuit · 0 FCFA<br>Données hébergées en Côte d'Ivoire</div>
+        </aside>
+
+        <!-- Colonne -->
+        <div class="main">
+          <header class="top">
+            <button class="burger" id="deskBurger" aria-label="Ouvrir le menu" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <label class="shopsel">Boutique
+              <select id="shopSel">
+                <option value="nksf" selected>NKSF SHOP</option>
+                <option value="new">＋ Nouvelle boutique…</option>
+              </select>
+            </label>
+            <div class="search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <input id="searchInput" placeholder="Rechercher une boutique…" aria-label="Recherche globale">
+            </div>
+            <button class="iconbtn" id="bellBtn" aria-label="Notifications">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+              <span class="dotb"></span>
+            </button>
+            <button class="iconbtn" id="themeBtnDesk" aria-label="Changer de thème">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+            </button>
+            <button class="avatar" id="userBtn" aria-label="Profil">S</button>
+
+            <div class="pop" id="bellPop" hidden>
+              <h3>Notifications</h3>
+              <div class="list">
+                <div class="notif"><b>Réponse du bot</b><p>🏪 Aucune boutique connectée… (démonstration)</p><time>22:45</time></div>
+                <div class="notif"><b>Compte lié</b><p>Votre compte Telegram est relié à fabienserge77@gmail.com.</p><time>21:21</time></div>
+                <div class="notif"><b>Bienvenue</b><p>Bonjour Serge ! Votre espace est prêt.</p><time>21:15</time></div>
+              </div>
+            </div>
+            <div class="usermenu" id="userMenu" hidden>
+              <div class="mail">fabienserge77@gmail.com</div>
+              <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Déconnexion</button>
+            </div>
+          </header>
+
+          <div class="content" id="deskContent"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= VERSION MOBILE ======================= -->
+  <section id="mobView" hidden>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <header class="m-top">
+          <button class="iconbtn" id="mBurger" aria-label="Ouvrir le menu">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div class="logo">
+            <span class="mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></span>
+            <span class="name">TOUT EN UN</span>
+          </div>
+          <span style="flex:1"></span>
+          <button class="iconbtn" id="mBell" aria-label="Notifications">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="dotb"></span>
+          </button>
+          <button class="avatar" id="mUser" aria-label="Profil" style="width:30px;height:30px">S</button>
+        </header>
+
+        <div class="m-body" id="mobContent"></div>
+
+        <nav class="m-bottom">
+          <button class="mbtn active" data-nav="dashboard"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Accueil</button>
+          <button class="mbtn" data-nav="boutiques"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1.5-5h15L21 9M3 9h18v11H3zM9 20v-6h6v6"/></svg>Boutiques</button>
+          <button class="mbtn" data-nav="commandes"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.5h11.2L21 7H6"/></svg>Commandes</button>
+          <button class="mbtn" data-nav="notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Alertes</button>
+          <button class="mbtn" data-nav="plus"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Plus</button>
+        </nav>
+
+        <div class="drawer" id="drawer">
+          <div class="panel">
+            <div class="logo" style="padding:4px 8px 14px">
+              <span class="mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></span>
+              <span class="name">TOUT EN UN</span>
+            </div>
+            <nav id="mobNav"></nav>
+          </div>
+        </div>
+
+        <div class="pop" id="mBellPop" hidden style="left:14px;right:14px;top:80px;width:auto">
+          <h3>Notifications</h3>
+          <div class="list">
+            <div class="notif"><b>Réponse du bot</b><p>🏪 Aucune boutique connectée…</p></div>
+            <div class="notif"><b>Compte lié</b><p>fabienserge77@gmail.com</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   Données de démonstration — cohérentes avec la production réelle.
+   Aucune donnée fictive n'est présentée comme réelle : les modules non
+   branchés affichent « Bientôt disponible ».
+   ===================================================================== */
+const NAV = [
+  { sec:"A", label:"Tableau de bord", items:[ {k:"dashboard",label:"Tableau de bord",icon:"dash"}, {k:"notifications",label:"Notifications",icon:"bell"} ] },
+  { sec:"B", label:"Ventes et commandes", items:[ {k:"commandes",label:"Commandes",icon:"cart",soon:true} ] },
+  { sec:"C", label:"Boutiques et plateformes", items:[ {k:"boutiques",label:"Boutiques",icon:"store"} ] },
+  { sec:"D", label:"Catalogue et stocks", items:[ {k:"produits",label:"Produits",icon:"pkg",soon:true}, {k:"stocks",label:"Stocks",icon:"box",soon:true} ] },
+  { sec:"E", label:"Finances et comptabilité", items:[ {k:"finances",label:"Finances",icon:"wallet",soon:true} ] },
+  { sec:"F", label:"Analyses et rapports", items:[ {k:"rapports",label:"Rapports",icon:"chart",soon:true} ] },
+  { sec:"G", label:"Automatisation et IA", items:[ {k:"mimi",label:"MIMI",icon:"spark",soon:true} ] },
+  { sec:"H", label:"Administration", items:[ {k:"sante",label:"Santé",icon:"heart"}, {k:"admin",label:"Administration",icon:"settings",soon:true} ] },
+];
+
+const ICONS = {
+  dash:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  cart:'<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.5h11.2L21 7H6"/>',
+  store:'<path d="M3 9l1.5-5h15L21 9M3 9h18v11H3zM9 20v-6h6v6"/>',
+  pkg:'<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
+  box:'<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5"/><path d="M7 4l9 5"/>',
+  wallet:'<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M16 15h2"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  spark:'<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8-1.8-.7 1.8-.7z"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  bell:'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  heart:'<path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21l8.8-8.3a5 5 0 0 0 0-7.1z"/>',
+};
+
+const state = { view:"desktop", page:"dashboard", open:{A:true}, search:"", theme:"light" };
+
+function icon(name, size=16){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||""}</svg>`;
+}
+
+/* ---------- Pages ---------------------------------------------------- */
+const PAGES = {
+  dashboard: {
+    url:"dashboard", title:"Tableau de bord",
+    desk: () => `
+      <h1 class="page">Tableau de bord</h1>
+      <p class="meta">Connecté en tant que <b>fabienserge77@gmail.com</b> · boutique sélectionnée : <b>NKSF SHOP</b></p>
+      <div class="grid g3">
+        <div class="card kpi"><div class="lab">Boutiques</div><div class="val">1</div><div class="sub">NKSF SHOP · Jumia · en attente</div></div>
+        <div class="card kpi"><div class="lab">Membres</div><div class="val">1</div><div class="sub">Vous êtes propriétaire</div></div>
+        <div class="card kpi"><div class="lab">Compte</div><div class="val" style="color:var(--success)">Actif</div><div class="sub">Web + Telegram liés</div></div>
+      </div>
+      <div class="m-sec">MODULES</div>
+      <div class="grid g2">
+        ${NAV.filter(n=>n.sec!=="A").map(n=>`
+          <div class="card">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">${n.label}</div>
+            <div class="list" style="margin-top:11px">
+              ${n.items.map(i=> i.soon
+                ? `<div class="rowitem"><span style="font-size:13px;color:var(--muted)">${i.label}</span><span class="badge b-soon">Bientôt disponible</span></div>`
+                : `<div class="rowitem"><span style="font-size:13px;font-weight:600">${i.label}</span><span style="color:var(--primary)">→</span></div>`).join("")}
+            </div>
+          </div>`).join("")}
+      </div>
+      <div class="m-sec">PROCHAINES ÉTAPES</div>
+      <div class="card">
+        <div class="list">
+          <div class="rowitem"><span style="font-size:13px">Connecter Jumia <span class="badge b-warn" style="margin-left:6px">Phase 2</span></span><span style="color:var(--muted);font-size:12px">Nécessite l'accès Vendor Center</span></div>
+          <div class="rowitem"><span style="font-size:13px">Inviter ton équipe</span><span style="color:var(--muted);font-size:12px">Rôles et permissions</span></div>
+        </div>
+      </div>`,
+    mob: () => `
+      <div class="m-sec">APPERÇU</div>
+      <div class="m-card"><div style="font-size:11px;color:var(--muted)">BOUTIQUES</div><div style="font-size:26px;font-weight:700;margin-top:4px">1</div><div style="font-size:12px;color:var(--muted);margin-top:2px">NKSF SHOP · en attente</div></div>
+      <div class="m-card"><div style="font-size:11px;color:var(--muted)">MEMBRES</div><div style="font-size:26px;font-weight:700;margin-top:4px">1</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Propriétaire</div></div>
+      <div class="m-sec">ACCÈS RAPIDE</div>
+      <div class="m-list">
+        <button class="rowitem" data-nav="boutiques"><span style="font-size:13px;font-weight:600">Boutiques</span><span style="color:var(--primary)">→</span></button>
+        <button class="rowitem" data-nav="notifications"><span style="font-size:13px;font-weight:600">Notifications</span><span style="color:var(--primary)">→</span></button>
+        <button class="rowitem" data-nav="sante"><span style="font-size:13px;font-weight:600">Santé</span><span style="color:var(--primary)">→</span></button>
+      </div>
+      <div class="m-sec">MODULES À VENIR</div>
+      <div class="m-card" style="font-size:12.5px;color:var(--muted);line-height:1.9">
+        Commandes · Produits · Stocks · Finances · Rapports · MIMI<br>
+        <span class="badge b-soon">Bientôt disponible</span>
+      </div>`
+  },
+
+  boutiques: {
+    url:"boutiques", title:"Boutiques",
+    desk: () => {
+      const q = state.search.trim().toLowerCase();
+      const shops = [
+        { name:"NKSF SHOP", platform:"jumia", country:"CI", currency:"XOF", status:"En attente", external:"AgWgmxKZuk-ZNu92dAkyX43yenzDaA9DVkrfGXV__c0" },
+      ].filter(s => !q || s.name.toLowerCase().includes(q));
+      return `
+      <h1 class="page">Boutiques</h1>
+      <p class="meta">Boutiques connectées et équipes · permissions appliquées côté serveur</p>
+      ${q ? `<p class="meta">Recherche « ${state.search} » → ${shops.length} résultat(s)</p>` : ""}
+      <div class="grid g2">
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px">Mes boutiques</div>
+          ${shops.length === 0 ? `<div class="empty" style="padding:26px"><p>Aucun résultat.</p></div>` : shops.map(s=>`
+            <div class="rowitem" style="flex-direction:column;align-items:flex-start;gap:8px">
+              <div style="display:flex;align-items:center;gap:9px;width:100%">
+                <span style="width:34px;height:34px;border-radius:10px;background:rgba(23,101,245,.12);color:var(--primary);display:grid;place-items:center">${icon("store",17)}</span>
+                <span style="flex:1"><b style="font-size:14px">${s.name}</b><br><span style="font-size:11.5px;color:var(--muted)">Jumia · ${s.country} · ${s.currency}</span></span>
+                <span class="badge b-warn">${s.status}</span>
+              </div>
+              <code style="font-size:10.5px;color:var(--muted);word-break:break-all">${s.external}</code>
+            </div>`).join("")}
+          <button class="btn pri" style="width:100%;margin-top:13px" data-demo="Créer une boutique">＋ Créer une boutique</button>
+        </div>
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px">Nouvelle boutique</div>
+          <div class="grid" style="gap:10px">
+            <div><label class="lab">Nom</label><input class="field" placeholder="Ex. NKSF SHOP"></div>
+            <div><label class="lab">Plateforme</label><select class="field"><option>Jumia</option><option>Autre (Phase 2)</option></select></div>
+            <div style="display:flex;gap:10px">
+              <div style="flex:1"><label class="lab">Pays</label><input class="field" value="CI"></div>
+              <div style="flex:1"><label class="lab">Devise</label><input class="field" value="XOF"></div>
+            </div>
+            <button class="btn pri" data-demo="Créer la boutique">Créer la boutique</button>
+            <p style="font-size:11.5px;color:var(--muted);margin:0">Sans accès Jumia, la boutique reste « en attente » — aucune donnée n'est inventée.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Équipe de la boutique</div>
+        <table><thead><tr><th>Membre</th><th>Rôle</th><th></th></tr></thead>
+        <tbody><tr>
+          <td><b>NGUESSAN KOUADIO SERGE FABIEN</b><br><span style="font-size:11.5px;color:var(--muted)">fabienserge77@gmail.com</span></td>
+          <td><span class="badge b-ok">owner</span></td><td style="color:var(--muted);font-size:12px">—</td>
+        </tr></tbody></table>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <input class="field" placeholder="membre@exemple.ci" style="flex:1">
+          <select class="field" style="width:130px"><option>assistant</option><option>manager</option><option>stock</option><option>accountant</option></select>
+          <button class="btn pri" data-demo="Invitation envoyée">Inviter</button>
+        </div>
+      </div>`;
+    },
+    mob: () => `
+      <div class="m-sec">MES BOUTIQUES</div>
+      <div class="m-card">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:38px;height:38px;border-radius:11px;background:rgba(23,101,245,.12);color:var(--primary);display:grid;place-items:center">${icon("store",18)}</span>
+          <span style="flex:1"><b>NKSF SHOP</b><br><span style="font-size:11.5px;color:var(--muted)">Jumia · Côte d'Ivoire · XOF</span></span>
+          <span class="badge b-warn">En attente</span>
+        </div>
+      </div>
+      <button class="btn pri" style="width:100%" data-demo="Créer une boutique">＋ Créer une boutique</button>
+      <div class="m-sec">ÉQUIPE</div>
+      <div class="m-card" style="display:flex;align-items:center;gap:10px">
+        <span class="avatar" style="width:32px;height:32px">S</span>
+        <span style="flex:1;font-size:13px"><b>Serge F.</b><br><span style="font-size:11.5px;color:var(--muted)">owner</span></span>
+      </div>`
+  },
+
+  notifications: {
+    url:"notifications", title:"Notifications",
+    desk: () => `
+      <h1 class="page">Notifications</h1>
+      <p class="meta">Historique et préférences · seules les notifications réellement émises apparaissent</p>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Historique</div>
+        <div class="list">
+          <div class="notif"><div style="display:flex;justify-content:space-between"><b>Réponse du bot</b><span class="badge b-mut">sent</span></div><p>🏪 Aucune boutique connectée pour le moment. Ajoutez-en une depuis le site.</p><time>23/11/2026 · 22:45</time></div>
+          <div class="notif"><div style="display:flex;justify-content:space-between"><b>Compte lié</b><span class="badge b-ok">sent</span></div><p>Votre compte Telegram est relié à fabienserge77@gmail.com.</p><time>22/11/2026 · 21:21</time></div>
+          <div class="notif"><div style="display:flex;justify-content:space-between"><b>Bienvenue</b><span class="badge b-mut">sent</span></div><p>Bonjour Serge ! Votre espace TOUT EN UN est prêt.</p><time>22/11/2026 · 21:15</time></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Préférences</div>
+        <table><thead><tr><th>Type</th><th>Web</th><th>Telegram</th></tr></thead>
+        <tbody>
+          ${["Commandes","Stocks","Finances","Boutiques","Système"].map((t,i)=>`
+            <tr><td>${t}</td>
+            <td><input class="chk" type="checkbox" checked></td>
+            <td><input class="chk" type="checkbox" ${i===1?"":"checked"}></td></tr>`).join("")}
+        </tbody></table>
+        <p style="font-size:11.5px;color:var(--muted);margin:12px 0 0">Tout est activé par défaut. Le mode « ne pas déranger » arrive avec le module Notifications.</p>
+      </div>`,
+    mob: () => `
+      <div class="m-sec">HISTORIQUE</div>
+      <div class="m-card"><b style="font-size:13px">Réponse du bot</b><p style="font-size:12px;color:var(--muted);margin:4px 0 0">🏪 Aucune boutique connectée…</p></div>
+      <div class="m-card"><b style="font-size:13px">Compte lié</b><p style="font-size:12px;color:var(--muted);margin:4px 0 0">fabienserge77@gmail.com</p></div>
+      <div class="m-sec">PRÉFÉRENCES</div>
+      <div class="m-card" style="display:flex;flex-direction:column;gap:12px">
+        ${["Commandes","Stocks","Finances","Boutiques","Système"].map(t=>`
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px">${t}</span>
+            <button class="switch on" aria-label="${t}"><i></i></button>
+          </div>`).join("")}
+      </div>`
+  },
+
+  sante: {
+    url:"sante", title:"Santé",
+    desk: () => `
+      <h1 class="page">Santé</h1>
+      <p class="meta">État réel de la base et de l'application</p>
+      <div class="grid g3">
+        <div class="card kpi"><div class="lab">Base de données</div><div class="val" style="color:var(--success);font-size:20px">Connectée</div><div class="sub">14 tables</div></div>
+        <div class="card kpi"><div class="lab">Boutiques</div><div class="val">1</div><div class="sub">Comptes réels</div></div>
+        <div class="card kpi"><div class="lab">Notifications</div><div class="val">9</div><div class="sub">Dernières 5 affichées</div></div>
+      </div>
+      <div class="m-sec">VOLUMÉTRIE (ESTIMÉE)</div>
+      <div class="card">
+        <table><tbody>
+          ${[["users","1"],["shops","1"],["shop_members","1"],["audit_logs","90"],["notifications","9"],["sessions","9"],["telegram_accounts","1"]].map(([n,v])=>`
+            <tr><td style="font-family:ui-monospace,monospace;font-size:12px;color:var(--muted)">${n}</td><td style="text-align:right;font-weight:600">${v}</td></tr>`).join("")}
+        </tbody></table>
+      </div>
+      <div class="m-sec">DERNIÈRES SYNCHRONISATIONS</div>
+      <div class="card">
+        <div class="rowitem"><span style="font-size:13px;font-weight:600">NKSF SHOP</span><span style="font-size:12px;color:var(--muted)">Jamais synchronisée · en attente</span></div>
+        <p style="font-size:11.5px;color:var(--muted);margin:12px 0 0">La synchronisation Jumia est prévue en Phase 2 : tant qu'elle n'est pas branchée, « jamais synchronisée » est la vérité.</p>
+      </div>
+      <div class="m-sec">JOURNAL D'AUDIT</div>
+      <div class="card">
+        <table><tbody>
+          ${[["shop.created","success"],["shop.selected","success"],["notifications.pref_changed","success"],["auth.login","success"],["auth.telegram_linked","success"]].map(([a,r])=>`
+            <tr><td style="font-family:ui-monospace,monospace;font-size:12px">${a}</td><td><span class="badge ${r==="success"?"b-ok":"b-warn"}">${r}</span></td></tr>`).join("")}
+        </tbody></table>
+      </div>`,
+    mob: () => `
+      <div class="m-card"><div style="font-size:11px;color:var(--muted)">BASE DE DONNÉES</div><div style="font-size:18px;font-weight:700;color:var(--success);margin-top:4px">Connectée</div></div>
+      <div class="m-card"><div style="font-size:11px;color:var(--muted)">DERNIÈRE SYNC</div><div style="font-size:14px;margin-top:4px">NKSF SHOP · jamais synchronisée</div></div>
+      <div class="m-card"><div style="font-size:11px;color:var(--muted)">JOURNAL D'AUDIT</div>
+        <div style="font-family:ui-monospace,monospace;font-size:11.5px;margin-top:8px;line-height:2;color:var(--muted)">
+          shop.created ✅<br>shop.selected ✅<br>notifications.pref_changed ✅<br>auth.telegram_linked ✅
+        </div>
+      </div>`
+  }
+};
+
+function soonPage(key){
+  const item = NAV.flatMap(n=>n.items).find(i=>i.k===key);
+  const label = item ? item.label : "Module";
+  return {
+    url:key, title:label,
+    desk:()=>`<h1 class="page">${label}</h1><p class="meta">${key==="mimi"?"L'assistant anti-hallucination arrive avec la clé IA.":"Ce module sera branché lorsque ses données réelles seront disponibles."}</p>
+      <div class="card"><div class="empty">
+        <div class="ic">${icon("box",26)}</div>
+        <h2>Bientôt disponible</h2>
+        <p>${label} n'est pas encore branché.<br>Aucune donnée fictive n'est affichée.</p>
+      </div></div>`,
+    mob:()=>`<div class="m-card"><div class="empty" style="padding:26px">
+        <div class="ic">${icon("box",24)}</div>
+        <h2 style="font-size:15px">Bientôt disponible</h2>
+        <p style="font-size:12.5px">${label} n'est pas encore branché.</p>
+      </div></div>`
+  };
+}
+function getPage(key){ return PAGES[key] || soonPage(key); }
+
+/* ---------- Rendu ----------------------------------------------- */
+function renderNav(){
+  const html = NAV.map(n=>`
+    <div class="sec ${state.open[n.sec] ? "open":""}" data-sec="${n.sec}">
+      <button class="secbtn" data-secbtn="${n.sec}" aria-expanded="${!!state.open[n.sec]}">
+        <span>${n.label}</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="items">
+        ${n.items.map(i=>`
+          <a class="nav ${state.page===i.k?"active":""}" href="#" data-nav="${i.k}">
+            ${icon(i.icon,16)}<span style="flex:1">${i.label}</span>
+            ${i.soon?'<span class="soon">BIENTÔT</span>':''}
+          </a>`).join("")}
+      </div>
+    </div>`).join("");
+  document.getElementById("deskNav").innerHTML = html;
+  document.getElementById("mobNav").innerHTML = html;
+}
+
+function renderContent(){
+  const page = getPage(state.page);
+  document.getElementById("deskContent").innerHTML = page.desk();
+  document.getElementById("mobContent").innerHTML = page.mob();
+  document.getElementById("urlPath").textContent = page.url;
+  document.querySelectorAll("#deskNav .nav, #mobNav .nav").forEach(a=>{
+    a.classList.toggle("active", a.dataset.nav === state.page);
+  });
+  document.querySelectorAll(".mbtn").forEach(b=>b.classList.toggle("active", b.dataset.nav===state.page));
+}
+
+function setView(view){
+  state.view = view;
+  document.getElementById("deskView").hidden = view !== "desktop";
+  document.getElementById("mobView").hidden = view !== "mobile";
+  document.getElementById("v-desk").setAttribute("aria-pressed", String(view==="desktop"));
+  document.getElementById("v-mob").setAttribute("aria-pressed", String(view==="mobile"));
+}
+
+function setTheme(theme){
+  state.theme = theme;
+  document.documentElement.classList.toggle("dark", theme==="dark");
+  document.querySelector("#themeBtn span").textContent = theme==="dark" ? "Thème clair" : "Thème sombre";
+  document.querySelector("#themeBtn").firstChild.textContent = theme==="dark" ? "☀️ " : "🌙 ";
+}
+
+let toastTimer;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove("show"), 2200);
+}
+
+/* ---------- Événements ------------------------------------------- */
+document.getElementById("v-desk").onclick = ()=>setView("desktop");
+document.getElementById("v-mob").onclick = ()=>setView("mobile");
+document.getElementById("themeBtn").onclick = ()=>setTheme(state.theme==="dark"?"light":"dark");
+document.getElementById("themeBtnDesk").onclick = ()=>setTheme(state.theme==="dark"?"light":"dark");
+
+document.addEventListener("click", e=>{
+  const nav = e.target.closest("[data-nav]");
+  if(nav){ e.preventDefault(); go(nav.dataset.nav); return; }
+
+  const sec = e.target.closest("[data-secbtn]");
+  if(sec){
+    const k = sec.dataset.secbtn;
+    state.open[k] = !state.open[k];
+    renderNav(); return;
+  }
+
+  const demo = e.target.closest("[data-demo]");
+  if(demo){ toast("Maquette : « " + demo.dataset.demo + " » serait exécuté ici."); return; }
+});
+
+function go(key){
+  state.page = key;
+  renderContent();
+  document.getElementById("drawer").classList.remove("open");
+}
+
+document.getElementById("searchInput").addEventListener("input", e=>{
+  state.search = e.target.value;
+  if(state.page === "boutiques") renderContent();
+});
+
+/* panneaux */
+const bellPop = document.getElementById("bellPop");
+const userMenu = document.getElementById("userMenu");
+document.getElementById("bellBtn").onclick = e=>{ e.stopPropagation(); bellPop.hidden = !bellPop.hidden; userMenu.hidden = true; };
+document.getElementById("userBtn").onclick = e=>{ e.stopPropagation(); userMenu.hidden = !userMenu.hidden; bellPop.hidden = true; };
+document.getElementById("mBell").onclick = ()=>{ const p=document.getElementById("mBellPop"); p.hidden=!p.hidden; };
+document.addEventListener("click", e=>{
+  if(!bellPop.hidden && !bellPop.contains(e.target)) bellPop.hidden = true;
+  if(!userMenu.hidden && !userMenu.contains(e.target)) userMenu.hidden = true;
+});
+document.getElementById("shopSel").addEventListener("change", e=>{
+  if(e.target.value === "new") toast("Maquette : formulaire de création de boutique.");
+});
+document.getElementById("deskBurger").onclick = ()=>toast("Sur desktop, le menu est déjà visible.");
+document.getElementById("mBurger").onclick = ()=>document.getElementById("drawer").classList.add("open");
+document.getElementById("drawer").onclick = e=>{
+  if(e.target.id === "drawer") e.currentTarget.classList.remove("open");
+};
+document.querySelectorAll(".switch").forEach(s=>s.onclick = ()=>s.classList.toggle("on"));
+
+/* ---------- Init -------------------------------------------------- */
+renderNav();
+renderContent();
+setView("desktop");
+</script>
+</body>
+</html>
