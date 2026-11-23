@@ -5,7 +5,7 @@
 
 - **Nom** : TOUT EN UN BUSINESS MANAGER (nom court : **TOUT EN UN**)
 - **Créé le** : 22/11/2026
-- **Statut** : **Phase 0 validée** · **Phase 1 en cours** (Lots 1 et 2 livrés, tests + build verts)
+- **Statut** : **Phase 0 validée** · **Phase 1 terminée et déployée** (Lots 1 à 8) · **Finitions en cours** (2FA TOTP livrée)
 - **Budget** : **0 FCFA** — aucun service payant activé, aucune carte, aucun domaine
 - **Dépôt GitHub** : https://github.com/sergefabien56-eng/telegram-tout-en-un-.git
 
@@ -65,7 +65,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 | Phase | État |
 |---|---|
 | **0 — Cadrage** | ✅ **Livrée et validée** (9 documents + maquettes) |
-| **1 — Fondations et interface** | 🔵 **En cours** — Lots 1 (socle/qualité) et 2 (schéma + migration) livrés · CI verte · build OK |
+| **1 — Fondations et interface** | ✅ **Terminée** — Lots 1 à 8 livrés et déployés sur Render · CI verte · build OK |
 | 2 à 8 | ⏳ Non démarrées |
 
 **Phase 1 — lots :**
@@ -78,12 +78,22 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 - ✅ L7 Audit/santé/sauvegarde (audit des actions sensibles, page `/sante` sur données réelles, `scripts/backup.mjs` + `restore.mjs`, **test de restauration 14/14 tables**)
 - ✅ L8 CI/CD + déploiement gratuit (GitHub Actions lint/tests/build verte, **Render Free en production** : https://tout-en-un-business-manager.onrender.com, HTTPS, webhook Telegram actif, Mini App) · détails `docs/deploiement.md`
 
+- ✅ **Finitions — 2FA TOTP** (double authentification activable : secret chiffré AES-256-GCM, QR + clé manuelle, codes de secours à usage unique, défi de connexion signé 5 min, page `/securite`) · smoke 15/15 local **et** production · détails `docs/securite-2fa.md`
+- ✅ **Maquette interactive** : `docs/mockups/interactive.html` (bureau + mobile, bascule de version)
+
 **Déploiement réel** : Render `srv-dc1m8rqfngtc7381n0rg` (Free, frankfurt) · Neon `production` (14 tables) · bot @tout_en_un_business_bot · **0 FCFA**.
 
-## 7. Prochaine action (après validation)
+## 7. Prochaine action
 
-- **Correction** : l'auto-déploiement GitHub → Render ne se déclenche pas (déploiement manuel requis).
-- **Phase 2** : synchronisation Jumia (nécessite l'accès Vendor Center).
+**Reste à faire (par priorité)** :
+1. Actions rapides dans la barre du haut (`Nouvelle commande`, `Ajouter une boutique`).
+2. Bottom nav + thème Telegram de la Mini App.
+3. Tests E2E complets + accessibilité (clavier, contrastes).
+4. Déploiement automatique GitHub → Render (`autoDeploy` inefficace sur Free).
+5. Sauvegarde planifiée + documentation Lot 7.
+6. Accès Vendor Center Jumia (Phase 2).
+
+**Déploiement** : manuel (`POST /v1/services/{id}/deploys` via `scripts/render-deploy.mjs`) — l'auto-déploiement GitHub ne se déclenche pas sur l'offre Free.
 
 ## 8. Questions ouvertes (décisions du propriétaire)
 
@@ -91,4 +101,4 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 ## 9. Documents de référence
 
-`docs/index.md` · `architecture.md` · `database.md` · `jumia-integration.md` · `hebergement-gratuit.md` · `telegram-integration.md` · `formules-financieres.md` · `design-system.md` · `mimi.md` · `plan-phase-1.md` · `sources.md` · `docs/mockups/`
+`docs/index.md` · `securite-2fa.md` · `auth.md` · `architecture.md` · `database.md` · `jumia-integration.md` · `hebergement-gratuit.md` · `telegram-integration.md` · `formules-financieres.md` · `design-system.md` · `mimi.md` · `plan-phase-1.md` · `sources.md` · `docs/mockups/`
