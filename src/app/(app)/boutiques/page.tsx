@@ -1,8 +1,6 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 
 type ShopRow = {
   id: string;
@@ -139,27 +137,8 @@ export default function BoutiquesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-surface">
-      <header className="border-b border-border bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8" />
-            <span className="text-sm font-semibold text-night">TOUT EN UN</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-sm text-primary hover:underline">
-              Tableau de bord
-            </Link>
-            <form action="/api/auth/logout" method="post">
-              <button className="rounded-lg border border-border px-3 py-1.5 text-sm text-night hover:bg-surface">
-                Déconnexion
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-semibold text-night">Boutiques</h1>
         <p className="mt-1 text-sm text-muted">
           Boutiques connectées et équipes. Les permissions sont appliquées côté serveur.
@@ -319,6 +298,6 @@ export default function BoutiquesPage() {
           </section>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

@@ -22,6 +22,7 @@ export const ALL_PERMISSIONS = [
   "reports:read",
   "members:read",
   "members:write",
+  "admin:read",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number] | "*";
@@ -39,6 +40,7 @@ const MANAGER: Permission[] = [
   "reports:read",
   "members:read",
   "members:write",
+  "admin:read",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {

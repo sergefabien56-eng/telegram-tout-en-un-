@@ -138,6 +138,30 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
 - Couleurs du thème Telegram fusionnées avec nos tokens.
 - Bouton retour natif Telegram.
 
+### 4.5 Thème clair / sombre (implémenté)
+
+- **Deux jeux de jetons** : variables CSS dans `globals.css` (`:root` clair, `.dark` sombre),
+  consommées par Tailwind via `rgb(var(--…) / <alpha-value>)` (`darkMode: "class"`).
+- **Interrupteur** `ThemeToggle` (icônes Lucide soleil/lune), choix mémorisé dans
+  `localStorage["teu-theme"]`, repli sur `prefers-color-scheme`.
+- **Anti-flash** : `ThemeScript` (script inline dans `<head>`) applique le thème **avant** le
+  premier rendu, `<html suppressHydrationWarning>`.
+
+### 4.6 Implémentation réelle (Lot 6)
+
+| Élément | Composant | État |
+|---|---|---|
+| Sidebar desktop | `components/app-shell.tsx` (`Sidebar`) | 8 sections dépliables, filtrées par permission |
+| Drawer mobile | `Sidebar` (voile + translation) | < `lg` |
+| Barre supérieure | `AppShell` | sélecteur de boutique, recherche, cloche, thème, profil |
+| Sélecteur de boutique | `POST /api/shops/select` → cookie `teu_shop` | vérifié côté serveur |
+| Recherche globale | `components/global-search.tsx` → `GET /api/search` | boutiques accessibles uniquement |
+| Notifications | `components/notifications-bell.tsx` + page `/notifications` | historique + préférences |
+| État « Bientôt disponible » | badge dans la sidebar | modules non branchés |
+
+> **Honnêteté** : les entrées marquées « Bientôt » restent visibles mais non cliquables.
+> Aucune donnée fictive n'est affichée.
+
 ---
 
 ## 5. Responsive

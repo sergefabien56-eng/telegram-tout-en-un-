@@ -13,10 +13,12 @@ export type AuditAction =
   | "auth.telegram_linked"
   | "shop.created"
   | "shop.updated"
+  | "shop.selected"
   | "shop.disconnected"
   | "shop.member_invited"
   | "shop.member_removed"
-  | "shop.member_role_changed";
+  | "shop.member_role_changed"
+  | "notifications.pref_changed";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

@@ -53,6 +53,21 @@ npm run dev                    # http://localhost:3000
 | `npm run db:generate` | Génère une migration Drizzle |
 | `npm run db:migrate` | Applique les migrations |
 
+### Scripts métier (`scripts/`)
+
+| Script | Rôle |
+|---|---|
+| `node scripts/backup.mjs` | Sauvegarde SQL complète (schéma + données), `--compress` pour `.gz` |
+| `node scripts/restore.mjs <fichier>` | Restauration (`--yes`, `--dry-run`, `--schema`) |
+| `node scripts/backup-test.mjs` | **Test de sauvegarde/restauration** sur schéma jetable |
+| `node scripts/telegram-setup.mjs` | Déclare le webhook Telegram |
+| `node scripts/telegram-bot-setup.mjs` | Commandes + bouton de menu du bot |
+| `node scripts/shops-smoke.mjs <url>` | 12 vérifications API boutiques |
+| `node scripts/render-deploy.mjs` | Déploiement Render piloté par API |
+
+> Les sauvegardes partent dans `backups/` (**hors git**) et ne doivent jamais être
+> commitées ni envoyées sur un dépôt public.
+
 ## 5. Variables d'environnement
 
 Copier `.env.example` → `.env.local`. **Jamais de secret versionné.** Variables principales :
@@ -155,7 +170,22 @@ node scripts/shops-smoke.mjs http://localhost:3000
 - Invitation par e-mail : ajout immédiat si le compte existe, sinon invitation en attente.
 - Voir `docs/boutiques.md`.
 
-## 12. Règles du projet
+## 12. Interface, santé & sauvegarde
+
+- **Sidebar** 8 sections (A–H) dépliables, filtrées par permission ; drawer mobile.
+- **Barre supérieure** : sélecteur de boutique (cookie `teu_shop`), recherche globale,
+  notifications, interrupteur **clair/sombre**, profil.
+- **Notifications** : page `/notifications` (historique réel + préférences par canal/type).
+- **Santé** : page `/sante` — volumétrie réelle, dernières syncs, journal d'audit.
+- **Sauvegarde** : `node scripts/backup.mjs` puis `node scripts/backup-test.mjs`
+  (14/14 tables restaurées à l'identique).
+
+```
+npm test                                  # 73 tests (Vitest)
+node scripts/backup-test.mjs              # sauvegarde → restauration → comparaison
+```
+
+## 13. Règles du projet
 
 - Aucune donnée fictive en production ; démo uniquement en `dev`/`staging`.
 - Inconnu → `—` (jamais `0`) ; absent → « Bientôt disponible ».

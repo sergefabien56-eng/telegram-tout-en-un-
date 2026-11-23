@@ -2,29 +2,33 @@ import type { Config } from "tailwindcss";
 
 /**
  * Design tokens TOUT EN UN — voir docs/design-system.md.
- * Les couleurs sont volontairement alignées sur la maquette validée.
+ * Les couleurs sont exprimées en RGB (espaces) afin de suivre les variables
+ * CSS définies dans globals.css : le thème sombre s'active en ajoutant
+ * la classe `.dark` sur <html> (darkMode: "class").
  */
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        night: "#101C39",
+        night: "rgb(var(--night) / <alpha-value>)",
         primary: {
-          DEFAULT: "#1765F5",
-          50: "#EEF3FE",
-          100: "#DCE7FF",
-          500: "#1765F5",
-          600: "#1255D5",
-          700: "#0E44AA",
+          DEFAULT: "rgb(var(--primary) / <alpha-value>)",
+          50: "rgb(var(--primary-50) / <alpha-value>)",
+          100: "rgb(var(--primary-100) / <alpha-value>)",
+          500: "rgb(var(--primary) / <alpha-value>)",
+          600: "rgb(var(--primary-600) / <alpha-value>)",
+          700: "rgb(var(--primary-700) / <alpha-value>)",
         },
-        surface: "#F5F7FB",
-        border: "#E3E8F2",
-        success: "#16A34A",
-        warning: "#F59E0B",
-        danger: "#DC2626",
-        ink: "#0F172A",
-        muted: "#64748B",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        card: "rgb(var(--card) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
+        success: "rgb(var(--success) / <alpha-value>)",
+        warning: "rgb(var(--warning) / <alpha-value>)",
+        danger: "rgb(var(--danger) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
       },
       borderRadius: {
         xl: "12px",
@@ -37,5 +41,4 @@ const config: Config = {
   },
   plugins: [],
 };
-
 export default config;

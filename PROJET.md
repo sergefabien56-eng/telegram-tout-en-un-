@@ -74,11 +74,16 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 - ✅ L3 Auth Web (scrypt, sessions serveur, réinitialisation, anti-abus 5/15 min, audit) · smoke 8/8 sur Neon · détails `docs/auth.md`
 - ✅ L4 Telegram/Mini App (webhook + secret, liaison par code à usage unique, initData HMAC vérifié, Mini App) · smoke 8/8 + liaison réelle en base · détails `docs/telegram.md` · **en attente d'un vrai token bot + URL HTTPS publique** (déploiement Lot 8)
 - ✅ L5 Boutiques/rôles/permissions (CRUD boutiques, membres, invitations, rôles owner/manager/stock/accountant/assistant, permissions module:action côté serveur) · smoke API 12/12 + 11 tests intégration · détails `docs/boutiques.md`
-- ⏳ L6 Interface commune · L7 Audit/santé/sauvegarde · L8 CI/CD + déploiement (préparé : `render.yaml` + `docs/deploiement.md`, build prod prouvé 12/12)
+- ✅ L6 Interface commune (sidebar 8 sections dépliables + drawer mobile, topbar, sélecteur de boutique par cookie, recherche globale, notifications + préférences, **thème clair/sombre**, états « Bientôt disponible ») · 10 tests · détails `docs/design-system.md`
+- ✅ L7 Audit/santé/sauvegarde (audit des actions sensibles, page `/sante` sur données réelles, `scripts/backup.mjs` + `restore.mjs`, **test de restauration 14/14 tables**)
+- ✅ L8 CI/CD + déploiement gratuit (GitHub Actions lint/tests/build verte, **Render Free en production** : https://tout-en-un-business-manager.onrender.com, HTTPS, webhook Telegram actif, Mini App) · détails `docs/deploiement.md`
+
+**Déploiement réel** : Render `srv-dc1m8rqfngtc7381n0rg` (Free, frankfurt) · Neon `production` (14 tables) · bot @tout_en_un_business_bot · **0 FCFA**.
 
 ## 7. Prochaine action (après validation)
 
-Commencer **Phase 1 — Lot 1** : dépôt GitHub + Next.js + TypeScript strict + ESLint/Prettier + CI (lint/tests/build) + `.env.example`.
+- **Correction** : l'auto-déploiement GitHub → Render ne se déclenche pas (déploiement manuel requis).
+- **Phase 2** : synchronisation Jumia (nécessite l'accès Vendor Center).
 
 ## 8. Questions ouvertes (décisions du propriétaire)
 

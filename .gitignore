@@ -30,3 +30,6 @@ test-results/
 .neon
 uploads/
 .sudo_as_admin_successful
+
+# Sauvegardes de base (jamais commitées)
+backups/
