@@ -40,7 +40,13 @@
    ```
    (ou `POST /api/telegram/setup` avec `Authorization: Bearer $CRON_SECRET`).
 4. **@BotFather** → `/mybots` → Bot Settings → **Configure Mini App** → URL `https://.../mini-app`.
-5. `/setcommands` avec la liste des commandes.
+5. Enregistrer les commandes et le bouton de menu (script fourni) :
+   ```bash
+   TELEGRAM_BOT_TOKEN=... APP_URL=https://... node scripts/telegram-bot-setup.mjs
+   ```
+   → 10 commandes (`/start`, `/lier`, `/tableau`, `/boutiques`, `/commandes`, `/stocks`,
+   `/finance`, `/mimi`, `/notifications`, `/aide`) + bouton de menu **« Ouvrir la Mini App »**.
+   La liste doit rester synchronisée avec `COMMANDS` dans `src/lib/telegram-bot.ts`.
 
 > ⚠️ Le webhook exige une URL **HTTPS publique** : tant que l'application n'est pas déployée,
 > le bot ne peut pas recevoir de messages (la Mini App reste testable localement).
@@ -61,10 +67,24 @@ avec `auth.telegram_linked` dans `audit_logs` et `account_linked` dans `notifica
 **Tests** : `src/lib/__tests__/telegram.test.ts` (signature, expiration, secret webhook),
 `telegram-integration.test.ts` (liaison sur base réelle, ignoré en CI).
 
-## 5. Limites connues (honnête)
+## 5. État en production (2026-11-23)
 
-- **Aucun vrai token bot** n'a été fourni : l'envoi effectif à Telegram n'a pas pu être testé
-  (les réponses sont tracées `sent` côté serveur, l'API Telegram répondait `ok:false` avec le jeton de test).
-- **HTTPS public requis** pour le webhook → dépend du déploiement (Lot 8).
+| Élément | État |
+|---|---|
+| Webhook | actif sur `https://tout-en-un-business-manager.onrender.com/api/telegram/webhook` |
+| Webhook sans secret | **401** |
+| Liaison réelle | `telegram_accounts` : `5049204160` (@Fabienserge) → `fabienserge77@gmail.com` |
+| Réponses du bot | `/start`, `/boutiques`, `/aide` → `notifications.bot_reply = sent` (mesuré) |
+| Mini App (auth) | `initData` valide → **200** + cookie de session `teu_session` (mesuré en prod) |
+| Commandes / bouton de menu | 10 commandes + bouton web_app **« Ouvrir la Mini App »** |
+
+## 6. Limites connues (honnête)
+
+- **La Mini App ne gère pas encore les boutiques** : elle authentifie puis renvoie vers le tableau
+  de bord. La gestion des boutiques arrive avec l'interface commune (**Lot 6**). Les messages du bot
+  renvoient donc vers le **site** (`/boutiques`) et ne promettent rien de faux.
+- **Commandes `/commandes`, `/stocks`, `/finance`, `/tableau`, `/mimi`** répondent
+  « Bientôt disponible » : aucun module métier n'est branché, aucune donnée fictive n'est affichée.
+- **HTTPS public requis** pour le webhook → assuré par Render (Lot 8).
 - **Notifications** : l'envoi aux utilisateurs non liés renvoie vers la liaison (pas de spam).
 - **Groupes** : non activés (le bot ne répond qu'en messages privés).

@@ -97,6 +97,12 @@ node scripts/shops-smoke.mjs https://TON-URL.onrender.com        # 12 OK / 0 ÉC
 **Limites du plan Free** : l'instance se met en veille après ~15 min d'inactivité (premier accès
 lent, ~30-60 s). Aucune carte bancaire, aucune facturation.
 
+> ⚠️ **Auto-déploiement** : le service est en `autoDeploy: yes` (trigger `commit`), mais les
+> commits poussés sur `main` **n'ont pas déclenché de déploiement** (constaté les 22 et 23/11).
+> Après chaque push, **vérifie** dans le tableau de bord Render et, si rien ne démarre,
+> déclenche un déploiement manuellement (bouton **Manual Deploy** → **Deploy latest commit**,
+> ou `POST /v1/services/{id}/deploys`). C'est le point à corriger pour rendre le CI/CD réel.
+
 ## 6. Coûts
 
 - Render Free : **0 FCFA** (veille automatique, pas de carte).
