@@ -1,9 +1,10 @@
 "use client";
 
 import { Logo } from "@/components/logo";
+import { TelegramThemeSync } from "@/components/telegram-theme-sync";
 import { useTelegramWebApp } from "@/components/telegram-web-app";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type SessionResponse = {
   ok: boolean;
@@ -13,9 +14,30 @@ type SessionResponse = {
 };
 
 export default function MiniAppPage() {
+  return (
+    <TelegramThemeSync>
+      <MiniAppContent />
+    </TelegramThemeSync>
+  );
+}
+
+function MiniAppContent() {
   const { webApp, status } = useTelegramWebApp();
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Déjà lié (cookie de session) : on entre directement dans l'app.
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { ok: boolean; data?: { email: string } };
+        if (payload.ok && payload.data?.email) {
+          window.location.replace("/dashboard");
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function exchange() {
     if (!webApp?.initData) return;
@@ -26,7 +48,9 @@ export default function MiniAppPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initData: webApp.initData }),
       });
-      setSession((await response.json()) as SessionResponse);
+      const payload = (await response.json()) as SessionResponse;
+      setSession(payload);
+      if (payload.ok) window.location.replace("/dashboard");
     } catch {
       setSession({ ok: false, error: "Erreur réseau." });
     } finally {
@@ -60,41 +84,31 @@ export default function MiniAppPage() {
           ) : (
             <div className="mt-3 space-y-3">
               <p className="text-sm text-muted">
-                {telegramUser?.first_name
-                  ? `Bonjour ${telegramUser.first_name} 👋`
-                  : "Bonjour 👋"}
+                {telegramUser?.first_name ? `Bonjour ${telegramUser.first_name} 👋` : "Bonjour 👋"}
               </p>
 
-              {session?.ok ? (
-                <div className="space-y-3">
-                  <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
-                    Compte lié : {session.data?.email}
-                  </p>
-                  <Link
-                    href="/dashboard"
-                    className="block rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90"
-                  >
-                    Ouvrir le tableau de bord
-                  </Link>
+              {session && !session.ok ? (
+                <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                  <p>{session.error}</p>
+                  {session.details?.[0] ? <p className="mt-1 text-xs">{session.details[0]}</p> : null}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {session && !session.ok ? (
-                    <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-                      <p>{session.error}</p>
-                      {session.details?.[0] ? <p className="mt-1 text-xs">{session.details[0]}</p> : null}
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={exchange}
-                    disabled={loading}
-                    className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
-                  >
-                    {loading ? "Vérification…" : "Me connecter"}
-                  </button>
-                </div>
-              )}
+              ) : null}
+
+              <button
+                type="button"
+                onClick={exchange}
+                disabled={loading}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+              >
+                {loading ? "Vérification…" : "Me connecter"}
+              </button>
+
+              <Link
+                href="/version-web?redirect=/login"
+                className="block rounded-lg border border-border px-4 py-2.5 text-center text-sm font-medium text-night hover:bg-surface"
+              >
+                Utiliser un autre compte (web)
+              </Link>
             </div>
           )}
         </section>

@@ -5,6 +5,8 @@ import { getSessionUser } from "@/lib/session";
 import { getNavItems, type NavSection } from "@/navigation.config";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { UI_COOKIE } from "@/lib/cookies";
 
 const SECTION_ORDER: { section: NavSection; label: string }[] = [
   { section: "B", label: "Ventes et commandes" },
@@ -18,6 +20,9 @@ const SECTION_ORDER: { section: NavSection; label: string }[] = [
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+
+  // En Mini App, le compte est déjà lié par initData : inutile de proposer un code.
+  const miniApp = (await cookies()).get(UI_COOKIE)?.value === "mini";
 
   const shops = await listUserShops(user.id);
   // Compte réel des membres (les permissions sont vérifiées dans `listMembers`).
@@ -116,7 +121,7 @@ export default async function DashboardPage() {
             <li>· Inviter des vendeurs avec le rôle adapté.</li>
           </ul>
         </div>
-        <TelegramLinkButton />
+        {miniApp ? null : <TelegramLinkButton />}
       </div>
     </div>
   );

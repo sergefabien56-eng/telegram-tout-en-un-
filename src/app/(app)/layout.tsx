@@ -1,12 +1,17 @@
 import { AppShell, type ShellShop } from "@/components/app-shell";
+import { MiniAppShell } from "@/components/mini-app-shell";
+import { TelegramThemeSync } from "@/components/telegram-theme-sync";
+import { UI_COOKIE } from "@/lib/cookies";
 import { listUserShops } from "@/lib/shops";
 import { getSessionUser } from "@/lib/session";
 import { isRole, ROLE_PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 /**
- * Layout de l'espace connecté : sidebar + topbar, sur toutes les pages du
- * groupe `(app)`. Les permissions sont calculées côté serveur, une seule fois.
+ * Layout de l'espace connecté : sidebar + topbar (web) ou coquille basse
+ * Mini App (Telegram), sur toutes les pages du groupe `(app)`.
+ * Les permissions sont calculées côté serveur, une seule fois.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
@@ -31,6 +36,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     name: shop.name,
     role: shop.role,
   }));
+
+  // Le cookie `teu_ui=mini` est posé lors de l'échange initData → session.
+  const ui = (await cookies()).get(UI_COOKIE)?.value;
+  const mini = ui === "mini";
+
+  if (mini) {
+    return (
+      <TelegramThemeSync>
+        <MiniAppShell user={{ fullName: user.fullName, email: user.email }} shops={shellShops}>
+          {children}
+        </MiniAppShell>
+      </TelegramThemeSync>
+    );
+  }
 
   return (
     <AppShell

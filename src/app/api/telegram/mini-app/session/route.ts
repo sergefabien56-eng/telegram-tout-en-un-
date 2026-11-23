@@ -3,6 +3,7 @@ import { verifyInitData } from "@/lib/telegram";
 import { findLinkedUser } from "@/lib/telegram-service";
 import { createSession, sessionCookieOptions } from "@/lib/session";
 import { audit } from "@/lib/audit";
+import { UI_COOKIE } from "@/lib/cookies";
 import { cookies } from "next/headers";
 
 /**
@@ -47,6 +48,8 @@ export async function POST(request: Request) {
   const { token } = await createSession(linked.userId, ip, userAgent);
   const store = await cookies();
   store.set(sessionCookieOptions.name, token, sessionCookieOptions);
+  // Mémorise l'interface Mini App : la coquille basse est servie ensuite.
+  store.set(UI_COOKIE, "mini", { httpOnly: false, sameSite: "lax", path: "/" });
 
   await audit({
     action: "auth.login",

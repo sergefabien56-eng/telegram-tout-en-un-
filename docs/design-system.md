@@ -132,12 +132,17 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
    « Bientôt disponible » tant que le module Commandes n'est pas branché (règle R1).
 6. **Profil** (rôle, déconnexion).
 
-### 4.4 Mini App (Telegram)
+### 4.4 Mini App (Telegram) — implémentée
 
-- Header compact (titre + boutique).
-- Contenu identique, **bottom navigation** (5 accès max + « Plus »).
-- Couleurs du thème Telegram fusionnées avec nos tokens.
-- Bouton retour natif Telegram.
+- **En-tête compact** : bouton retour, logo, titre de la page, sélecteur de boutique.
+- **Contenu identique** à la version web (mêmes pages `(app)`, même base).
+- **Navigation basse** : 4 accès (Accueil, Boutiques, Alertes, Sécurité) + « Plus ».
+- **Feuille « Plus »** : Santé, version web, déconnexion — uniquement des pages qui existent.
+- **Thème Telegram** : `themeParams` (fond, surface, texte, indice, lien/bouton) fusionnés dans nos
+  jetons CSS ; le schéma clair/sombre de Telegram pilote la classe `.dark`. Les changements de thème
+  en cours de session sont suivis (`themeChanged`).
+- **Bouton retour natif** : `BackButton` affiché hors Accueil.
+- Bascule web ↔ mini : `/version-web` pose `teu_ui=web` ; l'échange `initData` pose `teu_ui=mini`.
 
 ### 4.5 Thème clair / sombre (implémenté)
 
@@ -160,6 +165,10 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
 | Recherche globale | `components/global-search.tsx` → `GET /api/search` | boutiques accessibles uniquement |
 | Notifications | `components/notifications-bell.tsx` + page `/notifications` | historique + préférences |
 | État « Bientôt disponible » | badge dans la sidebar | modules non branchés |
+| Coquille Mini App | `components/mini-app-shell.tsx` | bottom nav fixe + en-tête compact |
+| Thème Telegram | `components/telegram-theme.ts`, `telegram-theme-sync.tsx` | themeParams → variables CSS + classe `.dark` |
+| Bascule d'interface | `app/version-web/route.ts` + cookie `teu_ui` | web ↔ Mini App |
+| Entrée Mini App | `app/mini-app/page.tsx` | échange initData puis redirection |
 
 > **Honnêteté** : les entrées marquées « Bientôt » restent visibles mais non cliquables.
 > Aucune donnée fictive n'est affichée.

@@ -11,6 +11,9 @@ type TelegramWebApp = {
   themeParams: Record<string, string>;
   colorScheme: "light" | "dark";
   onEvent: (event: string, callback: () => void) => void;
+  /** Bouton retour natif Telegram (disponible dans les Mini Apps). */
+  BackButton?: { show: () => void; hide: () => void; onClick: (cb: () => void) => void };
+  back?: () => void;
 };
 
 declare global {
