@@ -21,6 +21,7 @@ import {
 import { GlobalSearch } from "@/components/global-search";
 import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { QuickActions } from "@/components/quick-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
 import Link from "next/link";
@@ -242,6 +243,8 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
               ))}
             </select>
           </label>
+
+          <QuickActions />
 
           {/* Recherche globale (basique) */}
           <GlobalSearch />

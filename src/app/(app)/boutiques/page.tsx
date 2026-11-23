@@ -1,5 +1,6 @@
 "use client";
 
+import { ShopCreateForm } from "@/components/shop-create-form";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type ShopRow = {
@@ -30,11 +31,6 @@ export default function BoutiquesPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [name, setName] = useState("");
-  const [externalShopId, setExternalShopId] = useState("");
-  const [country, setCountry] = useState("CI");
-  const [currency, setCurrency] = useState("XOF");
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<(typeof ROLES)[number]>("assistant");
@@ -80,23 +76,7 @@ export default function BoutiquesPage() {
     if (selected) void loadMembers(selected);
   }, [selected]);
 
-  async function onCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-    const response = await fetch("/api/shops", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, externalShopId, country, currency, platform: "jumia" }),
-    });
-    const payload = (await response.json()) as { ok: boolean; error?: string; details?: string[] };
-    if (!response.ok || !payload.ok) {
-      setError(payload.details?.[0] ?? payload.error ?? "Création impossible.");
-      return;
-    }
-    setNotice("Boutique créée. Tu es propriétaire.");
-    setName("");
-    setExternalShopId("");
+  async function reloadAfterCreate() {
     await loadShops();
   }
 
@@ -190,55 +170,9 @@ export default function BoutiquesPage() {
 
           <section className="card p-5">
             <h2 className="text-sm font-semibold text-night">Nouvelle boutique</h2>
-            <form className="mt-4 space-y-3" onSubmit={onCreate}>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-night">Nom</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-                  placeholder="Ma boutique Jumia"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-night">
-                  Identifiant boutique Jumia
-                </label>
-                <input
-                  value={externalShopId}
-                  onChange={(e) => setExternalShopId(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-                  placeholder="ex. 123456"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-night">Pays</label>
-                  <input
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-night">Devise</label>
-                  <input
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                    maxLength={3}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90"
-              >
-                Créer la boutique
-              </button>
-            </form>
+            <div className="mt-4">
+              <ShopCreateForm idPrefix="page-shop" onCreated={reloadAfterCreate} />
+            </div>
           </section>
         </div>
 

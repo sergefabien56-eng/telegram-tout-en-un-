@@ -128,7 +128,8 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
 2. **Sélecteur de boutique** (ou « Toutes les boutiques ») — filtre **toutes** les pages côté serveur.
 3. **Recherche globale**.
 4. **Notifications** (cloche + compteur non lu).
-5. **Actions rapides** (ex. « Nouvelle commande », « Ajouter une boutique »).
+5. **Actions rapides** : « Ajouter une boutique » (action réelle) ; « Nouvelle commande » porte le badge
+   « Bientôt disponible » tant que le module Commandes n'est pas branché (règle R1).
 6. **Profil** (rôle, déconnexion).
 
 ### 4.4 Mini App (Telegram)
@@ -153,7 +154,8 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
 |---|---|---|
 | Sidebar desktop | `components/app-shell.tsx` (`Sidebar`) | 8 sections dépliables, filtrées par permission |
 | Drawer mobile | `Sidebar` (voile + translation) | < `lg` |
-| Barre supérieure | `AppShell` | sélecteur de boutique, recherche, cloche, thème, profil |
+| Barre supérieure | `AppShell` | actions rapides, sélecteur de boutique, recherche, cloche, thème, profil |
+| Actions rapides | `components/quick-actions.tsx` | menu + modale (`components/modal.tsx`) ; « Ajouter une boutique » réutilise `ShopCreateForm` |
 | Sélecteur de boutique | `POST /api/shops/select` → cookie `teu_shop` | vérifié côté serveur |
 | Recherche globale | `components/global-search.tsx` → `GET /api/search` | boutiques accessibles uniquement |
 | Notifications | `components/notifications-bell.tsx` + page `/notifications` | historique + préférences |

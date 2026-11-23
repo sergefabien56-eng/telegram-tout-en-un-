@@ -63,11 +63,31 @@ test.describe.serial("connexion", () => {
     await expect(page.getByText(/tableau de bord/i).first()).toBeVisible();
   });
 
-  test("protège la page Sécurité et affiche l'état désactivé", async ({ page }) => {
+  test("affiche la Sécurité et les actions rapides sans créer de donnée", async ({ page }) => {
     await page.goto("/securite");
     await expect(page).toHaveURL(/\/securite$/);
     await expect(page.getByRole("heading", { name: /sécurité du compte/i })).toBeVisible();
     await expect(page.getByText(/désactivée/i)).toBeVisible();
+
+    // Barre du haut : actions rapides.
+    const trigger = page.getByRole("button", { name: /actions rapides/i });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+
+    await expect(page.getByRole("menuitem", { name: /ajouter une boutique/i })).toBeVisible();
+    // Module non branché : texte + badge, aucun bouton actif (règle R1).
+    await expect(page.getByText("Nouvelle commande")).toBeVisible();
+    await expect(page.getByText("Bientôt disponible").first()).toBeVisible();
+
+    await page.getByRole("menuitem", { name: /ajouter une boutique/i }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel(/^nom$/i)).toBeVisible();
+    await expect(dialog.getByLabel(/identifiant boutique jumia/i)).toBeVisible();
+
+    // Échap ferme la boîte de dialogue (accessibilité clavier).
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("déconnecte puis refuse l'accès à /dashboard", async ({ page, request }) => {
