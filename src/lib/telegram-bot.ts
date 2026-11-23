@@ -38,6 +38,17 @@ export function listCommands() {
   return COMMANDS;
 }
 
+/** URL publique de l'app (pour les liens cliquables des réponses du bot). */
+function appUrl(path = ""): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+  return base ? `${base}${path}` : "";
+}
+
+function appLink(path: string, label: string): string {
+  const url = appUrl(path);
+  return url ? `<a href="${url}">${label}</a>` : label;
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -67,7 +78,10 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
       if (linked) {
         return {
           handled: true,
-          reply: `${greeting} ! 👋\n\nVotre compte <b>${escapeHtml(linked.email)}</b> est lié.\n\nOuvrez la Mini App pour accéder à vos boutiques.`,
+          reply:
+            `${greeting} ! 👋\n\nVotre compte <b>${escapeHtml(linked.email)}</b> est lié.\n\n` +
+            `• Mini App : ${appLink("/mini-app", "ouvrir l'espace mobile")}\n` +
+            `• Site : ${appLink("/boutiques", "gérer vos boutiques")}`,
         };
       }
       return {
@@ -107,8 +121,10 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
           handled: true,
           reply:
             shops > 0
-              ? `🏪 Vous avez <b>${shops}</b> boutique(s) connectée(s).`
-              : "🏪 Aucune boutique connectée pour le moment.\nAjoutez-en une depuis la Mini App (Lot 5).",
+              ? `🏪 Vous avez <b>${shops}</b> boutique(s) connectée(s).\n${appLink("/boutiques", "Gérer mes boutiques")}`
+              : "🏪 Aucune boutique connectée pour le moment.\n" +
+                `Ajoutez-en une depuis le site : ${appLink("/boutiques", "Créer ma boutique")}\n` +
+                "(la gestion des boutiques dans la Mini App arrive avec l'interface commune, Lot 6).",
         };
       }
       if (command === "notifications") {
