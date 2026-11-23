@@ -79,4 +79,19 @@ fi
 
 printf '\n=== RÉSULTAT : %d OK / %d ÉCHEC ===\n' "$PASS" "$FAIL"
 rm -f "$JAR"
+
+# Nettoyage : aucun compte de test ne doit rester en production.
+if [ -n "$DATABASE_URL" ]; then
+  node -e '
+    const { Client } = require("pg");
+    const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+    const c = new Client({ connectionString: url });
+    (async () => {
+      await c.connect();
+      await c.query("delete from users where email like '"'"'smoke%@exemple.ci'"'"'");
+      await c.end();
+    })().catch(() => {});
+  ' 2>/dev/null || true
+fi
+
 [ "$FAIL" = "0" ]

@@ -114,6 +114,12 @@ try {
     await client.query("delete from shops where id=$1", [shopId]);
     await client.query("delete from users where email = ANY($1)", [[ownerEmail, memberEmail]]);
     if (shop.rows[0]) await client.query("delete from users where id=$1", [shop.rows[0].id]);
+    // Filet de sécurité : aucun compte de test ne doit rester en production.
+    await client.query(
+      "delete from users where email like 'smoke-%@exemple.ci' or email like 'tg-smoke-%@exemple.ci'",
+    );
+    await client.query("delete from audit_logs a where a.user_id is not null and not exists (select 1 from users u where u.id=a.user_id)");
+    await client.query("delete from notifications n where not exists (select 1 from users u where u.id=n.user_id)");
     await client.end();
     console.log("Nettoyage base effectué.");
   }
