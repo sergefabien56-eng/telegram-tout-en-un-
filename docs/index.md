@@ -41,6 +41,11 @@
 - ✅ **Phase 1 — Lot 3** : authentification web ([auth.md](auth.md)) — scrypt, sessions, réinitialisation, anti-abus, audit.
 - ✅ **Phase 1 — Lot 4** : bot Telegram + Mini App ([telegram.md](telegram.md)) — webhook sécurisé, liaison de compte, `initData` vérifié.
 - ✅ **Phase 1 — Lot 5** : boutiques, rôles & permissions ([boutiques.md](boutiques.md)) — API 12/12, tests 11/11.
-- ⬜ **Phase 1 — Lot 6** : interface commune (mobile + bureau).
-- ⬜ **Phase 1 — Lot 7** : audit, santé, sauvegarde.
-- ⬜ **Phase 1 — Lot 8** : CI/CD + déploiement — prêt (`render.yaml`, [deploiement.md](deploiement.md)), en attente du déploiement par l'utilisateur.
+- ✅ **Phase 1 — Lot 6** : interface commune — coquille applicative, recherche globale, thème clair/sombre, notifications.
+- ✅ **Phase 1 — Lot 7** : page Santé, sauvegarde/restauration ([deploiement.md](deploiement.md)).
+- ✅ **Phase 1 — Lot 8** : CI/CD + déploiement sur **Render** ([deploiement.md](deploiement.md)) — live.
+- ✅ **Maquette interactive** : `docs/mockups/interactive.html` (bureau + mobile, bascule de version).
+- ✅ **Finitions — 2FA TOTP** : double authentification activable ([securite-2fa.md](securite-2fa.md)).
+- ⬜ **Reste à faire** : actions rapides dans la barre du haut, bottom nav + thème Telegram de la Mini App,
+  tests E2E complets + accessibilité, déploiement automatique GitHub→Render, sauvegarde planifiée,
+  accès Vendor Center Jumia.

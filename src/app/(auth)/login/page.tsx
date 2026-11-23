@@ -24,9 +24,16 @@ export default function LoginPage() {
         ok: boolean;
         error?: string;
         details?: string[];
+        requiresTwoFactor?: boolean;
+        challenge?: string;
       };
       if (!response.ok || !payload.ok) {
         setError(payload.details?.[0] ?? payload.error ?? "Connexion impossible.");
+        return;
+      }
+      // 2FA activée : on conserve le défi (5 min) pour la page de vérification.
+      if (payload.requiresTwoFactor && payload.challenge) {
+        window.location.href = `/two-factor?challenge=${encodeURIComponent(payload.challenge)}`;
         return;
       }
       window.location.href = "/dashboard";

@@ -57,6 +57,5 @@ Tests unitaires : `src/lib/__tests__/password.test.ts`, `crypto.test.ts`, `valid
 
 - **Aucun e-mail n'est encore envoyé** : le service d'e-mail n'est pas configuré. En développement,
   l'API renvoie `devToken` pour permettre le test (absent en production).
-- **2FA** : colonnes `two_factor_enabled` / `two_factor_secret_enc` prêtes dans le schéma, mais le
-  mécanisme n'est pas encore branché (Lot 5 ou ultérieur).
+- **2FA** : ✅ livré et prouvé — voir [`docs/securite-2fa.md`](securite-2fa.md).
 - **Vérification d'e-mail** : non mise en place (un compte peut se connecter immédiatement).

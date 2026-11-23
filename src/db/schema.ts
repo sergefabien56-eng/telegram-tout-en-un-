@@ -33,6 +33,9 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorSecretEnc: text("two_factor_secret_enc"),
+  /** Empreintes SHA-256 des codes de secours (jamais les codes en clair). */
+  twoFactorRecoveryCodes: jsonb("two_factor_recovery_codes").$type<string[]>(),
+  twoFactorConfirmedAt: timestamp("two_factor_confirmed_at", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

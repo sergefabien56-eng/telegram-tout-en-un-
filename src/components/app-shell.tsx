@@ -11,6 +11,7 @@ import {
   Menu,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Sparkles,
   Store,
@@ -28,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 
 const ICONS: Record<string, typeof LayoutDashboard> = {
   Activity,
+  ShieldCheck,
   LayoutDashboard,
   Bell,
   ShoppingCart,

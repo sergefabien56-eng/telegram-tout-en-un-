@@ -33,4 +33,12 @@ describe("navigation", () => {
     const dashboard = NAV_ITEMS.find((item) => item.key === "dashboard");
     expect(dashboard?.href).toBe("/dashboard");
   });
+
+  it("expose une entrée Sécurité (2FA) accessible à tous les rôles", () => {
+    const securite = NAV_ITEMS.find((item) => item.key === "securite");
+    expect(securite?.href).toBe("/securite");
+    expect(securite?.permission).toBeUndefined();
+    const items = getNavItems("H", new Set());
+    expect(items.map((item) => item.key)).toContain("securite");
+  });
 });

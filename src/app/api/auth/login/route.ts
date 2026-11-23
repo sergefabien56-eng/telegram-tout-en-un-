@@ -6,6 +6,7 @@ import {
   recordLoginAttempt,
 } from "@/lib/auth-rate-limit";
 import { createSession, sessionCookieOptions } from "@/lib/session";
+import { issueTwoFactorChallenge } from "@/lib/totp";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { formatZodErrors, loginSchema } from "@/lib/validation";
 import { getDb, schema } from "@/db";
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
       passwordHash: schema.users.passwordHash,
       isActive: schema.users.isActive,
       fullName: schema.users.fullName,
+      twoFactorEnabled: schema.users.twoFactorEnabled,
     })
     .from(schema.users)
     .where(eq(schema.users.email, email))
@@ -65,6 +67,20 @@ export async function POST(request: Request) {
   }
 
   await recordLoginAttempt(email, ip, true);
+
+  // 2FA activée : le mot de passe est validé, il reste le second facteur.
+  if (user.twoFactorEnabled) {
+    await audit({
+      action: "auth.login",
+      result: "success",
+      userId: user.id,
+      ip,
+      userAgent,
+      metadata: { step: "password_ok_2fa_required" },
+    });
+    return ok({ requiresTwoFactor: true, challenge: issueTwoFactorChallenge(user.id) });
+  }
+
   const { token } = await createSession(user.id, ip, userAgent);
   const store = await cookies();
   store.set(sessionCookieOptions.name, token, sessionCookieOptions);
