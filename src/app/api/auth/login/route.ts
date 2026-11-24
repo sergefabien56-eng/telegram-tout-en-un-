@@ -35,6 +35,20 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
+
+  try {
+    return await authenticate(email, password, ip, userAgent);
+  } catch {
+    // Base inaccessible : mieux vaut un 503 clair qu'une page d'erreur brute.
+    return fail(503, "Service temporairement indisponible (base de données).");
+  }
+}
+
+/**
+ * Authentification proprement dite. Séparée pour qu'une base indisponible
+ * renvoie une réponse française lisible au lieu d'une erreur 500.
+ */
+async function authenticate(email: string, password: string, ip: string, userAgent: string | null) {
   const db = getDb();
   const rows = await db
     .select({
