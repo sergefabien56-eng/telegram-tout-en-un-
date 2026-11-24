@@ -101,7 +101,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 **Sauvegarde** : export en un clic depuis l'appli (bouton sur « Santé »), script CLI `npm run backup`, dump partagé `scripts/lib/dump-sql.mjs`, workflow quotidien optionnel. Le secret GitHub `DATABASE_URL` est **en place et vérifié** : sauvegarde automatique du 24/11/2026 08:01 UTC réussie (artefact `backup-sql`, 11 310 o). L'export manuel reste disponible.
 
-**Jumia Vendor Center** : client livré (`src/lib/jumia/client.ts`) — `POST /token`, durées lues dans `expires_in`, rotation du refresh token ré-écrite en base chiffrée, erreurs OAuth traduites ; `POST /api/admin/jumia/test` (propriétaires, audité) + bouton « Tester la connexion Jumia » sur **Santé**. Identifiants attendus dans Render : `JUMIA_CLIENT_ID`, `JUMIA_REFRESH_TOKEN`. Déployé et vérifié (route 401 sans session).
+**Jumia Vendor Center** : client livré (`src/lib/jumia/client.ts`) — `POST /token`, durées lues dans `expires_in`, rotation du refresh token ré-écrite en base chiffrée, erreurs OAuth traduites ; `POST /api/admin/jumia/test` (propriétaires, audité) + bouton « Tester la connexion Jumia » sur **Santé**. Identifiants en place (`JUMIA_CLIENT_ID`/`JUMIA_REFRESH_TOKEN`, puis jeton renouvelé en base chiffrée). **Vérifié en production le 24/11/2026** : `authenticated:true`, access token 86399 s, refresh ~365 j, `GET /shops` 200 → 1 boutique « NKSF Shop (CI) ».
 
 **Tests après ces changements** : 103 tests unitaires + 24 tests E2E verts, lint/typecheck OK, CI + déploiement Render success (`1e231b3`).
 

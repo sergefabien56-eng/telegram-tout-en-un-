@@ -118,6 +118,29 @@ les premiers appels `GET /shops` et `GET /orders`.
 > Alternative : si vous préférez générer le token vous-même d'abord, la commande
 > `curl` du §4 suffit — le résultat reste volatile, ne le conservez pas.
 
+## 5bis. Vérification en conditions réelles (24/11/2026)
+
+Application **`TOUT EN UN ERP`** (Self Authorization, client
+`a3ec005d-43c1-4006-acf8-0e6d16ca0955`). Test lancé depuis l'application
+(propriétaire temporaire) :
+
+```
+authenticated   : true
+source          : base            (jeton relu et re-écrit en base chiffrée)
+expires_in      : 86399 s         (access token, 24 h)
+refresh_expires : 31535074 s      (~365 j)
+shopsStatus     : 200
+boutiques       : 1 — « NKSF Shop (CI) »
+```
+
+Deux points à retenir :
+
+1. **Un second outil branché sur la même application invalide le jeton** :
+   chaque rafraîchissement remplace le refresh token. C'est ce qui a rendu
+   inutilisables les deux premiers jetons. Une application par consommateur.
+2. `GET /shops` renvoie un **tableau** (pas `{shops: []}`), avec
+   `id`, `name`, `email`, `businessClients[].countryCode`.
+
 ## 6. Points à vérifier avant d'aller plus loin (honnêtement)
 
 - **Disponibilité CI** : la Côte d'Ivoire a un portail vendeur (`vendorhub.jumia.ci`).
