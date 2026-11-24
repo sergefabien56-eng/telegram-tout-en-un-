@@ -23,7 +23,8 @@ export type AuditAction =
   | "shop.member_invited"
   | "shop.member_removed"
   | "shop.member_role_changed"
-  | "notifications.pref_changed";
+  | "notifications.pref_changed"
+  | "admin.database_export";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

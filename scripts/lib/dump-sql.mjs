@@ -1,0 +1,165 @@
+/**
+ * Construction du dump SQL, partagée entre :
+ *   - le script en ligne de commande `scripts/backup.mjs` ;
+ *   - l'export en ligne `GET /api/admin/backup`.
+ *
+ * Le format est volontairement simple (DDL + INSERT par lots) pour être relu par
+ * `scripts/restore.mjs` sans outil externe.
+ */
+
+/** Échappe une valeur pour SQL (NULL, booléen, nombre, texte, date, jsonb…). */
+export function literal(value) {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "NULL";
+  if (value instanceof Date) return `'${value.toISOString().replace(/'/g, "''")}'`;
+  if (typeof value === "object") {
+    // jsonb / json / tableaux
+    return `'${JSON.stringify(value).replace(/'/g, "''")}'`;
+  }
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+async function tables(client, schema) {
+  const result = await client.query(
+    `select table_name as name
+       from information_schema.tables
+      where table_schema = $1 and table_type = 'BASE TABLE'
+      order by table_name`,
+    [schema],
+  );
+  return result.rows.map((row) => row.name);
+}
+
+async function columns(client, schema, table) {
+  const result = await client.query(
+    `select column_name as name, data_type as type, is_nullable as nullable
+       from information_schema.columns
+      where table_schema = $1 and table_name = $2
+      order by ordinal_position`,
+    [schema, table],
+  );
+  return result.rows;
+}
+
+async function primaryKey(client, schema, table) {
+  const result = await client.query(
+    `select a.attname as name
+       from pg_index i
+       join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+      where i.indrelid = ($1 || '.' || $2)::regclass and i.indisprimary
+      order by a.attnum`,
+    [schema, table],
+  );
+  return result.rows.map((row) => row.name);
+}
+
+/** Relations de clé étrangère (enfant → parent). */
+async function dependencies(client, schema) {
+  const result = await client.query(
+    `select tc.table_name as child, ccu.table_name as parent
+       from information_schema.table_constraints tc
+       join information_schema.constraint_column_usage ccu
+         on ccu.constraint_name = tc.constraint_name
+        and ccu.table_schema = tc.table_schema
+      where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = $1`,
+    [schema],
+  );
+  return result.rows;
+}
+
+/** Ordonne les tables pour que les parents soient insérés avant les enfants. */
+function orderByDependencies(names, deps) {
+  const pending = new Set(names);
+  const ordered = [];
+  const parentsOf = new Map();
+  for (const dep of deps) {
+    if (!parentsOf.has(dep.child)) parentsOf.set(dep.child, new Set());
+    parentsOf.get(dep.child).add(dep.parent);
+  }
+  while (pending.size > 0) {
+    let progressed = false;
+    for (const name of [...pending]) {
+      const blockedBy = [...(parentsOf.get(name) ?? [])].filter((parent) => pending.has(parent));
+      if (blockedBy.length === 0) {
+        ordered.push(name);
+        pending.delete(name);
+        progressed = true;
+      }
+    }
+    if (!progressed) {
+      // Cycle (ou self-reference) : on termine par ordre alphabétique.
+      ordered.push(...[...pending].sort());
+      break;
+    }
+  }
+  return ordered;
+}
+
+function ddlFor(table, cols, pk) {
+  const lines = cols.map((col) => {
+    const nullable = col.nullable === "NO" ? " NOT NULL" : "";
+    return `  "${col.name}" ${col.type}${nullable}`;
+  });
+  const pkLine = pk.length > 0 ? `,\n  PRIMARY KEY (${pk.map((c) => `"${c}"`).join(", ")})` : "";
+  return `CREATE TABLE IF NOT EXISTS "${table}" (\n${lines.join(",\n")}${pkLine}\n);`;
+}
+
+/**
+ * Construit le dump complet.
+ * @param {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }> }} client
+ * @param {{ schema?: string, stamp?: string }} options
+ * @returns {Promise<{ sql: string, tableCount: number, counts: string[], stamp: string }>}
+ */
+export async function buildSqlDump(client, options = {}) {
+  const schema = options.schema ?? "public";
+  const stamp = options.stamp ?? new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+  const names = await tables(client, schema);
+  const header = [
+    `-- TOUT EN UN — sauvegarde`,
+    `-- générée le ${new Date().toISOString()}`,
+    `-- schéma : ${schema} · tables : ${names.length}`,
+    `-- restauration : node scripts/restore.mjs <fichier.sql>`,
+    ``,
+    `BEGIN;`,
+    `SET statement_timeout = 0;`,
+  ];
+  const ddl = [];
+  const dml = [];
+  const counts = [];
+  const ordered = orderByDependencies(names, await dependencies(client, schema));
+
+  for (const table of names) {
+    const cols = await columns(client, schema, table);
+    const pk = await primaryKey(client, schema, table);
+    ddl.push(`-- === ${table} ===`, ddlFor(table, cols, pk));
+  }
+
+  for (const table of ordered) {
+    const cols = await columns(client, schema, table);
+    const rows = await client.query(`select * from "${schema}"."${table}"`);
+    counts.push(`${table}: ${rows.rows.length} ligne(s)`);
+    if (rows.rows.length === 0) continue;
+
+    const namesList = cols.map((col) => `"${col.name}"`).join(", ");
+    const batchSize = 500;
+    for (let i = 0; i < rows.rows.length; i += batchSize) {
+      const batch = rows.rows.slice(i, i + batchSize);
+      const values = batch
+        .map((row) => `(${cols.map((col) => literal(row[col.name])).join(", ")})`)
+        .join(",\n");
+      dml.push(`INSERT INTO "${table}" (${namesList}) VALUES\n${values};`);
+    }
+  }
+
+  const parts = [...header, ...ddl, `-- === DONNÉES ===`, ...dml, `COMMIT;`];
+  const sql = parts.join("\n") + "\n";
+
+  return {
+    sql,
+    tableCount: names.length,
+    counts,
+    stamp,
+  };
+}

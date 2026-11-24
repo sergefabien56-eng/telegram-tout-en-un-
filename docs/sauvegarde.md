@@ -27,7 +27,19 @@ Les secrets ne sont **jamais** dans le dépôt : `DATABASE_URL`, `ENCRYPTION_KEY
 > ⚠️ Le dump contient des données personnelles (e-mails, noms). Il ne doit pas être
 > commité ni partagé publiquement : `backups/` est dans `.gitignore`.
 
-## 2. Sauvegarde manuelle
+## 2. Export depuis l'application (aucun secret à configurer)
+
+Le plus simple : connecté en **propriétaire**, ouvrir **Santé** dans le menu puis
+cliquer **« Télécharger le dump (.sql.gz) »**.
+
+- le serveur possède déjà la base : **aucune variable `DATABASE_URL` à copier**
+  dans GitHub ;
+- le fichier est le même format que celui du script ;
+- l&apos;action est inscrite au journal d&apos;audit (`admin.database_export`) et
+  téléchargeable une seule fois par clic ;
+- réservé aux rôles propriétaires (403 sinon).
+
+## 3. Sauvegarde manuelle en ligne de commande
 
 ```bash
 export $(grep -E '^DATABASE_URL' .env.local | xargs)   # si la variable n'est pas déjà en place
@@ -42,7 +54,7 @@ gzip -t backups/backup-….sql.gz && echo "gzip OK"
 sha256sum backups/backup-….sql.gz
 ```
 
-## 3. Sauvegarde planifiée (gratuit)
+## 4. Sauvegarde planifiée (gratuit, optionnel)
 
 `.github/workflows/backup.yml` s'exécute :
 
@@ -55,11 +67,22 @@ sha256sum backups/backup-….sql.gz
 Le fichier est conservé **14 jours** comme artefact GitHub (`backup-sql`),
 téléchargeable depuis l'onglet Actions → « Sauvegarde quotidienne ».
 
-### Prérequis : le secret `DATABASE_URL`
+### Prérequis : le secret `DATABASE_URL` (seulement pour cette automatisation)
+
+L'export depuis l'application (§2) n'a besoin de rien. Le workflow, lui, ne peut
+pas lire la base tant que ce secret n'est pas créé :
 
 1. Dépôt → **Settings → Secrets and variables → Actions → New repository secret** ;
-2. nom `DATABASE_URL`, valeur = l'URL Postgres (voir `.env.local`) ;
-3. sinon le job se termine avec le message « aucune sauvegarde » au lieu d'être rouge.
+2. nom `DATABASE_URL`, valeur = l'URI Postgres copiée depuis Neon (ou depuis
+   Render → service → onglet **Environment** → variable `DATABASE_URL`) ;
+3. sans lui, le job se termine avec « aucune sauvegarde » et reste vert.
+
+Le job affiche une ligne `URL : protocole=… hôte=… base=… mot de passe=présent`
+avant de se connecter (jamais le mot de passe) : si `hôte=` ne contient pas
+`neon.tech`, c'est que la valeur collée est incomplète.
+
+> Un dump produit par le workflow et un dump produit par l'application sont
+> strictement identiques : les deux passent par `scripts/lib/dump-sql.mjs`.
 
 ### Copie sur Cloudflare R2 (optionnel, gratuit 10 Go)
 
@@ -79,7 +102,7 @@ upload_file(name = "backup-….sql.gz", file_path = "backups/backup-….sql.gz")
 L'envoi est manuel (ou à la demande) : GitHub Actions ne peut pas appeler ce
 connecteur. C'est volontaire — pas d'identifiants Google stockés dans le dépôt.
 
-## 4. Restauration
+## 5. Restauration
 
 ```bash
 # 1. valider le dump sans rien écrire
@@ -99,7 +122,7 @@ Pour s'entraîner sans risque sur la production :
 node scripts/restore.mjs backups/backup-….sql.gz --schema restore_test --yes
 ```
 
-## 5. Test de restauration automatisé
+## 6. Test de restauration automatisé
 
 ```bash
 node scripts/backup-test.mjs
@@ -109,7 +132,7 @@ Sauvegarde → restauration dans un schéma jetable `restore_test` → comparais
 nombre de lignes par table → suppression du schéma. Aucune donnée de production
 n'est modifiée. Exécuté chaque dimanche par le workflow.
 
-## 6. Limites honnêtes
+## 7. Limites honnêtes
 
 - Pas de sauvegarde des **fichiers** stockés sur R2 (module non branché) : la
   restauration ne rétablit pas les fichiers ;

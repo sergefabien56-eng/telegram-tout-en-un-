@@ -17,30 +17,45 @@ const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false 
 
 /**
  * Compte de test = adresse jetable créée par les harnais (smokes ou E2E).
- * Une expression régulière suffit et évite les pièges des tableaux SQL.
+ * On peut cibler un motif précis avec `--email=<fragment>`.
  */
-const TEST_EMAIL_RE =
-  "(2fa|dbg|smoke|e2e|a11y|mini|probe|prod)[.-].*@exemple\\.ci$";
+const extra = process.argv.find((arg) => arg.startsWith("--email="))?.split("=")[1];
+const TEST_EMAIL_RE = extra ?? "(2fa|dbg|smoke|e2e|a11y|mini|probe|prod|owner)[.-].*@exemple\\.ci$";
 
 // 1. Journal d'audit rattaché aux comptes de test (avant suppression des comptes).
 const ids = await pool.query(`SELECT id FROM users WHERE email ~ $1`, [TEST_EMAIL_RE]);
 const userIds = ids.rows.map((row) => row.id);
 let auditDeleted = 0;
 if (userIds.length > 0) {
-  const removed = await pool.query(`DELETE FROM audit_logs WHERE user_id = ANY($1::uuid[])`, [userIds]);
+  const removed = await pool.query(`DELETE FROM audit_logs WHERE user_id = ANY($1::uuid[])`, [
+    userIds,
+  ]);
   auditDeleted = removed.rowCount ?? 0;
 }
 
-// 2. Comptes de test.
-const res = await pool.query(
-  `DELETE FROM users WHERE email ~ $1 RETURNING id, email`,
-  [TEST_EMAIL_RE],
-);
+// 2. Boutiques détenues par ces comptes : la clé `shops.owner_user_id` est en
+//    RESTRICT, il faut donc retirer d'abord les boutiques et leurs membres.
+if (userIds.length > 0) {
+  const members = await pool.query(`DELETE FROM shop_members WHERE user_id = ANY($1::uuid[])`, [
+    userIds,
+  ]);
+  const owned = await pool.query(`DELETE FROM shops WHERE owner_user_id = ANY($1::uuid[])`, [
+    userIds,
+  ]);
+  console.log(
+    `Boutiques de test supprimées : ${owned.rowCount ?? 0} · membres : ${members.rowCount ?? 0}`,
+  );
+}
+
+// 3. Comptes de test.
+const res = await pool.query(`DELETE FROM users WHERE email ~ $1 RETURNING id, email`, [
+  TEST_EMAIL_RE,
+]);
 console.log(`Comptes supprimés : ${res.rowCount}`);
 for (const row of res.rows) console.log(`  - ${row.email} (${row.id})`);
 console.log(`Lignes d'audit rattachées supprimées : ${auditDeleted}`);
 
-// 3. Résidus de test devenus orphelins lors des passes précédentes.
+// 4. Résidus de test devenus orphelins lors des passes précédentes.
 if (withOrphans) {
   const ALWAYS_OWNED = [
     "auth.register",
@@ -83,5 +98,7 @@ if (withAttempts) {
 const audit = await pool.query(`SELECT count(*)::int AS n FROM audit_logs`);
 const shops = await pool.query(`SELECT count(*)::int AS n FROM shops`);
 const users = await pool.query(`SELECT count(*)::int AS n FROM users`);
-console.log(`Reste en base : ${users.rows[0].n} utilisateur(s), ${shops.rows[0].n} boutique(s), ${audit.rows[0].n} ligne(s) d'audit`);
+console.log(
+  `Reste en base : ${users.rows[0].n} utilisateur(s), ${shops.rows[0].n} boutique(s), ${audit.rows[0].n} ligne(s) d'audit`,
+);
 await pool.end();

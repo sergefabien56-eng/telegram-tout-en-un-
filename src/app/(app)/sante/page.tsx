@@ -3,12 +3,17 @@ import { listUserNotifications } from "@/lib/notifications";
 import { listUserShops } from "@/lib/shops";
 import { getSessionUser } from "@/lib/session";
 import { sql } from "drizzle-orm";
-import { AlertTriangle, CheckCircle2, Database } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, Download } from "lucide-react";
 import { redirect } from "next/navigation";
 
 type CountRow = { name: string; n: number };
 type AuditRow = { action: string; result: string; createdAt: string; entityType: string };
-type SyncRow = { name: string; status: string; lastSyncAt: string | null; lastSyncStatus: string | null };
+type SyncRow = {
+  name: string;
+  status: string;
+  lastSyncAt: string | null;
+  lastSyncStatus: string | null;
+};
 
 async function collect(userId: string) {
   const db = getDb();
@@ -71,6 +76,8 @@ export default async function SantePage() {
     error = cause instanceof Error ? cause.message : "Erreur inconnue";
   }
 
+  const isOwner = data?.shops.some((shop) => shop.role === "owner") ?? false;
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,6 +104,30 @@ export default async function SantePage() {
             />
           </div>
 
+          {isOwner ? (
+            <section className="card p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-night">
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Sauvegarde de la base
+              </h2>
+              <p className="mt-2 text-sm text-muted">
+                Export complet de la base au format SQL compressé, sans outil externe. Le fichier
+                contient les données réelles et ne doit pas être partagé.
+              </p>
+              <a
+                href="/api/admin/backup"
+                download
+                className="focusable mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Télécharger le dump (.sql.gz)
+              </a>
+              <p className="mt-2 text-xs text-muted">
+                Réservé aux propriétaires · l&apos;export est inscrit au journal d&apos;audit.
+              </p>
+            </section>
+          ) : null}
+
           <section className="card p-5">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-night">
               <Database className="h-4 w-4" aria-hidden="true" />
@@ -107,7 +138,10 @@ export default async function SantePage() {
             ) : (
               <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                 {data.counts.map((row) => (
-                  <li key={row.name} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                  <li
+                    key={row.name}
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  >
                     <span className="font-mono text-xs text-muted">{row.name}</span>
                     <span className="font-medium text-night">{row.n}</span>
                   </li>
@@ -126,7 +160,10 @@ export default async function SantePage() {
             ) : (
               <ul className="mt-4 space-y-2">
                 {data.syncs.map((row) => (
-                  <li key={row.name} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                  <li
+                    key={row.name}
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  >
                     <span className="text-night">{row.name}</span>
                     <span className="text-xs text-muted">
                       {row.lastSyncAt
@@ -146,13 +183,18 @@ export default async function SantePage() {
           </section>
 
           <section className="card p-5">
-            <h2 className="text-sm font-semibold text-night">Journal d&apos;audit (5 dernières actions)</h2>
+            <h2 className="text-sm font-semibold text-night">
+              Journal d&apos;audit (5 dernières actions)
+            </h2>
             {data.audits.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Aucune action enregistrée.</p>
             ) : (
               <ul className="mt-4 space-y-2">
                 {data.audits.map((row, index) => (
-                  <li key={`${row.action}-${index}`} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                  <li
+                    key={`${row.action}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  >
                     <span className="font-mono text-xs text-night">{row.action}</span>
                     <span className="text-xs text-muted">
                       {row.result} · {new Date(row.createdAt).toLocaleString("fr-FR")}

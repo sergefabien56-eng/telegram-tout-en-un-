@@ -68,7 +68,7 @@ jobs:
               console.log("base     :", parsed.pathname);
               console.log("params   :", parsed.searchParams.toString() || "(aucun)");
             } catch {
-              console.log("INVALIDE : la valeur n'est pas une URL exploitable.");
+              console.log("INVALIDE : valeur illisible comme URL.");
             }
           '
 
