@@ -98,7 +98,7 @@ function MiniAppContent() {
                 type="button"
                 onClick={exchange}
                 disabled={loading}
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
               >
                 {loading ? "Vérification…" : "Me connecter"}
               </button>

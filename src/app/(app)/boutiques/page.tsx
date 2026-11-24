@@ -143,7 +143,7 @@ export default function BoutiquesPage() {
                 {shops.map((shop) => (
                   <li
                     key={shop.id}
-                    className={`rounded-lg border p-4 ${selected === shop.id ? "border-primary" : "border-border"}`}
+                    className={`rounded-lg border p-4 ${selected === shop.id ? "border-primary-ink" : "border-border"}`}
                   >
                     <button
                       type="button"
@@ -187,7 +187,7 @@ export default function BoutiquesPage() {
                     <p className="text-xs text-muted">{member.email}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="badge bg-slate-100 text-muted">{member.role}</span>
+                    <span className="badge badge-neutral">{member.role}</span>
                     {member.role !== "owner" ? (
                       <button
                         type="button"
@@ -209,12 +209,12 @@ export default function BoutiquesPage() {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 required
                 placeholder="membre@exemple.ci"
-                className="flex-1 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+                className="flex-1 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as (typeof ROLES)[number])}
-                className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+                className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
               >
                 {ROLES.map((role) => (
                   <option key={role} value={role}>
@@ -224,7 +224,7 @@ export default function BoutiquesPage() {
               </select>
               <button
                 type="submit"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
               >
                 Inviter
               </button>

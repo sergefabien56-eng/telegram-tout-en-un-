@@ -5,7 +5,9 @@
 /* ---- Thème clair (défaut) -------------------------------------------- */
 :root {
   --night: 16 28 57; /* #101C39 */
-  --primary: 23 101 245; /* #1765F5 */
+  --primary: 23 101 245; /* #1765F5 — fond de bouton */
+  --primary-ink: 23 101 245; /* textes et liens */
+  --primary-hover: 18 85 213; /* #1255D5 — survol, blanc lisible */
   --primary-50: 238 243 254;
   --primary-100: 220 231 255;
   --primary-600: 18 85 213;
@@ -13,17 +15,19 @@
   --surface: 245 247 251; /* #F5F7FB */
   --card: 255 255 255;
   --border: 227 232 242; /* #E3E8F2 */
-  --success: 22 163 74;
+  --success: 22 101 52; /* #166534 — lisible sur fond clair (AA) */
   --warning: 245 158 11;
-  --danger: 220 38 38;
+  --danger: 185 28 28; /* #B91C1C — lisible sur fond clair (AA) */
   --ink: 15 23 42; /* #0F172A */
-  --muted: 100 116 139; /* #64748B */
+  --muted: 91 107 130; /* #5B6B82 — AA sur surface */
 }
 
 /* ---- Thème sombre ---------------------------------------------------- */
 .dark {
   --night: 226 232 245;
-  --primary: 88 140 250;
+  --primary: 47 99 214; /* #2F63D6 — le blanc reste lisible (AA) */
+  --primary-ink: 88 140 250; /* textes et liens en sombre */
+  --primary-hover: 59 111 224; /* #3B6FE0 — survol en sombre */
   --primary-50: 23 35 62;
   --primary-100: 29 48 88;
   --primary-600: 108 158 255;
@@ -35,7 +39,7 @@
   --warning: 251 191 36;
   --danger: 248 113 113;
   --ink: 229 235 245;
-  --muted: 140 152 172;
+  --muted: 140 152 172; /* #8C98AC */
 }
 
 @layer base {
@@ -65,8 +69,12 @@
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
+  /* Pastille neutre : lisible en clair comme en sombre. */
+  .badge-neutral {
+    @apply border border-border bg-surface text-muted;
+  }
   /* Lien et bouton de base (accessible au clavier). */
   .focusable {
-    @apply outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-primary-ink focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
   }
 }

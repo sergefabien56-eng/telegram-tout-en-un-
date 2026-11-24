@@ -66,7 +66,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary-ink focus:ring-2 focus:ring-primary-ink/20"
                 placeholder="vous@exemple.ci"
               />
             </div>
@@ -82,7 +82,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary-ink focus:ring-2 focus:ring-primary-ink/20"
                 placeholder="••••••••"
               />
             </div>
@@ -94,19 +94,19 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-hover disabled:opacity-60"
             >
               {loading ? "Connexion…" : "Se connecter"}
             </button>
           </form>
 
           <div className="mt-6 space-y-2 text-center text-sm text-muted">
-            <Link href="/forgot-password" className="block hover:text-primary">
+            <Link href="/forgot-password" className="block hover:text-primary-ink">
               Mot de passe oublié ?
             </Link>
             <p>
               Pas encore de compte ?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
+              <Link href="/register" className="font-medium text-primary-ink hover:underline">
                 Créer un compte
               </Link>
             </p>

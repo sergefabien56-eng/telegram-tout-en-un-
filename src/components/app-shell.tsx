@@ -143,7 +143,7 @@ function Sidebar({
                               <span className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted">
                                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="flex-1">{item.label}</span>
-                                <span className="badge bg-slate-100 text-muted">Bientôt</span>
+                                <span className="badge badge-neutral">Bientôt</span>
                               </span>
                             ) : (
                               <Link
@@ -152,7 +152,7 @@ function Sidebar({
                                 aria-current={active ? "page" : undefined}
                                 className={`focusable flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
                                   active
-                                    ? "bg-primary-50 font-medium text-primary"
+                                    ? "bg-primary-50 font-medium text-primary-ink"
                                     : "text-night hover:bg-surface"
                                 }`}
                               >
@@ -165,7 +165,7 @@ function Sidebar({
                       })}
                     </ul>
                   ) : sectionActive ? (
-                    <p className="mt-1 border-l-2 border-primary pl-3 text-xs text-muted">
+                    <p className="mt-1 border-l-2 border-primary-ink pl-3 text-xs text-muted">
                       {items.find((item) => item.href === pathname)?.label}
                     </p>
                   ) : null}
@@ -189,16 +189,27 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
   const [userMenu, setUserMenu] = useState(false);
   const [shopId, setShopId] = useState(shops[0]?.id ?? "");
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
 
+  // Fermeture au clic extérieur ou à Échap, avec retour du focus au déclencheur.
   useEffect(() => {
+    function close(restore: boolean) {
+      setUserMenu(false);
+      if (restore) userMenuTriggerRef.current?.focus();
+    }
     function onClick(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setUserMenu(false);
-      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) close(true);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && userMenu) close(true);
     }
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [userMenu]);
 
   async function selectShop(value: string) {
     setShopId(value);
@@ -257,12 +268,13 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
           <div className="relative" ref={userMenuRef}>
             <button
               type="button"
+              ref={userMenuTriggerRef}
               onClick={() => setUserMenu((value) => !value)}
               aria-expanded={userMenu}
               aria-haspopup="menu"
               className="focusable inline-flex h-9 items-center gap-2 rounded-lg px-2 text-sm text-night hover:bg-surface"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-ink">
                 {user.fullName.slice(0, 1).toUpperCase()}
               </span>
               <span className="hidden sm:inline">{user.fullName.split(" ")[0]}</span>

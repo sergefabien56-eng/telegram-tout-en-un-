@@ -65,7 +65,7 @@ export function NotificationsBell() {
         <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-night">Notifications</p>
-            <Link href="/notifications" className="text-xs text-primary hover:underline">
+            <Link href="/notifications" className="text-xs text-primary-ink hover:underline">
               Réglages
             </Link>
           </div>

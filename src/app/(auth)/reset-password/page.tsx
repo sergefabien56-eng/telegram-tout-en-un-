@@ -43,7 +43,7 @@ function ResetForm({ token }: { token: string }) {
         </p>
         <Link
           href="/login"
-          className="block w-full rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90"
+          className="block w-full rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-primary-hover"
         >
           Se connecter
         </Link>
@@ -65,7 +65,7 @@ function ResetForm({ token }: { token: string }) {
           minLength={8}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary-ink focus:ring-2 focus:ring-primary-ink/20"
           placeholder="8 caractères minimum, avec un chiffre"
         />
       </div>
@@ -75,7 +75,7 @@ function ResetForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-hover disabled:opacity-60"
       >
         {loading ? "Enregistrement…" : "Enregistrer"}
       </button>
@@ -105,7 +105,7 @@ function ResetPasswordInner() {
             </p>
           )}
           <p className="mt-6 text-center text-sm text-muted">
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/login" className="font-medium text-primary-ink hover:underline">
               Retour à la connexion
             </Link>
           </p>

@@ -20,7 +20,10 @@ const config: Config = {
           500: "rgb(var(--primary) / <alpha-value>)",
           600: "rgb(var(--primary-600) / <alpha-value>)",
           700: "rgb(var(--primary-700) / <alpha-value>)",
+          hover: "rgb(var(--primary-hover) / <alpha-value>)",
         },
+        // La clé contient un tiret : les classes générées sont `text-primary-ink`, etc.
+        "primary-ink": "rgb(var(--primary-ink) / <alpha-value>)",
         surface: "rgb(var(--surface) / <alpha-value>)",
         card: "rgb(var(--card) / <alpha-value>)",
         border: "rgb(var(--border) / <alpha-value>)",

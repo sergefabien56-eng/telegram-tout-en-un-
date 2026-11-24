@@ -48,7 +48,7 @@ export function TelegramLinkButton() {
           <button
             type="button"
             onClick={generate}
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-primary-ink hover:underline"
           >
             Générer un nouveau code
           </button>

@@ -78,7 +78,7 @@ export default function TwoFactorPage() {
                 onChange={(event) =>
                   setCode(event.target.value.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 9))
                 }
-                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-center text-lg tracking-[0.4em] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-center text-lg tracking-[0.4em] outline-none focus:border-primary-ink focus:ring-2 focus:ring-primary-ink/20"
                 placeholder="123456"
               />
             </div>
@@ -90,14 +90,14 @@ export default function TwoFactorPage() {
             <button
               type="submit"
               disabled={loading || !challenge}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
             >
               {loading ? "Vérification…" : "Vérifier"}
             </button>
           </form>
 
           <p className="mt-5 text-center text-xs text-muted">
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary-ink hover:underline">
               ← Retour à la connexion
             </Link>
           </p>

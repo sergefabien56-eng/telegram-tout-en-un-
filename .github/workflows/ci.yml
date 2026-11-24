@@ -49,5 +49,5 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: E2E (pages publiques)
-        run: npx playwright test e2e/smoke.spec.ts
+      - name: E2E (pages publiques + accessibilité WCAG 2.1 AA)
+        run: npx playwright test e2e/smoke.spec.ts e2e/accessibilite.spec.ts

@@ -173,6 +173,41 @@ Le **même** fichier alimente le menu latéral (desktop), le menu compact (mobil
 > **Honnêteté** : les entrées marquées « Bientôt » restent visibles mais non cliquables.
 > Aucune donnée fictive n'est affichée.
 
+### 4.7 Accessibilité (mesurée, pas affirmée)
+
+**Contrastes** — ratios mesurés sur les jetons réels de `globals.css`, vérifiés par un test
+automatisé (`src/config/__tests__/contrast.test.ts`) qui relit la feuille de style à chaque
+`npm test` et échoue si une paire passe sous 4.5:1 :
+
+| Paire | Clair | Sombre |
+|---|---|---|
+| texte courant sur carte / surface | 16,7:1 | 16,1:1 |
+| texte atténué (`muted`) sur surface | 5,1:1 | 6,6:1 |
+| lien / libellé primaire | 5,0:1 | 6,0:1 |
+| texte blanc sur bouton primaire | 5,0:1 | 5,4:1 |
+| message de statut sur fond teinté 10 % | 6,2:1 (succès) | ≥ 7:1 |
+
+Deux corrections ont été nécessaires : le vert « succès » et le rouge « danger » étaient trop clairs
+pour du texte (2,96:1 et 4,13:1) → `#166534` et `#B91C1C`. Le gris atténué est passé de `#64748B`
+(4,44:1 sur surface) à `#5B6B82` (5,06:1). En sombre, le primaire de **texte** (`--primary-ink`)
+est distinct du primaire de **bouton** (`--primary`), car une seule couleur ne peut pas être lisible
+à la fois sur fond sombre et sous du blanc.
+
+**Clavier**
+- Anneau de focus visible partout (`.focusable`, `--primary-ink`).
+- Boîtes de dialogue : Échap, clic sur le voile, **piège à focus**, focus rendu au déclencheur.
+- Menus déroulants (actions rapides, profil) : fermeture au clic extérieur **et** à Échap, focus rendu.
+- Navigation basse Mini App : vrais liens avec `aria-current="page"`.
+
+**Autres**
+- `prefers-reduced-motion` respecté (globaux).
+- Icônes décoratives en `aria-hidden` ; images avec `alt` ; champs avec `label`.
+- Audits automatisés en CI : `@axe-core/playwright` (WCAG 2.1 A/AA) via `e2e/accessibilite.spec.ts`.
+
+> **Limite honnête** : les tests d'accessibilité navigateur **n'ont pas pu être exécutés dans
+> l'environnement de développement** (pas de navigateur). Les contrastes, eux, sont mesurés
+> automatiquement à chaque `npm test`. Le job CI lance les audits axe dès qu'un navigateur est dispo.
+
 ---
 
 ## 5. Responsive

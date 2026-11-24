@@ -46,7 +46,7 @@ export default function HomePage() {
               {row.ready ? (
                 <span className="badge bg-green-50 text-success">Configuré</span>
               ) : (
-                <span className="badge bg-slate-100 text-muted">Non configuré</span>
+                <span className="badge badge-neutral">Non configuré</span>
               )}
             </li>
           ))}
@@ -68,7 +68,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold">{item.label}</span>
                 {item.soon ? (
-                  <span className="badge bg-slate-100 text-muted">Bientôt disponible</span>
+                  <span className="badge badge-neutral">Bientôt disponible</span>
                 ) : (
                   <span className="badge bg-primary-50 text-primary-700">Actif</span>
                 )}
@@ -86,19 +86,19 @@ export default function HomePage() {
       <section className="mt-8 flex flex-col gap-3 sm:flex-row">
         <a
           href="/login"
-          className="rounded-lg bg-primary px-5 py-2.5 text-center text-sm font-medium text-white transition hover:bg-primary/90"
+          className="rounded-lg bg-primary px-5 py-2.5 text-center text-sm font-medium text-white transition hover:bg-primary-hover"
         >
           Se connecter
         </a>
         <a
           href="/register"
-          className="rounded-lg border border-border bg-white px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
+          className="rounded-lg border border-border bg-card px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
         >
           Créer un compte
         </a>
         <a
           href="/dashboard"
-          className="rounded-lg border border-border bg-white px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
+          className="rounded-lg border border-border bg-card px-5 py-2.5 text-center text-sm font-medium text-night transition hover:bg-surface"
         >
           Tableau de bord
         </a>

@@ -2,7 +2,7 @@
 
 import { ChevronDown, Plus, ShoppingCart, Store } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/modal";
 import { ShopCreateForm } from "@/components/shop-create-form";
 
@@ -16,13 +16,22 @@ export function QuickActions() {
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(true);
+
+  /** Ferme le menu en rendant le focus au déclencheur (accessibilité clavier). */
+  const closeMenu = useCallback((restore: boolean) => {
+    restoreFocus.current = restore;
+    setOpen(false);
+    if (restore) triggerRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) closeMenu(true);
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeMenu(true);
     }
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKeyDown);
@@ -30,7 +39,7 @@ export function QuickActions() {
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [closeMenu]);
 
   function closeAll() {
     setOpen(false);
@@ -41,10 +50,11 @@ export function QuickActions() {
     <div className="relative" ref={wrapRef}>
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="focusable inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+        className="focusable inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary-hover"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
         <span className="hidden sm:inline">Actions rapides</span>
@@ -65,7 +75,7 @@ export function QuickActions() {
             }}
             className="focusable flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-night hover:bg-surface"
           >
-            <Store className="h-4 w-4 text-primary" aria-hidden="true" />
+            <Store className="h-4 w-4 text-primary-ink" aria-hidden="true" />
             <span>
               Ajouter une boutique
               <span className="block text-xs text-muted">Jumia — Vendor Center</span>
@@ -80,7 +90,7 @@ export function QuickActions() {
             <span>
               Nouvelle commande
               <span className="mt-0.5 block">
-                <span className="badge bg-slate-100 text-muted">Bientôt disponible</span>
+                <span className="badge badge-neutral">Bientôt disponible</span>
               </span>
             </span>
           </div>

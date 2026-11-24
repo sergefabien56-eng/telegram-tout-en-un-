@@ -85,13 +85,13 @@ export default async function DashboardPage() {
                     <li key={item.key}>
                       {item.soon ? (
                         <span className="flex items-center gap-2 text-sm text-muted">
-                          <span className="badge bg-slate-100 text-muted">Bientôt disponible</span>
+                          <span className="badge badge-neutral">Bientôt disponible</span>
                           <span>{item.label}</span>
                         </span>
                       ) : (
                         <Link
                           href={item.href}
-                          className="focusable flex items-center justify-between rounded-lg px-1 py-1 text-sm text-night hover:text-primary"
+                          className="focusable flex items-center justify-between rounded-lg px-1 py-1 text-sm text-night hover:text-primary-ink"
                         >
                           <span>{item.label}</span>
                           <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
           <ul className="mt-3 space-y-2 text-sm text-muted">
             <li>
               ·{" "}
-              <Link href="/boutiques" className="text-primary hover:underline">
+              <Link href="/boutiques" className="text-primary-ink hover:underline">
                 Créer ta première boutique
               </Link>{" "}
               et inviter ton équipe.

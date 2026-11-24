@@ -37,7 +37,7 @@ export default async function NotificationsPage() {
               <li key={row.id} className="rounded-xl border border-border p-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-night">{row.title}</p>
-                  <span className="badge bg-slate-100 text-muted">{row.status}</span>
+                  <span className="badge badge-neutral">{row.status}</span>
                 </div>
                 <p className="mt-1 text-xs text-muted">{row.body}</p>
                 <p className="mt-1 text-[11px] text-muted">

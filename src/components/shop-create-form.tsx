@@ -64,7 +64,7 @@ export function ShopCreateForm({
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
           placeholder="Ma boutique Jumia"
         />
       </div>
@@ -79,7 +79,7 @@ export function ShopCreateForm({
           onChange={(event) => setExternalShopId(event.target.value)}
           required
           autoComplete="off"
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
           placeholder="ex. AgWgmxKZuk-ZNu92dAkyX43yenzDaA9DVkrfGXV__c0"
         />
         <p className="mt-1 text-[11px] text-muted">
@@ -97,7 +97,7 @@ export function ShopCreateForm({
             value={country}
             onChange={(event) => setCountry(event.target.value.toUpperCase())}
             maxLength={2}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm uppercase outline-none focus:border-primary"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm uppercase outline-none focus:border-primary-ink"
           />
         </div>
         <div>
@@ -109,7 +109,7 @@ export function ShopCreateForm({
             value={currency}
             onChange={(event) => setCurrency(event.target.value.toUpperCase())}
             maxLength={3}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm uppercase outline-none focus:border-primary"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm uppercase outline-none focus:border-primary-ink"
           />
         </div>
       </div>
@@ -124,7 +124,7 @@ export function ShopCreateForm({
         <button
           type="submit"
           disabled={loading}
-          className="focusable flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+          className="focusable flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
         >
           {loading ? "Création…" : "Créer la boutique"}
         </button>

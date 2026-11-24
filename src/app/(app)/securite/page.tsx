@@ -118,7 +118,7 @@ export default function SecuritePage() {
       <section className="card p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-ink">
               {enabled ? (
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               ) : (
@@ -137,7 +137,7 @@ export default function SecuritePage() {
             </div>
           </div>
           {enabled === false ? (
-            <button type="button" onClick={start} disabled={loading} className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60">
+            <button type="button" onClick={start} disabled={loading} className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60">
               {loading ? "Préparation…" : "Activer"}
             </button>
           ) : null}
@@ -170,13 +170,13 @@ export default function SecuritePage() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="123456"
-                className="focusable w-full rounded-lg border border-border bg-white px-3 py-2.5 text-center text-lg tracking-[0.4em] text-night outline-none focus:border-primary"
+                className="focusable w-full rounded-lg border border-border bg-card px-3 py-2.5 text-center text-lg tracking-[0.4em] text-night outline-none focus:border-primary-ink"
               />
               <button
                 type="button"
                 onClick={confirm}
                 disabled={loading || code.length !== 6}
-                className="focusable w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                className="focusable w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
               >
                 {loading ? "Vérification…" : "Confirmer et activer"}
               </button>
@@ -203,7 +203,7 @@ export default function SecuritePage() {
             <button
               type="button"
               onClick={() => setRecoveryCodes(null)}
-              className="mt-4 text-sm text-primary hover:underline"
+              className="mt-4 text-sm text-primary-ink hover:underline"
             >
               J&apos;ai enregistré mes codes — continuer
             </button>
@@ -220,7 +220,7 @@ export default function SecuritePage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Ton mot de passe"
-                className="focusable w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-night outline-none focus:border-primary sm:max-w-xs"
+                className="focusable w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-night outline-none focus:border-primary-ink sm:max-w-xs"
               />
               <button
                 type="button"
