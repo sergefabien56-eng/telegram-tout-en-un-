@@ -49,6 +49,21 @@ export interface AiProvider {
   }): Promise<AiReply>;
 }
 
+/**
+ * Délai d'attente entre deux tentatives (backoff simple, plafonné).
+ * L'offre gratuite de Gemini répond souvent 503 « forte demande » : on
+ * réessaie plusieurs fois plutôt que de répondre à l'utilisateur qu'il n'y a
+ * aucune donnée.
+ */
+const AI_MAX_ATTEMPTS = 4;
+function aiRetryDelay(attempt: number): number {
+  return Math.min(2000 * 2 ** (attempt - 1), 12_000);
+}
+
+function isRetryable(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
 function envKey(name: string): string | undefined {
   return process.env[name] && process.env[name]!.length > 0 ? process.env[name] : undefined;
 }
@@ -61,66 +76,139 @@ export function readAiConfig(): AiProviderConfig | null {
   if (!apiKey) return null;
   const model =
     process.env.AI_MODEL ??
-    (provider === "gemini" ? "gemini-2.0-flash" : "llama-3.3-70b-versatile");
+    (provider === "gemini" ? "gemini-flash-lite-latest" : "llama-3.3-70b-versatile");
   return { provider, apiKey, model };
 }
 
 /** Gemini API (HTTPS directe, sans dépendance supplémentaire). */
+/** Modèles de repli : l'offre gratuite renvoie souvent 503 « forte demande ». */
+const GEMINI_FALLBACK_MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-3.8-flash"];
+
 class GeminiProvider implements AiProvider {
   readonly name = "gemini" as const;
+
+  private async requestWithRetry(url: string, body: Record<string, unknown>): Promise<Response> {
+    let lastError = "Gemini injoignable.";
+    for (let attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt += 1) {
+      let response: Response | null = null;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch {
+        lastError = "Fournisseur IA injoignable après plusieurs tentatives.";
+        if (attempt < AI_MAX_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, aiRetryDelay(attempt)));
+          continue;
+        }
+        throw new Error(lastError);
+      }
+      if (!isRetryable(response.status)) {
+        if (!response.ok) {
+          lastError =
+            response.status === 404
+              ? `Modèle « ${this.model} » indisponible sur ce compte.`
+              : `Gemini a répondu HTTP ${response.status}.`;
+        } else {
+          return response;
+        }
+      } else {
+        lastError = `Gemini a répondu HTTP ${response.status}.`;
+      }
+      if (attempt < AI_MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, aiRetryDelay(attempt)));
+      }
+    }
+    throw new Error(lastError);
+  }
+
+  /** Appel avec bascule de modèle si le premier est saturé ou retiré. */
+  private async completeWithFallback(input: {
+    system: string;
+    messages: AiMessage[];
+    tools: AiToolDefinition[];
+    urlFor: (model: string) => string;
+    bodyFor: (
+      system: string,
+      messages: AiMessage[],
+      tools: AiToolDefinition[],
+    ) => Record<string, unknown>;
+  }): Promise<{ response: Response; model: string }> {
+    const candidates = [this.model, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== this.model)];
+    let lastError = "Gemini injoignable.";
+    for (const model of candidates) {
+      try {
+        const response = await this.requestWithRetry(
+          input.urlFor(model),
+          input.bodyFor(input.system, input.messages, input.tools),
+        );
+        return { response, model };
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    throw new Error(lastError);
+  }
+  /** Dernier modèle ayant répondu (l'offre gratuite change souvent). */
+  model: string;
+
   constructor(
     private readonly apiKey: string,
-    readonly model: string,
-  ) {}
+    model: string,
+  ) {
+    this.model = model;
+  }
 
   async complete(input: {
     system: string;
     messages: AiMessage[];
     tools: AiToolDefinition[];
   }): Promise<AiReply> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
-
-    const contents = input.messages.map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }],
-    }));
-
-    const body: Record<string, unknown> = {
-      systemInstruction: { parts: [{ text: input.system }] },
-      contents,
+    const bodyFor = (
+      system: string,
+      messages: AiMessage[],
+      tools: AiToolDefinition[],
+    ): Record<string, unknown> => {
+      const contents = messages.map((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.content }],
+      }));
+      const body: Record<string, unknown> = {
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+      };
+      if (tools.length > 0) {
+        body.tools = [
+          {
+            functionDeclarations: tools.map((tool) => ({
+              name: tool.name,
+              description: tool.description,
+              // `parameters` est la table des propriétés ; le schéma objet est
+              // construit ici pour rester valide côté Gemini.
+              parameters: {
+                type: "OBJECT",
+                properties: tool.parameters,
+                required: Object.keys(tool.parameters),
+              },
+            })),
+          },
+        ];
+      }
+      return body;
     };
-    if (input.tools.length > 0) {
-      body.tools = [
-        {
-          functionDeclarations: input.tools.map((tool) => ({
-            name: tool.name,
-            description: tool.description,
-            parameters: {
-              type: "OBJECT",
-              properties: Object.fromEntries(
-                Object.entries(tool.parameters).map(([key, value]) => [
-                  key,
-                  typeof value === "object" && value !== null
-                    ? (value as Record<string, unknown>)
-                    : { type: "STRING" },
-                ]),
-              ),
-              required: [],
-            },
-          })),
-        },
-      ];
-    }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+    const { response, model } = await this.completeWithFallback({
+      system: input.system,
+      messages: input.messages,
+      tools: input.tools,
+      urlFor: (candidate) =>
+        `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${encodeURIComponent(this.apiKey)}`,
+      bodyFor,
     });
-    if (!response.ok) {
-      throw new Error(`Gemini a répondu HTTP ${response.status}.`);
-    }
+    this.model = model;
     const json = (await response.json()) as {
       candidates?: {
         content?: {
@@ -159,10 +247,15 @@ class GeminiProvider implements AiProvider {
 /** Groq API (OpenAI-compatible, HTTPS directe). */
 class GroqProvider implements AiProvider {
   readonly name = "groq" as const;
+  /** Dernier modèle ayant répondu (l'offre gratuite change souvent). */
+  model: string;
+
   constructor(
     private readonly apiKey: string,
-    readonly model: string,
-  ) {}
+    model: string,
+  ) {
+    this.model = model;
+  }
 
   async complete(input: {
     system: string;
@@ -195,15 +288,32 @@ class GroqProvider implements AiProvider {
       body.tool_choice = "auto";
     }
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
-    });
+    let response: Response | null = null;
+    for (let attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch {
+        if (attempt < AI_MAX_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, aiRetryDelay(attempt)));
+          continue;
+        }
+        throw new Error("Fournisseur IA injoignable après plusieurs tentatives.");
+      }
+      if (!isRetryable(response.status)) break;
+      if (attempt < AI_MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, aiRetryDelay(attempt)));
+        continue;
+      }
+    }
+    if (!response) throw new Error("Fournisseur IA injoignable.");
     if (!response.ok) {
       throw new Error(`Groq a répondu HTTP ${response.status}.`);
     }

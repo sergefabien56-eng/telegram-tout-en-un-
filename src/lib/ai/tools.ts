@@ -4,7 +4,7 @@ import { getDb, schema } from "@/db";
 import { getShopAccess } from "@/lib/permissions";
 import { reportSales, reportCatalog } from "@/lib/reports";
 import { listPayoutStatements, sumStatements } from "@/lib/payments";
-import { getCurrentShop } from "@/lib/current-shop";
+import { listUserShops } from "@/lib/shops";
 
 /**
  * Outils MIMI — uniquement des agrégats réels, chacun filtré par les
@@ -40,20 +40,19 @@ export function mimiToolsFor(ctx: Ctx): {
       description:
         "Chiffre d'affaires, nombre de commandes, unités vendues et panier moyen sur une période, pour UNE boutique. Les montants proviennent des commandes réellement enregistrées (livrées et expédiées).",
       parameters: {
-        type: "object",
-        properties: {
-          shop_id: { type: "string", description: "Identifiant de la boutique." },
-          days: {
-            type: "integer",
-            minimum: 1,
-            maximum: 90,
-            description: "Fenêtre en jours (défaut 30).",
-          },
+        shop_id: {
+          type: "string",
+          description: "Identifiant de la boutique. Optionnel : vaut la boutique en contexte.",
         },
-        required: ["shop_id"],
+        days: {
+          type: "integer",
+          minimum: 1,
+          maximum: 90,
+          description: "Fenêtre en jours (défaut 30).",
+        },
       },
       run: async (args) => {
-        const access = await assertAccess(ctx.userId, String(args.shop_id), "orders:read");
+        const access = await resolveShop(ctx, args);
         const days = Math.min(Math.max(Number(args.days ?? 30), 1), 90);
         const to = new Date();
         const from = new Date(to.getTime() - (days - 1) * 86_400_000);
@@ -85,13 +84,9 @@ export function mimiToolsFor(ctx: Ctx): {
       name: "get_stock_alerts",
       description:
         "Produits dont le stock déclaré est faible (≤ 5) avec leur SKU vendeur et le stock total de la boutique. Source : stocks synchronisés.",
-      parameters: {
-        type: "object",
-        properties: { shop_id: { type: "string" } },
-        required: ["shop_id"],
-      },
+      parameters: { shop_id: { type: "string" } },
       run: async (args) => {
-        const access = await assertAccess(ctx.userId, String(args.shop_id), "inventory:read");
+        const access = await resolveShop(ctx, args, "inventory:read");
         const catalog = await reportCatalog(access.shopId);
         return {
           shop: access.shop.name,
@@ -108,13 +103,9 @@ export function mimiToolsFor(ctx: Ctx): {
       name: "get_financial_summary",
       description:
         "Relevés de versement Jumia enregistrés : CA articles, commissions, net à verser et montants déjà payés. Uniquement des champs publiés par Jumia.",
-      parameters: {
-        type: "object",
-        properties: { shop_id: { type: "string" } },
-        required: ["shop_id"],
-      },
+      parameters: { shop_id: { type: "string" } },
       run: async (args) => {
-        const access = await assertAccess(ctx.userId, String(args.shop_id), "finance:read");
+        const access = await resolveShop(ctx, args, "finance:read");
         const rows = await listPayoutStatements(access.shopId, 50);
         const totals = sumStatements(rows);
         return {
@@ -136,21 +127,17 @@ export function mimiToolsFor(ctx: Ctx): {
       description:
         "Compare le chiffre d'affaires et le nombre de commandes de toutes les boutiques accessibles à l'utilisateur, sur la même période. N'implique que les boutiques où l'utilisateur a la permission de lire les commandes.",
       parameters: {
-        type: "object",
-        properties: {
-          days: { type: "integer", minimum: 1, maximum: 90 },
-          shop_ids: {
-            type: "array",
-            items: { type: "string" },
-            description: "Restreint la comparaison à ces boutiques (optionnel).",
-          },
+        days: { type: "integer", minimum: 1, maximum: 90 },
+        shop_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Restreint la comparaison à ces boutiques (optionnel).",
         },
-        required: [],
       },
       run: async (args) => {
         const days = Math.min(Math.max(Number(args.days ?? 30), 1), 90);
         const wanted = Array.isArray(args.shop_ids) ? args.shop_ids.map(String) : null;
-        const { shops } = await getCurrentShop(ctx.userId);
+        const shops = await listUserShops(ctx.userId);
 
         const results: Record<string, unknown>[] = [];
         for (const shop of shops) {
@@ -182,16 +169,12 @@ export function mimiToolsFor(ctx: Ctx): {
       description:
         "Recherche un produit enregistré par nom, marque ou catégorie, avec son prix et son stock. Ne retourne que ce qui existe en base.",
       parameters: {
-        type: "object",
-        properties: {
-          shop_id: { type: "string" },
-          query: { type: "string", minLength: 2 },
-          limit: { type: "integer", minimum: 1, maximum: 20 },
-        },
-        required: ["shop_id", "query"],
+        shop_id: { type: "string" },
+        query: { type: "string", description: "Nom, marque ou catégorie (2 caractères minimum)." },
+        limit: { type: "integer", minimum: 1, maximum: 20 },
       },
       run: async (args) => {
-        const access = await assertAccess(ctx.userId, String(args.shop_id), "products:read");
+        const access = await resolveShop(ctx, args, "products:read");
         const db = getDb();
         const needle = `%${String(args.query)}%`;
         const limit = Math.min(Math.max(Number(args.limit ?? 5), 1), 20);
@@ -239,6 +222,20 @@ type AccessWithShop = {
   permissions: Set<string>;
   shop: typeof schema.shops.$inferSelect;
 };
+
+/** Boutique cible : celle du contexte si l'outil ne la précise pas. */
+async function resolveShop(
+  ctx: Ctx,
+  args: Record<string, unknown>,
+  permission = "orders:read",
+): Promise<AccessWithShop> {
+  const requested =
+    typeof args.shop_id === "string" && args.shop_id.length > 0 ? args.shop_id : ctx.shopId;
+  if (!requested) {
+    throw new Error("Aucune boutique en contexte : précisez la boutique concernée.");
+  }
+  return assertAccess(ctx.userId, requested, permission);
+}
 
 async function assertAccess(
   userId: string,

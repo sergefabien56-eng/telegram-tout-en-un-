@@ -119,6 +119,22 @@ export type MimiResult =
   | { ok: false; unavailable: true; reply: string; toolCalls: [] };
 
 /** Envoie un message à MIMI et persiste l'échange. */
+async function buildSystemPrompt(shopId: string | null): Promise<string> {
+  const context: string[] = [];
+  if (shopId) {
+    const [shop] = await getDb().select().from(schema.shops).where(eq(schema.shops.id, shopId));
+    if (shop) {
+      context.push(
+        `Boutique en contexte : « ${shop.name} », identifiant ${shop.id}. ` +
+          "Si l'utilisateur ne précise pas la boutique, utilise cet identifiant avec les outils.",
+      );
+    }
+  } else {
+    context.push("Aucune boutique en contexte : demande à l'utilisateur de préciser la boutique.");
+  }
+  return [MIMI_SYSTEM_PROMPT, "", ...context].join("\n");
+}
+
 export async function askMimi(input: {
   userId: string;
   shopId: string | null;
@@ -146,7 +162,7 @@ export async function askMimi(input: {
     let answer;
     try {
       answer = await provider.complete({
-        system: MIMI_SYSTEM_PROMPT,
+        system: await buildSystemPrompt(input.shopId),
         messages,
         tools: tools.map(({ name, description, parameters }) => ({
           name,
