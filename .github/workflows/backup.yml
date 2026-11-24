@@ -41,17 +41,28 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Vérifie la présence de DATABASE_URL
+      - name: Vérifie la valeur de DATABASE_URL
         id: check
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "Le secret DATABASE_URL n'est pas défini : aucune sauvegarde."
-            echo "defined=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "defined=true" >> "$GITHUB_OUTPUT"
-          fi
+          node -e '
+            const fs = require("node:fs");
+            const raw = process.env.DATABASE_URL || "";
+            let ok = false;
+            let why = "absente";
+            if (raw) {
+              try {
+                const parsed = new URL(raw);
+                ok = parsed.hostname.includes(".");
+                why = ok ? "exploitable" : "hote illisible : " + parsed.hostname;
+              } catch {
+                why = "valeur non analysable";
+              }
+            }
+            console.log("DATABASE_URL :", why, ok ? "(exploitable)" : "(sauvegarde ignoree)");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT || "/dev/null", "defined=" + (ok ? "true" : "false") + "\n");
+          '
 
       - name: Diagnostic de l'URL (sans afficher le mot de passe)
         if: steps.check.outputs.defined == 'true'

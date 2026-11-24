@@ -75,7 +75,9 @@ pas lire la base tant que ce secret n'est pas créé :
 1. Dépôt → **Settings → Secrets and variables → Actions → New repository secret** ;
 2. nom `DATABASE_URL`, valeur = l'URI Postgres copiée depuis Neon (ou depuis
    Render → service → onglet **Environment** → variable `DATABASE_URL`) ;
-3. sans lui, le job se termine avec « aucune sauvegarde » et reste vert.
+3. sans lui — ou si sa valeur est mal formée (hôte illisible) — le job affiche un
+   message et **reste vert** : l&apos;automatisation est optionnelle, elle ne doit
+   pas mettre le dépôt en rouge.
 
 Le job affiche une ligne `URL : protocole=… hôte=… base=… mot de passe=présent`
 avant de se connecter (jamais le mot de passe) : si `hôte=` ne contient pas
