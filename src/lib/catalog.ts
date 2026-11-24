@@ -314,3 +314,39 @@ export async function listVariants(
 
   return rows.map((row) => ({ variant: row.variant, productName: row.productName }));
 }
+
+/**
+ * Enregistre le prix d'achat d'une déclinaison (saisie manuelle).
+ *
+ * Le SKU doit appartenir à la boutique : toute tentative hors périmètre est
+ * ignorée (retour `false`). La valeur reste un entier d'unités mineures (R3).
+ */
+export async function setPurchasePrice(
+  shopId: string,
+  sellerSku: string,
+  minor: number | null,
+): Promise<boolean> {
+  const db = getDb();
+  const rows = await db
+    .select({ id: schema.productVariants.id })
+    .from(schema.productVariants)
+    .innerJoin(schema.products, eq(schema.productVariants.productId, schema.products.id))
+    .where(and(eq(schema.productVariants.sellerSku, sellerSku), eq(schema.products.shopId, shopId)))
+    .limit(1);
+
+  const variant = rows[0];
+  if (!variant) return false;
+
+  await db
+    .update(schema.productVariants)
+    .set({ purchasePriceMinor: minor })
+    .where(eq(schema.productVariants.id, variant.id));
+  return true;
+}
+
+/** Marge unitaire affichable (prix de vente − prix d'achat) ou `null`. */
+export function marginOf(variant: VariantRow): number | null {
+  const sale = variant.salePriceMinor ?? variant.priceMinor;
+  if (sale === null || variant.purchasePriceMinor === null) return null;
+  return sale - variant.purchasePriceMinor;
+}

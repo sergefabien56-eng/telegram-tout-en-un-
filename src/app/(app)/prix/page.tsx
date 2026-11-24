@@ -1,11 +1,20 @@
 import { ExportButton } from "@/components/export-button";
+import { PurchasePriceField } from "@/components/purchase-price-field";
 import { ScopeNotice, ShopSelect } from "@/components/shop-select";
-import { listVariants } from "@/lib/catalog";
-import { formatMoney } from "@/lib/money";
+import { getShopAccess } from "@/lib/permissions";
+import { listVariants, marginOf } from "@/lib/catalog";
+import { formatMoney, minorUnits } from "@/lib/money";
 import { readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
+
+/** Conversion affichage : unités mineures → unités majeures (arrondi devise). */
+function toMajor(minor: number | null, currency: string): string {
+  if (minor === null) return "";
+  const digits = minorUnits(currency);
+  return (minor / 10 ** digits).toString();
+}
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +41,17 @@ export default async function PrixPage({
   const shopIds = resolveShopIds(values.boutique, scope.allowed);
   const singleShopId = shopIds.length === 1 ? shopIds[0] : undefined;
   const rows = singleShopId ? await listVariants(singleShopId, 200) : [];
+  const access = singleShopId ? await getShopAccess(user.id, singleShopId) : null;
+  const canWrite = Boolean(access?.permissions.has("products:write"));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-night">Prix</h1>
         <p className="mt-1 text-sm text-muted">
-          Prix enregistrés dans notre base pour chaque déclinaison (SKU vendeur).
+          Prix de vente enregistrés pour chaque déclinaison. Le prix d&apos;achat se saisit
+          <span className="font-medium text-night">à la main</span>, ici même : rien n&apos;est
+          repris de Jumia.
         </p>
       </div>
 
@@ -94,6 +107,20 @@ export default async function PrixPage({
                       <td className="py-2.5 text-right text-muted">
                         {variant.salePriceMinor !== null
                           ? formatMoney(variant.salePriceMinor, variant.currency)
+                          : "—"}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <PurchasePriceField
+                          shopId={singleShopId ?? ""}
+                          sku={variant.sellerSku ?? variant.id}
+                          value={toMajor(variant.purchasePriceMinor, variant.currency)}
+                          currency={variant.currency}
+                          permissions={canWrite}
+                        />
+                      </td>
+                      <td className="py-2.5 text-right text-muted">
+                        {marginOf(variant) !== null
+                          ? formatMoney(marginOf(variant) as number, variant.currency)
                           : "—"}
                       </td>
                     </tr>

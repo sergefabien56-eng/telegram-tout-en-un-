@@ -381,6 +381,8 @@ export const productVariants = pgTable(
     qcStatus: text("qc_status"),
     /** Stock global du SKU (GPM `GET /catalog/stock`). */
     stockGlobal: integer("stock_global"),
+    /** Prix d'achat saisi manuellement (entier, unités mineures). Jamais repris de Jumia. */
+    purchasePriceMinor: integer("purchase_price_minor"),
     stockUpdatedAt: timestamp("stock_updated_at", { withTimezone: true }),
     raw: jsonb("raw"),
     syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),

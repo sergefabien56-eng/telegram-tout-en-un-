@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getDb, schema } from "@/db";
 import { listCategories, rentability, shopCounts } from "@/lib/insights";
+import { listVariants, setPurchasePrice } from "@/lib/catalog";
 
 /** Agrégats de consultation sur la base réelle (ignorés en CI). */
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -29,6 +30,22 @@ describe.skipIf(!hasDb)("informations de gestion (base réelle)", () => {
     for (const row of rows) {
       expect(row.products).toBeGreaterThan(0);
     }
+  });
+
+  it("enregistre le prix d'achat sans toucher aux autres champs", async () => {
+    const db = getDb();
+    const [shop] = await db.select({ id: schema.shops.id }).from(schema.shops).limit(1);
+    if (!shop) return;
+
+    const [variante] = await listVariants(shop.id, 1);
+    if (!variante?.variant.sellerSku) return; // Aucun SKU : rien à tester ici.
+
+    // On réécrit la valeur existante : idempotent, aucune donnée modifiée.
+    const avant = variante.variant.purchasePriceMinor;
+    expect(await setPurchasePrice(shop.id, variante.variant.sellerSku, avant)).toBe(true);
+
+    // Un SKU hors de la boutique est ignoré.
+    expect(await setPurchasePrice(shop.id, "SKU-INEXISTANT-TeSt", 1000)).toBe(false);
   });
 
   it("additionne les relevés sans mélanger les devises", async () => {

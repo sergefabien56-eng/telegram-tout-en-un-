@@ -1,0 +1,1 @@
+ALTER TABLE "product_variants" ADD COLUMN "purchase_price_minor" integer;

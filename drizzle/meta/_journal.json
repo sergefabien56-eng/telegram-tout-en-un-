@@ -64,6 +64,13 @@
       "when": 1795525498884,
       "tag": "0008_fixed_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795550867484,
+      "tag": "0009_chunky_psylocke",
+      "breakpoints": true
     }
   ]
 }

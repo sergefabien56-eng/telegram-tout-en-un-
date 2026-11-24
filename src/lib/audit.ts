@@ -33,7 +33,8 @@ export type AuditAction =
   | "shop.products_synced"
   | "shop.stocks_synced"
   | "shop.payments_synced"
-  | "shop.data_exported";
+  | "shop.data_exported"
+  | "product.purchase_price_updated";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

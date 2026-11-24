@@ -44,6 +44,8 @@ test("Les rubriques livrées répondent avec des données réelles", async ({ pa
   await expect(
     page.getByText(/Aucune déclinaison enregistrée/).or(page.locator("table")),
   ).toBeVisible({ timeout: 30_000 });
+  // Le prix d'achat est annoncé comme saisie manuelle, jamais repris de Jumia.
+  await expect(page.getByText(/à la main/i)).toBeVisible();
 
   // Rentabilité et Utilisateurs répondent (données réelles ou état vide).
   for (const href of ["/rentabilite", "/utilisateurs"]) {

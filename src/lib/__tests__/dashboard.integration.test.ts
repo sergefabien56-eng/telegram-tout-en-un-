@@ -20,21 +20,31 @@ describe.skipIf(!hasDb)("tableau de bord (base réelle)", () => {
     expect(overview.period.days).toBe(30);
     expect(overview.shops.length).toBeGreaterThan(0);
 
-    // Les KPI proviennent des commandes : on retrouve le même total que le
-    // rapport seul, ce qui prouve qu'aucun chiffre n'est doublé ni estimé.
+    // Les KPI proviennent des commandes : on retrouve le même total que la
+    // somme des rapports de chaque boutique, ce qui prouve qu'aucun chiffre
+    // n'est doublé ni estimé (le compte peut avoir plusieurs boutiques).
+    const { listUserShops } = await import("@/lib/shops");
     const { reportSales } = await import("@/lib/reports");
+    const boutiques = await listUserShops(owner.id);
     const to = new Date();
     const from = new Date(to.getTime() - 29 * 86_400_000);
     from.setUTCHours(0, 0, 0, 0);
-    const sales = await reportSales(
-      shop.id,
-      { from, to },
-      {
-        statusFilter: ["DELIVERED", "SHIPPED"],
-      },
-    );
-    expect(overview.kpis.revenueMinor).toBe(sales.totals.revenueMinor);
-    expect(overview.kpis.orders).toBe(sales.totals.orders);
+
+    let revenue = 0;
+    let orders = 0;
+    for (const boutique of boutiques) {
+      const sales = await reportSales(
+        boutique.id,
+        { from, to },
+        {
+          statusFilter: ["DELIVERED", "SHIPPED"],
+        },
+      );
+      revenue += sales.totals.revenueMinor;
+      orders += sales.totals.orders;
+    }
+    expect(overview.kpis.revenueMinor).toBe(revenue);
+    expect(overview.kpis.orders).toBe(orders);
   });
 
   it("renvoie une vue vide pour un utilisateur sans boutique", async () => {
