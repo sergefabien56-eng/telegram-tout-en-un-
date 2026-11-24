@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, lte, max, sum } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { minorUnits } from "@/lib/money";
 
@@ -175,4 +175,126 @@ export async function listOrders(shopId: string, limit = 100): Promise<OrderRow[
     .where(eq(schema.orders.shopId, shopId))
     .orderBy(desc(schema.orders.remoteCreatedAt), desc(schema.orders.syncedAt))
     .limit(Math.min(Math.max(limit, 1), 500));
+}
+
+// ---------------------------------------------------------------------------
+// Rubriques « Ventes et commandes »
+// ---------------------------------------------------------------------------
+
+/**
+ * Groupes de statuts Jumia (GOP) par rubrique métier.
+ *
+ * Libellés de la plateforme, normalisés en minuscules sans séparateur
+ * (`PickedUp` → `pickedup`). Les statuts livrés (`delivered`) ne sont volontairement
+ * dans aucun groupe : ils restent consultables via « Toutes les commandes ».
+ */
+export const ORDER_STATUS_GROUPS = {
+  action: ["created", "pending", "processing", "new"],
+  shipped: ["shipped", "pickedup"],
+  returned: ["returned", "refunded", "returnrequested", "rma"],
+} as const;
+
+export type OrderGroup = keyof typeof ORDER_STATUS_GROUPS;
+
+function normalizeStatus(status: string): string {
+  return status
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+/** Rubrique concernée par un statut, ou `null` si aucun groupe ne s'applique. */
+export function orderStatusGroup(status: string): OrderGroup | null {
+  const normalized = normalizeStatus(status);
+  for (const [group, statuses] of Object.entries(ORDER_STATUS_GROUPS) as [
+    OrderGroup,
+    readonly string[],
+  ][]) {
+    if (statuses.includes(normalized)) return group;
+  }
+  return null;
+}
+
+export type OrderFilters = {
+  /** Statut exact Jumia (ex. `SHIPPED`). */
+  status?: string;
+  /** Boutiques autorisées ; jamais de requête hors de cette liste. */
+  shopIds?: string[];
+  from?: Date;
+  to?: Date;
+  limit?: number;
+};
+
+/**
+ * Commandes enregistrées sur une liste de boutiques, avec le nom de la boutique.
+ * La liste `shopIds` vient toujours de `listUserShops` : on ne sort jamais du
+ * périmètre autorisé.
+ */
+export async function listOrdersForShops(
+  shopIds: string[],
+  filters: OrderFilters = {},
+): Promise<{ order: OrderRow; shopName: string }[]> {
+  if (shopIds.length === 0) return [];
+  const db = getDb();
+  const conditions = [inArray(schema.orders.shopId, shopIds)];
+  if (filters.status) conditions.push(eq(schema.orders.status, filters.status));
+  if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
+  if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
+
+  return db
+    .select({ order: schema.orders, shopName: schema.shops.name })
+    .from(schema.orders)
+    .innerJoin(schema.shops, eq(schema.orders.shopId, schema.shops.id))
+    .where(and(...conditions))
+    .orderBy(desc(schema.orders.remoteCreatedAt))
+    .limit(Math.min(Math.max(filters.limit ?? 100, 1), 500));
+}
+
+/**
+ * Clients dérivés des commandes enregistrées : identité + ville uniquement.
+ * Aucun téléphone ni adresse n'est stocké dans notre base, donc rien de plus
+ * n'est exposé (protection des données personnelles).
+ */
+export async function listOrderCustomers(
+  shopIds: string[],
+  limit = 200,
+): Promise<
+  {
+    firstName: string | null;
+    lastName: string | null;
+    city: string | null;
+    commands: number;
+    lastAt: Date | null;
+    totalMinor: number;
+  }[]
+> {
+  if (shopIds.length === 0) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      firstName: schema.orders.customerFirstName,
+      lastName: schema.orders.customerLastName,
+      city: schema.orders.customerCity,
+      commands: count(),
+      lastAt: max(schema.orders.remoteCreatedAt),
+      totalMinor: sum(schema.orders.totalAmountMinor),
+    })
+    .from(schema.orders)
+    .where(and(inArray(schema.orders.shopId, shopIds), isNotNull(schema.orders.customerFirstName)))
+    .groupBy(
+      schema.orders.customerFirstName,
+      schema.orders.customerLastName,
+      schema.orders.customerCity,
+    )
+    .orderBy(desc(count()))
+    .limit(Math.min(Math.max(limit, 1), 500));
+
+  return rows.map((row) => ({
+    firstName: row.firstName,
+    lastName: row.lastName,
+    city: row.city,
+    commands: row.commands,
+    lastAt: row.lastAt,
+    totalMinor: row.totalMinor === null ? 0 : Number(row.totalMinor),
+  }));
 }

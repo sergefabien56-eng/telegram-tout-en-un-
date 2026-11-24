@@ -57,7 +57,9 @@ export async function gotoSafely(page: Page, url: string) {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      // Le dev server compile les pages à la volée ; sous charge (suite
+      // complète) une compilation peut dépasser 30 s.
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
       return;
     } catch (error) {
       // Serveur de dev en cours de compilation : on reprend la main.

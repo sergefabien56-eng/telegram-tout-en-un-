@@ -119,7 +119,7 @@ export default async function AdminPage() {
         )}
       </section>
 
-      <section className="card p-5">
+      <section id="membres" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Membres par rôle</h2>
         {overview.members.length === 0 ? (
           <p className="mt-3 text-sm text-muted">Aucun membre enregistré.</p>
@@ -159,7 +159,7 @@ export default async function AdminPage() {
         )}
       </section>
 
-      <section className="card p-5">
+      <section id="journal" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Journal d&apos;audit récent</h2>
         {overview.audit.length === 0 ? (
           <p className="mt-3 text-sm text-muted">Aucune action enregistrée.</p>

@@ -183,7 +183,7 @@ export default function BoutiquesPage() {
             )}
           </section>
 
-          <section className="card p-5">
+          <section id="ajouter" className="card p-5">
             <h2 className="text-sm font-semibold text-night">Nouvelle boutique</h2>
             <div className="mt-4">
               <ShopCreateForm idPrefix="page-shop" onCreated={reloadAfterCreate} />
@@ -192,16 +192,18 @@ export default function BoutiquesPage() {
         </div>
 
         {selected && shops.find((shop) => shop.id === selected)?.role ? (
-          <JumiaShopLink
-            shopId={selected}
-            remoteShopId={shops.find((shop) => shop.id === selected)?.remoteShopId ?? null}
-            remoteShopName={shops.find((shop) => shop.id === selected)?.remoteShopName ?? null}
-            canWrite={roleHasPermission(
-              shops.find((shop) => shop.id === selected)?.role as never,
-              "shops:write",
-            )}
-            onChanged={loadShops}
-          />
+          <div id="connexions">
+            <JumiaShopLink
+              shopId={selected}
+              remoteShopId={shops.find((shop) => shop.id === selected)?.remoteShopId ?? null}
+              remoteShopName={shops.find((shop) => shop.id === selected)?.remoteShopName ?? null}
+              canWrite={roleHasPermission(
+                shops.find((shop) => shop.id === selected)?.role as never,
+                "shops:write",
+              )}
+              onChanged={loadShops}
+            />
+          </div>
         ) : null}
 
         {selected ? (

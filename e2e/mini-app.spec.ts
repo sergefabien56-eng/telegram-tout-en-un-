@@ -35,9 +35,7 @@ const password = "MotDePasse123";
 
 test.describe.serial("Mini App", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([
-      { name: "teu_ui", value: "mini", domain: "localhost", path: "/" },
-    ]);
+    await context.addCookies([{ name: "teu_ui", value: "mini", domain: "localhost", path: "/" }]);
   });
 
   test("inscrit le compte de test (version web)", async ({ page, context }) => {
@@ -81,7 +79,7 @@ test.describe.serial("Mini App", () => {
       .locator('nav[aria-label="Navigation principale"]')
       .getByRole("link", { name: "Boutiques" })
       .click();
-    await expect(page).toHaveURL(/\/boutiques$/);
+    await expect(page).toHaveURL(/\/boutiques$/, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: /^boutiques$/i })).toBeVisible();
     await expect(page.locator('nav[aria-label="Navigation principale"]')).toBeVisible();
   });
@@ -91,7 +89,10 @@ test.describe.serial("Mini App", () => {
     await page.getByRole("button", { name: /^plus$/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("link", { name: /santé du système/i })).toBeVisible();
+    // Tout ouvrir déplie tous les modules.
+    await dialog.getByRole("button", { name: "Tout ouvrir" }).click();
+    await expect(dialog.getByRole("link", { name: "Notifications" })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "Sécurité du compte" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: /version web/i })).toBeVisible();
     await expect(dialog.getByRole("button", { name: /déconnexion/i })).toBeVisible();
   });

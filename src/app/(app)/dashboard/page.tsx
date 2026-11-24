@@ -57,7 +57,7 @@ export default async function DashboardPage({
             sera créée.
           </p>
         </div>
-        <section className="card p-5">
+        <section id="vue-ensemble" className="card p-5">
           <h2 className="text-sm font-semibold text-night">Vue d&apos;ensemble</h2>
           <p className="mt-3 text-sm text-muted">
             Rien à montrer pour l&apos;instant — aucune donnée n&apos;est inventée.
@@ -139,7 +139,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 2. Recherche dans mon espace */}
-      <section className="card p-5">
+      <section id="recherche" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Recherche dans mon espace</h2>
         <p className="mt-1 text-sm text-muted">
           Boutiques et produits autorisés uniquement — les droits d&apos;accès sont appliqués côté
@@ -151,7 +151,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 3. Apparence */}
-      <section className="card p-5">
+      <section id="apparence" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Apparence</h2>
         <p className="mt-1 text-sm text-muted">
           Le réglage est propre à cet appareil, il ne change pas celui des autres utilisateurs.
@@ -163,7 +163,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 4. Indicateurs financiers */}
-      <section className="card p-5">
+      <section id="indicateurs-financiers" className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-night">Indicateurs financiers</h2>
           <Link href="/finances" className="focusable text-sm text-primary-600">
@@ -206,7 +206,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 5. Performances globales */}
-      <section className="card p-5">
+      <section id="performances" className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-night">Performances globales</h2>
           <Link href="/rapports" className="focusable text-sm text-primary-600">
@@ -256,7 +256,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 6. Activités récentes */}
-      <section className="card p-5">
+      <section id="activites" className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-night">Activités récentes</h2>
           <Link href="/admin" className="focusable text-sm text-primary-600">
@@ -294,7 +294,7 @@ export default async function DashboardPage({
       </section>
 
       {/* 7. Alertes importantes */}
-      <section className="card p-5">
+      <section id="alertes" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Alertes importantes</h2>
         {overview.alerts.length === 0 ? (
           <p className="mt-3 text-sm text-muted">

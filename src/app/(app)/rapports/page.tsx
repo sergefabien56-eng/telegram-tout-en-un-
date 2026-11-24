@@ -78,6 +78,7 @@ export default async function RapportsPage({
         <label className="flex flex-col gap-1 text-xs text-muted">
           Période
           <select
+            id="boutique"
             name="days"
             defaultValue={String(days)}
             className="focusable rounded-lg border border-border bg-surface px-3 py-2 text-sm text-night"

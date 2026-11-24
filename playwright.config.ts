@@ -20,7 +20,9 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npm run dev",
+    // Marge mémoire : la compilation à la volée de nombreuses pages fait
+    // redémarrer le dev server sur le seuil par défaut.
+    command: "NODE_OPTIONS=--max-old-space-size=1200 npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -11,7 +11,8 @@ export type CsvColumn = {
 };
 
 function escape(value: unknown): string {
-  if (value === null || value === undefined) return "";
+  // Cellule vide mais toujours entre guillemets : une colonne ne disparaît jamais.
+  if (value === null || value === undefined) return '""';
   const text = String(value);
   // Guillemet doublé si présent, puis enveloppement systématique.
   return `"${text.replace(/"/g, '""')}"`;

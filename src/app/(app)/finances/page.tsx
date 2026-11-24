@@ -49,13 +49,13 @@ export default async function FinancesPage() {
         </p>
       </div>
 
-      <section className="card p-5">
+      <section id="releves" className="card p-5">
         <h2 className="text-sm font-semibold text-night">Relevés Jumia</h2>
         <p className="mt-2 text-sm text-muted">
           Chiffre d&apos;affaires articles, frais de livraison, commissions et remboursements tels
           que Jumia les publie pour ses versements (90 jours par défaut).
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div id="export-finances" className="mt-4 flex flex-wrap items-center gap-3">
           <ExportButton
             href={`/api/shops/${shop.id}/finances/export`}
             count={statements.length}

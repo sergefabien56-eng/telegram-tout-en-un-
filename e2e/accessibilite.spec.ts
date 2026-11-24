@@ -159,8 +159,12 @@ test.describe.serial("accessibilité des pages connectées", () => {
     }
 
     const reachableLinks = sidebarHrefs.filter((href) => href && reached.has(href));
-    expect(reachableLinks.length, "liens de navigation atteignables au clavier").toBeGreaterThan(0);
-    expect(reachableLinks.length).toBe(Math.min(count, 3));
+    // Au moins les trois premiers liens de la barre latérale doivent être
+    // atteignables au clavier (le reste dépend de la longueur du menu).
+    expect(reachableLinks.length, "liens de navigation atteignables au clavier").toBeGreaterThanOrEqual(
+      Math.min(count, 3),
+    );
+    expect(reachableLinks.length).toBeLessThanOrEqual(count);
   });
 
   test("nettoie : supprime le compte de test", async ({ page }) => {

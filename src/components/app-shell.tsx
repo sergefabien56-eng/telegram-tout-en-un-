@@ -1,26 +1,15 @@
 "use client";
 
 import {
-  Activity,
-  BarChart3,
-  Bell,
-  Boxes,
   ChevronDown,
-  LayoutDashboard,
+  ChevronsDownUp,
   LogOut,
   Menu,
-  Package,
-  ChevronsDownUp,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
-  ShieldCheck,
-  ShoppingCart,
-  Sparkles,
-  Store,
-  Wallet,
   X,
 } from "lucide-react";
+import { basePath, navIcon } from "@/components/nav-icons";
 import { GlobalSearch } from "@/components/global-search";
 import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
@@ -31,21 +20,6 @@ import { NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-
-const ICONS: Record<string, typeof LayoutDashboard> = {
-  Activity,
-  ShieldCheck,
-  LayoutDashboard,
-  Bell,
-  ShoppingCart,
-  Store,
-  Package,
-  Boxes,
-  Wallet,
-  BarChart3,
-  Sparkles,
-  Settings,
-};
 
 export type ShellShop = { id: string; name: string; role: string };
 
@@ -75,7 +49,7 @@ function Sidebar({
   const pathname = usePathname();
 
   // La section de la page courante est dépliée au premier affichage.
-  const initialSection = NAV_ITEMS.find((item) => item.href === pathname)?.section;
+  const initialSection = NAV_ITEMS.find((item) => basePath(item.href) === pathname)?.section;
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     initialSection ? { [initialSection]: true } : {},
   );
@@ -151,7 +125,7 @@ function Sidebar({
               );
               if (items.length === 0) return null;
               const isOpen = Boolean(expanded[section.key]);
-              const sectionActive = items.some((item) => item.href === pathname);
+              const sectionActive = items.some((item) => basePath(item.href) === pathname);
               return (
                 <li key={section.key}>
                   <button
@@ -170,8 +144,8 @@ function Sidebar({
                   {isOpen ? (
                     <ul className="mt-1 space-y-0.5">
                       {items.map((item) => {
-                        const Icon = ICONS[item.icon] ?? LayoutDashboard;
-                        const active = item.href === pathname;
+                        const Icon = navIcon(item.icon);
+                        const active = basePath(item.href) === pathname;
                         return (
                           <li key={item.key}>
                             {item.soon ? (

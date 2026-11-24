@@ -20,7 +20,7 @@ test("l'écran Commandes affiche un état vide explicite", async ({ page }) => {
   });
 
   await page.goto("/commandes");
-  await expect(page.getByRole("heading", { name: "Commandes", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Toutes les commandes", level: 1 })).toBeVisible();
   await expect(page.getByText(/Aucune commande enregistrée/)).toBeVisible();
   // Le bouton est présent mais désactivé tant que la boutique n'est pas rattachée.
   await expect(page.getByRole("button", { name: /Synchroniser les commandes/ })).toBeDisabled();
