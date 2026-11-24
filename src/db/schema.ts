@@ -397,3 +397,38 @@ export const productVariants = pgTable(
 export type User = typeof users.$inferSelect;
 export type Shop = typeof shops.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+// ---------------------------------------------------------------------------
+// Finances (Phase 2)
+// ---------------------------------------------------------------------------
+
+/** Relevés et versements renvoyés par Jumia (`GET /payout-statement`). */
+export const payoutStatements = pgTable(
+  "payout_statements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    statementNumber: text("statement_number").notNull(),
+    /** Devise des montants de ce relevé. */
+    currency: text("currency").notNull().default("XOF"),
+    openingBalanceMinor: integer("opening_balance_minor").notNull(),
+    itemRevenueMinor: integer("item_revenue_minor").notNull(),
+    shipmentFeeMinor: integer("shipment_fee_minor").notNull(),
+    feesTotalMinor: integer("fees_total_minor").notNull(),
+    otherRevenueMinor: integer("other_revenue_minor").notNull().default(0),
+    refundsMinor: integer("refunds_minor").notNull().default(0),
+    closingBalanceMinor: integer("closing_balance_minor").notNull(),
+    payoutAmountMinor: integer("payout_amount_minor"),
+    paid: boolean("paid").notNull().default(false),
+    paymentReference: text("payment_reference"),
+    /** Date du relevé chez Jumia (timestamptz UTC). */
+    remoteCreatedAt: timestamp("remote_created_at", { withTimezone: true }).notNull(),
+    remoteUpdatedAt: timestamp("remote_updated_at", { withTimezone: true }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("payout_statements_shop_number_idx").on(t.shopId, t.statementNumber),
+    index("payout_statements_shop_created_idx").on(t.shopId, t.remoteCreatedAt),
+  ],
+);

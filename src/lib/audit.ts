@@ -31,7 +31,8 @@ export type AuditAction =
   | "shop.jumia_unlinked"
   | "shop.orders_synced"
   | "shop.products_synced"
-  | "shop.stocks_synced";
+  | "shop.stocks_synced"
+  | "shop.payments_synced";
 
 export type AuditResult = "success" | "failure" | "blocked";
 
