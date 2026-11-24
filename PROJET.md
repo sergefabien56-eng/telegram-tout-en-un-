@@ -117,3 +117,4 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 ## 9. Documents de référence
 
 `docs/index.md` · `securite-2fa.md` · `auth.md` · `architecture.md` · `database.md` · `jumia-integration.md` · `hebergement-gratuit.md` · `telegram-integration.md` · `formules-financieres.md` · `design-system.md` · `mimi.md` · `plan-phase-1.md` · `sources.md` · `docs/mockups/`
+**Phase 2 — lot 4 (finances)** : livré le 24/11/2026. Table `payout_statements` (migration `0007`) ; `GET /payout-statement` de Jumia (`currency=LOCAL`, fenêtre 90 j par défaut) en entiers + devise ; upsert idempotent (vérification d'existence) ; `POST /api/shops/:id/paiements/sync` (`finance:write`, verrou partagé, audit `shop.payments_synced`) et `GET .../paiements` ; page **Finances** (CA articles, commissions, net, relevés payés/en attente). **Données réelles** : 13 relevés NKSF SHOP du 26/10 au 23/11/2026 ; second passage = 0 inséré / 13 mis à jour.
