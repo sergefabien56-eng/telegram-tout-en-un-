@@ -105,6 +105,18 @@ describe("contrastes des jetons (WCAG AA)", () => {
     }
   });
 
+  it("élément de navigation actif sur fond teinté (clair et sombre)", () => {
+    // `bg-primary-50` + `text-primary-600` : le primaire pur n'atteint que
+    // 4,47:1 sur ce fond en clair (AA exigé : 4,5:1).
+    for (const selector of [":root", ".dark"] as const) {
+      const t = loadTokens(selector);
+      expect(
+        ratio(token(t, "primary-600"), token(t, "primary-50")),
+        `primary-600 sur primary-50 (${selector})`,
+      ).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
   it("texte blanc des boutons sur le primaire (clair et sombre)", () => {
     for (const selector of [":root", ".dark"] as const) {
       const t = loadTokens(selector);

@@ -152,7 +152,7 @@ function Sidebar({
                                 aria-current={active ? "page" : undefined}
                                 className={`focusable flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
                                   active
-                                    ? "bg-primary-50 font-medium text-primary-ink"
+                                    ? "bg-primary-50 font-medium text-primary-600"
                                     : "text-night hover:bg-surface"
                                 }`}
                               >
@@ -270,6 +270,8 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
               type="button"
               ref={userMenuTriggerRef}
               onClick={() => setUserMenu((value) => !value)}
+              aria-label="Menu du compte"
+              title={user.email}
               aria-expanded={userMenu}
               aria-haspopup="menu"
               className="focusable inline-flex h-9 items-center gap-2 rounded-lg px-2 text-sm text-night hover:bg-surface"
@@ -286,7 +288,15 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
                 className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-lg"
               >
                 <p className="px-2 py-1 text-xs text-muted">{user.email}</p>
-                <form action="/api/auth/logout" method="post">
+                {/* POST puis redirection : sans cela le navigateur afficherait le
+                    JSON de la réponse à la place de la page de connexion. */}
+                <form
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    window.location.href = "/login";
+                  }}
+                >
                   <button
                     type="submit"
                     role="menuitem"

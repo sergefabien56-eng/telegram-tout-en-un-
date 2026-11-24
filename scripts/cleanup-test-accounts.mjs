@@ -11,12 +11,18 @@ import { Pool } from "pg";
 const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL manquant");
 const withOrphans = process.argv.includes("--orphans");
+/** Purge aussi les tentatives de connexion enregistrées pendant les tests. */
+const withAttempts = process.argv.includes("--attempts");
 const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
 
-const patterns = ["2fa%@exemple.ci", "dbg%@exemple.ci", "smoke%@exemple.ci", "%test%", "%example.ci"];
+/**
+ * Compte de test = adresse jetable créée par les harnais (smokes ou E2E).
+ * Une expression régulière suffit et évite les pièges des tableaux SQL.
+ */
+const TEST_EMAIL_RE = "(2fa|dbg|smoke|e2e|a11y|mini)[.-].*@exemple\\.ci$";
 
 // 1. Journal d'audit rattaché aux comptes de test (avant suppression des comptes).
-const ids = await pool.query(`SELECT id FROM users WHERE email LIKE ANY($1::text[])`, [patterns]);
+const ids = await pool.query(`SELECT id FROM users WHERE email ~ $1`, [TEST_EMAIL_RE]);
 const userIds = ids.rows.map((row) => row.id);
 let auditDeleted = 0;
 if (userIds.length > 0) {
@@ -25,9 +31,10 @@ if (userIds.length > 0) {
 }
 
 // 2. Comptes de test.
-const res = await pool.query(`DELETE FROM users WHERE email LIKE ANY($1::text[]) RETURNING id, email`, [
-  patterns,
-]);
+const res = await pool.query(
+  `DELETE FROM users WHERE email ~ $1 RETURNING id, email`,
+  [TEST_EMAIL_RE],
+);
 console.log(`Comptes supprimés : ${res.rowCount}`);
 for (const row of res.rows) console.log(`  - ${row.email} (${row.id})`);
 console.log(`Lignes d'audit rattachées supprimées : ${auditDeleted}`);
@@ -61,6 +68,16 @@ if (withOrphans) {
   );
 } else {
   console.log("(option --orphans absente : audit orphelin conservé)");
+}
+
+// Les tests E2E provoquent volontairement des échecs de connexion : sans cette
+// purge, le verrou anti-abus (5 échecs / 15 min par IP) bloque les tests suivants.
+if (withAttempts) {
+  const attempts = await pool.query(
+    `DELETE FROM login_attempts WHERE email ~ $1 OR ip IN ('::1', '127.0.0.1')`,
+    [TEST_EMAIL_RE],
+  );
+  console.log(`Tentatives de connexion purgées : ${attempts.rowCount ?? 0}`);
 }
 const audit = await pool.query(`SELECT count(*)::int AS n FROM audit_logs`);
 const shops = await pool.query(`SELECT count(*)::int AS n FROM shops`);

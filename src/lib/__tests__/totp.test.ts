@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTotpUri,
   consumeTwoFactorChallenge,
@@ -90,6 +90,16 @@ describe("codes de secours", () => {
 });
 
 describe("challenge de connexion", () => {
+  // Le HMAC exige un secret ; en CI il n'y a pas de SESSION_SECRET.
+  // On fournit une valeur de test (le mécanisme est identique).
+  beforeEach(() => {
+    vi.stubEnv("SESSION_SECRET", "test-secret-pour-les-tests-uniquement");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("émet puis consomme un jeton valide", () => {
     const token = issueTwoFactorChallenge("user-1");
     expect(consumeTwoFactorChallenge(token)).toBe("user-1");

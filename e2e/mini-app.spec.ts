@@ -11,7 +11,11 @@ function loadEnvLocal() {
     const eq = trimmed.indexOf("=");
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    if (process.env[key] === undefined) process.env[key] = trimmed.slice(eq + 1).trim();
+    const value = trimmed
+      .slice(eq + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
+    if (process.env[key] === undefined) process.env[key] = value;
   }
 }
 loadEnvLocal();
@@ -24,15 +28,10 @@ const hasDb = Boolean(process.env.DATABASE_URL);
 test.skip(!hasDb, "DATABASE_URL requis pour les tests Mini App.");
 
 const email = `e2e-mini-${Date.now()}@exemple.ci`;
-const password = "MotDePasse123";
 
-async function login(page: import("@playwright/test").Page) {
-  await page.goto("/login");
-  await page.getByLabel(/adresse e-mail/i).fill(email);
-  await page.getByLabel(/mot de passe/i).fill(password);
-  await page.getByRole("button", { name: /connexion/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-}
+import { ensureAccount, login } from "./helpers/auth";
+
+const password = "MotDePasse123";
 
 test.describe.serial("Mini App", () => {
   test.beforeEach(async ({ context }) => {
@@ -43,14 +42,11 @@ test.describe.serial("Mini App", () => {
 
   test("inscrit le compte de test (version web)", async ({ page, context }) => {
     await context.clearCookies();
-    const response = await page.request.post("/api/auth/register", {
-      data: { email, password, fullName: "E2E Mini" },
-    });
-    expect(response.ok()).toBe(true);
+    await ensureAccount(page, email, password);
   });
 
   test("affiche la navigation basse et masque la sidebar web", async ({ page }) => {
-    await login(page);
+    await login(page, email, password);
 
     const bottomNav = page.locator('nav[aria-label="Navigation principale"]');
     await expect(bottomNav).toBeVisible();
@@ -62,21 +58,36 @@ test.describe.serial("Mini App", () => {
     // La coquille web ne doit pas être servie.
     await expect(page.locator("aside")).toHaveCount(0);
 
-    // En-tête compact : retour + sélecteur de boutique.
+    // En-tête compact : bouton retour + titre de page.
     await expect(page.getByRole("button", { name: /retour/i })).toBeVisible();
-    await expect(page.getByLabel(/boutique active/i)).toBeVisible();
+
+    // Le sélecteur de boutique n'apparaît que si le compte a au moins une boutique.
+    const shops = await page.evaluate(async () => {
+      const response = await fetch("/api/shops");
+      if (!response.ok) return [];
+      const payload = (await response.json()) as { ok: boolean; data?: unknown[] };
+      return payload.data ?? [];
+    });
+    if (shops.length > 0) {
+      await expect(page.getByLabel(/boutique active/i)).toBeVisible();
+    } else {
+      await expect(page.getByText(/aucune boutique/i).first()).toBeVisible();
+    }
   });
 
   test("navigue vers une page réelle sans perdre la coquille", async ({ page }) => {
-    await login(page);
-    await page.getByRole("link", { name: "Boutiques" }).click();
+    await login(page, email, password);
+    await page
+      .locator('nav[aria-label="Navigation principale"]')
+      .getByRole("link", { name: "Boutiques" })
+      .click();
     await expect(page).toHaveURL(/\/boutiques$/);
     await expect(page.getByRole("heading", { name: /^boutiques$/i })).toBeVisible();
     await expect(page.locator('nav[aria-label="Navigation principale"]')).toBeVisible();
   });
 
   test("la feuille « Plus » n'offre que des pages qui existent", async ({ page }) => {
-    await login(page);
+    await login(page, email, password);
     await page.getByRole("button", { name: /^plus$/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

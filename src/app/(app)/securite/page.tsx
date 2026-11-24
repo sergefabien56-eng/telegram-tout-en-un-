@@ -118,7 +118,7 @@ export default function SecuritePage() {
       <section className="card p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-ink">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
               {enabled ? (
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               ) : (
