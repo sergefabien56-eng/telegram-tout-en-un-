@@ -28,7 +28,8 @@ export async function POST(request: Request, { params }: Params) {
 
   const access = await getShopAccess(user.id, id);
   if (!access) return fail(404, "Boutique introuvable ou accès refusé.");
-  if (!access.permissions.has("members:write")) return fail(403, "Permission insuffisante (members:write).");
+  if (!access.permissions.has("members:write"))
+    return fail(403, "Permission insuffisante (members:write).");
 
   let body: unknown;
   try {

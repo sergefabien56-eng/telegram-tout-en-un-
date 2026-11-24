@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/session";
 import { getShopAccess } from "@/lib/permissions";
 import { listOrders } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
+import { ExportButton } from "@/components/export-button";
 import { OrderSyncButton } from "@/components/order-sync-button";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -95,7 +96,8 @@ export default async function CommandesPage() {
           Récupère les commandes des 30 derniers jours (5 pages de 200 maximum, limites Jumia
           respectées) et les enregistre dans la base.
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <ExportButton href={`/api/shops/${shop.id}/commandes/export`} count={orders.length} />
           <OrderSyncButton shopId={shop.id} linked={Boolean(shop.remoteShopId)} />
         </div>
       </section>

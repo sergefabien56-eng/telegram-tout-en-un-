@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/session";
 import { getShopAccess } from "@/lib/permissions";
 import { listPayoutStatements, sumStatements } from "@/lib/payments";
 import { formatMoney } from "@/lib/money";
+import { ExportButton } from "@/components/export-button";
 import { PaymentsSyncButton } from "@/components/payments-sync-button";
 import { redirect } from "next/navigation";
 
@@ -54,7 +55,12 @@ export default async function FinancesPage() {
           Chiffre d&apos;affaires articles, frais de livraison, commissions et remboursements tels
           que Jumia les publie pour ses versements (90 jours par défaut).
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <ExportButton
+            href={`/api/shops/${shop.id}/finances/export`}
+            count={statements.length}
+            label="Exporter les finances (CSV)"
+          />
           <PaymentsSyncButton shopId={shop.id} linked={Boolean(shop.remoteShopId)} />
         </div>
       </section>

@@ -4,6 +4,7 @@ import { getShopAccess } from "@/lib/permissions";
 import { listVariants } from "@/lib/catalog";
 import { formatMoney } from "@/lib/money";
 import { CatalogSyncButton } from "@/components/catalog-sync-button";
+import { ExportButton } from "@/components/export-button";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -78,7 +79,12 @@ export default async function StocksPage() {
 
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-night">Synchronisation des stocks</h2>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <ExportButton
+            href={`/api/shops/${shop.id}/stocks/export`}
+            count={rows.length}
+            label="Exporter les stocks (CSV)"
+          />
           <CatalogSyncButton shopId={shop.id} linked={Boolean(shop.remoteShopId)} />
         </div>
       </section>

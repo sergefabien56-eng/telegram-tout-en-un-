@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/session";
 import { getShopAccess } from "@/lib/permissions";
 import { listProducts, listVariants } from "@/lib/catalog";
 import { CatalogSyncButton } from "@/components/catalog-sync-button";
+import { ExportButton } from "@/components/export-button";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +95,12 @@ export default async function ProduitsPage() {
           Catalogue et stocks lus chez Jumia (5 pages de 100 maximum, limites respectées), puis
           enregistrés dans la base.
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <ExportButton
+            href={`/api/shops/${shop.id}/produits/export`}
+            count={products.length}
+            label="Exporter le catalogue (CSV)"
+          />
           <CatalogSyncButton shopId={shop.id} linked={Boolean(shop.remoteShopId)} />
         </div>
       </section>
