@@ -137,7 +137,12 @@ export async function createJumiaAccount(
   }
 
   const email = input.email?.trim() || emailFromAccessToken(exchanged.accessToken) || null;
-  const ciphertext = encryptText(exchanged.nextRefreshToken, secret);
+  // Enveloppe JSON chiffrée : `readAccountCredentials` s'attend à
+  // `{clientId, refreshToken}` (le jeton tourne à chaque appel).
+  const ciphertext = encryptText(
+    JSON.stringify({ clientId: input.clientId, refreshToken: exchanged.nextRefreshToken }),
+    secret,
+  );
 
   try {
     const inserted = await getDb()

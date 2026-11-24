@@ -84,8 +84,19 @@ export async function readAccountCredentials(
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    const refreshToken = decryptText(row.ciphertext, secret);
-    if (!refreshToken) return null;
+    // Le payload chiffré est le JSON `{clientId, refreshToken}` (même format
+    // que l'identifiant historique) : il contient le jeton à jour.
+    const plain = decryptText(row.ciphertext, secret);
+    if (!plain) return null;
+    let refreshToken = plain;
+    try {
+      const parsed = JSON.parse(plain) as { refreshToken?: unknown };
+      if (typeof parsed.refreshToken === "string" && parsed.refreshToken) {
+        refreshToken = parsed.refreshToken;
+      }
+    } catch {
+      // Valeur déjà en clair dans l'enveloppe : on la prend telle quelle.
+    }
     return { clientId: row.clientId, refreshToken, status: row.status };
   } catch {
     return null;
@@ -103,7 +114,17 @@ export async function writeAccountRefreshToken(
       "ENCRYPTION_KEY manquante : impossible de stocker les identifiants.",
       "no_encryption_key",
     );
-  const ciphertext = encryptText(refreshToken, secret);
+  // Même enveloppe que l'identifiant historique : JSON chiffré, afin que le
+  // refresh token qui tourne soit toujours relu dans le bon format.
+  const { clientId } = await getDb()
+    .select({ clientId: schema.jumiaAccounts.clientId })
+    .from(schema.jumiaAccounts)
+    .where(eq(schema.jumiaAccounts.id, accountId))
+    .limit(1)
+    .then((rows) => rows[0] ?? { clientId: "" });
+  if (!clientId) throw new JumiaError("Ce compte Jumia est introuvable.", "not_configured");
+
+  const ciphertext = encryptText(JSON.stringify({ clientId, refreshToken }), secret);
   await getDb()
     .update(schema.jumiaAccounts)
     .set({ refreshTokenCiphertext: ciphertext, lastTokenAt: new Date(), updatedAt: new Date() })

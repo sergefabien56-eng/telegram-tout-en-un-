@@ -1,4 +1,4 @@
-import { createDecipheriv, createHash } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { Client } from "pg";
 
@@ -73,9 +73,10 @@ async function main() {
   await client.connect();
 
   try {
-    const existing = await client.query("SELECT id FROM jumia_accounts LIMIT 1");
-    if (existing.rowCount > 0) {
-      console.log("Un compte Jumia existe déjà : rien à importer.");
+    const repair = process.argv.includes("--repair");
+    const existing = await client.query("SELECT id, client_id FROM jumia_accounts LIMIT 1");
+    if (existing.rowCount > 0 && !repair) {
+      console.log("Un compte Jumia existe déjà : rien à importer (--repair pour réparer l'enveloppe).");
       return;
     }
 
@@ -134,20 +135,56 @@ async function main() {
       return;
     }
 
-    const inserted = await client.query(
-      `INSERT INTO jumia_accounts
-         (owner_user_id, label, email, client_id, refresh_token_ciphertext, status, last_token_at)
-       VALUES ($1, $2, $3, $4, $5, 'active', now())
-       RETURNING id`,
-      [shopRow.rows[0].owner, "Compte principal", email, credentials.clientId, stored],
-    );
+    // On ré chiffre le jeton issu de l'échange (et pas l'ancien texte) :
+    // l'enveloppe est `{clientId, refreshToken}` chiffrée AES-256-GCM.
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", resolveKey(secret), iv);
+    const envelope = JSON.stringify({
+      clientId: credentials.clientId,
+      refreshToken: credentials.refreshToken,
+    });
+    const encrypted = Buffer.concat([cipher.update(envelope, "utf8"), cipher.final()]);
+    // Format identique à `lib/crypto` : `v1:<iv base64>:<tag base64>:<données base64>`.
+    const payload = [
+      "v1",
+      iv.toString("base64"),
+      cipher.getAuthTag().toString("base64"),
+      encrypted.toString("base64"),
+    ].join(":");
 
-    if (inserted.rowCount === 0) {
+    let accountId;
+    if (repair) {
+      // Réparation : on remet l'enveloppe au bon format, on conserve label,
+      // e-mail et rattachements existants.
+      const updated = await client.query(
+        `UPDATE jumia_accounts SET refresh_token_ciphertext = $2, status = 'active',
+           last_token_at = now(), updated_at = now()
+         WHERE id = $1 RETURNING id`,
+        [existing.rows[0].id, payload],
+      );
+      accountId = updated.rows[0]?.id;
+      if (email) {
+        await client.query(
+          `UPDATE jumia_accounts SET email = $2, updated_at = now() WHERE id = $1`,
+          [accountId, email],
+        );
+      }
+      console.log("Enveloppe du compte réparée (--repair).");
+    } else {
+      const inserted = await client.query(
+        `INSERT INTO jumia_accounts
+           (owner_user_id, label, email, client_id, refresh_token_ciphertext, status, last_token_at)
+         VALUES ($1, $2, $3, $4, $5, 'active', now())
+         RETURNING id`,
+        [shopRow.rows[0].owner, "Compte principal", email, credentials.clientId, payload],
+      );
+      accountId = inserted.rows[0]?.id;
+    }
+
+    if (!accountId) {
       console.log("Aucune boutique rattachée : aucun compte créé.");
       return;
     }
-
-    const accountId = inserted.rows[0].id;
     const linked = await client.query(
       "UPDATE shops SET jumia_account_id = $1, updated_at = now() WHERE remote_shop_id IS NOT NULL AND jumia_account_id IS NULL RETURNING name",
       [accountId],
