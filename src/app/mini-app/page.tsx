@@ -13,6 +13,14 @@ type SessionResponse = {
   details?: string[];
 };
 
+/** Pages de la Mini App atteignables par lien direct (`?page=`). */
+const MINI_APP_PAGES = new Set(["mimi", "dashboard", "commandes", "produits", "stocks", "finances", "rapports"]);
+
+function targetFromQuery(): string {
+  const page = new URLSearchParams(window.location.search).get("page");
+  return page && MINI_APP_PAGES.has(page) ? `/${page}` : "/dashboard";
+}
+
 export default function MiniAppPage() {
   return (
     <TelegramThemeSync>
@@ -33,7 +41,7 @@ function MiniAppContent() {
         if (!response.ok) return;
         const payload = (await response.json()) as { ok: boolean; data?: { email: string } };
         if (payload.ok && payload.data?.email) {
-          window.location.replace("/dashboard");
+          window.location.replace(targetFromQuery());
         }
       })
       .catch(() => undefined);
@@ -50,7 +58,7 @@ function MiniAppContent() {
       });
       const payload = (await response.json()) as SessionResponse;
       setSession(payload);
-      if (payload.ok) window.location.replace("/dashboard");
+      if (payload.ok) window.location.replace(targetFromQuery());
     } catch {
       setSession({ ok: false, error: "Erreur réseau." });
     } finally {

@@ -3,7 +3,7 @@
 - **Version** : 0.1 (Phase 0 — cadrage)
 - **Date** : 22/11/2026
 - **Budget IA** : **0 FCFA** (aucun appel payant automatique)
-- **Statut** : À valider
+- **Statut** : Livré (Phase 2, lot 6) — en attente d'une clé IA gratuite pour répondre
 
 ---
 
@@ -55,6 +55,7 @@ Orchestrateur MIMI (boucle)
 ```
 
 Chaque outil :
+
 - vérifie les **permissions** de l'utilisateur et les **boutiques autorisées** ;
 - est **typé** (entrée/sortie Zod) ;
 - journalise l'appel (paramètres, tokens, résultat) dans `ai_messages` / `ai_usage` ;
@@ -64,12 +65,20 @@ Chaque outil :
 
 ## 4. Fournisseurs IA (options gratuites)
 
-| Fournisseur | Offre gratuite | Limites connues | Disponible en CI | Remarque |
-|---|---|---|---|---|
-| **Gemini API** (Google) | Oui | Limites variables (≈5 RPM ; ≈20–500 req/jour selon modèle) [1] | **Oui** [2] | Multimodal, long contexte |
-| **Groq** | Oui | Environ 1 000 req/jour et 6 000 TPM par modèle [3] | À vérifier | Rapide, modèles Llama |
-| **OpenRouter** | Partiel | Modèles « free » avec limites | À vérifier | Accès multi-modèles |
-| **Local** (Ollama/llama.cpp) | Oui (logiciel libre) | Dépend du matériel | Oui (si machine) | Pas de serveur 24/7 gratuit → usage ponctuel |
+| Fournisseur                  | Offre gratuite       | Limites connues                                                | Disponible en CI | Remarque                                     |
+| ---------------------------- | -------------------- | -------------------------------------------------------------- | ---------------- | -------------------------------------------- |
+| **Gemini API** (Google)      | Oui                  | Limites variables (≈5 RPM ; ≈20–500 req/jour selon modèle) [1] | **Oui** [2]      | Multimodal, long contexte                    |
+| **Groq**                     | Oui                  | Environ 1 000 req/jour et 6 000 TPM par modèle [3]             | À vérifier       | Rapide, modèles Llama                        |
+| **OpenRouter**               | Partiel              | Modèles « free » avec limites                                  | À vérifier       | Accès multi-modèles                          |
+| **Local** (Ollama/llama.cpp) | Oui (logiciel libre) | Dépend du matériel                                             | Oui (si machine) | Pas de serveur 24/7 gratuit → usage ponctuel |
+
+### 4.2 Implémenté
+
+- Fournisseurs branchables dans `src/lib/ai/provider.ts` : **Gemini** et **Groq**, en HTTPS directe.
+- Sans clé : `MIMI_UNAVAILABLE`, jamais de chiffre fabriqué.
+- Journalisation de la consommation dans `ai_usage` (fournisseur, modèle, jetons, outil, latence).
+- Tables `ai_conversations`, `ai_messages`, `ai_usage` (migration `0008`).
+- Outils réels et typés dans `src/lib/ai/tools.ts` ; permissions vérifiées par outil.
 
 Sources : [1](https://www.aifreeapi.com/en/posts/google-gemini-api-free-tier) [2](https://ai.google.dev/gemini-api/docs/available-regions) [3](https://tokenmix.ai/blog/gemini-api-free-tier-limits)
 
@@ -85,14 +94,14 @@ Sources : [1](https://www.aifreeapi.com/en/posts/google-gemini-api-free-tier) [2
 
 ## 5. Permissions
 
-| Action MIMI | Permission requise |
-|---|---|
-| Lire les KPIs | `reports:read` |
-| Lire les finances | `finance:read` |
-| Lire les produits/stocks | `products:read` / `inventory:read` |
-| Créer un brouillon produit | `products:create` |
-| Modifier un prix/stock | **Action humaine uniquement** (MIMI ne fait pas) |
-| Exporter | `reports:export` |
+| Action MIMI                | Permission requise                               |
+| -------------------------- | ------------------------------------------------ |
+| Lire les KPIs              | `reports:read`                                   |
+| Lire les finances          | `finance:read`                                   |
+| Lire les produits/stocks   | `products:read` / `inventory:read`               |
+| Créer un brouillon produit | `products:create`                                |
+| Modifier un prix/stock     | **Action humaine uniquement** (MIMI ne fait pas) |
+| Exporter                   | `reports:export`                                 |
 
 ---
 

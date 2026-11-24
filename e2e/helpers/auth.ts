@@ -14,9 +14,7 @@ export async function ensureAccount(page: Page, email: string, password: string)
   });
   const payload = (await response.json().catch(() => null)) as { ok?: boolean } | null;
   if (!payload?.ok) {
-    throw new Error(
-      `Inscription impossible (${response.status()}) : ${JSON.stringify(payload)}`,
-    );
+    throw new Error(`Inscription impossible (${response.status()}) : ${JSON.stringify(payload)}`);
   }
 }
 
@@ -49,4 +47,17 @@ export async function login(page: Page, email: string, password: string) {
 
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/dashboard$/);
+}
+
+/**
+ * Navigation robuste : le serveur de dev peut encore compiler la page, ce qui
+ * détache la frame en cours de `goto`. On réessaie une fois.
+ */
+export async function gotoSafely(page: Page, url: string) {
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+  } catch {
+    await page.waitForTimeout(1500);
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+  }
 }

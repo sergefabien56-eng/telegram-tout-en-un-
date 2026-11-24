@@ -432,3 +432,59 @@ export const payoutStatements = pgTable(
     index("payout_statements_shop_created_idx").on(t.shopId, t.remoteCreatedAt),
   ],
 );
+// ---------------------------------------------------------------------------
+// MIMI — assistante IA (Phase 2)
+// ---------------------------------------------------------------------------
+
+/** Conversation MIMI d'un utilisateur sur une boutique. */
+export const aiConversations = pgTable(
+  "ai_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }),
+    title: text("title"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_conversations_user_idx").on(t.userId, t.updatedAt)],
+);
+
+/** Tour de parole : message utilisateur, réponse ou appel d'outil. */
+export const aiMessages = pgTable(
+  "ai_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => aiConversations.id, { onDelete: "cascade" }),
+    /** user | assistant | tool */
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    /** Outil invoqué et ses arguments (journalisation, audit). */
+    toolName: text("tool_name"),
+    toolArgs: jsonb("tool_args"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_messages_conversation_idx").on(t.conversationId, t.createdAt)],
+);
+
+/** Consommation réelle du fournisseur IA (budget 0 FCFA surveillé). */
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    toolName: text("tool_name"),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_usage_created_idx").on(t.createdAt)],
+);
+

@@ -20,6 +20,7 @@ export const ALL_PERMISSIONS = [
   "finance:read",
   "finance:write",
   "reports:read",
+  "mimi:use",
   "members:read",
   "members:write",
   "admin:read",
@@ -28,6 +29,7 @@ export const ALL_PERMISSIONS = [
 export type Permission = (typeof ALL_PERMISSIONS)[number] | "*";
 
 const MANAGER: Permission[] = [
+  "mimi:use",
   "shops:read",
   "shops:write",
   "orders:read",
@@ -38,6 +40,7 @@ const MANAGER: Permission[] = [
   "inventory:write",
   "finance:read",
   "reports:read",
+  "mimi:use",
   "members:read",
   "members:write",
   "admin:read",
@@ -46,9 +49,9 @@ const MANAGER: Permission[] = [
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   owner: ["*"],
   manager: MANAGER,
-  stock: ["orders:read", "products:read", "inventory:read", "inventory:write"],
-  accountant: ["orders:read", "finance:read", "finance:write", "reports:read"],
-  assistant: ["orders:read", "inventory:read"],
+  stock: ["orders:read", "products:read", "inventory:read", "inventory:write", "mimi:use"],
+  accountant: ["orders:read", "finance:read", "finance:write", "reports:read", "mimi:use"],
+  assistant: ["orders:read", "inventory:read", "mimi:use"],
 };
 
 export function isRole(value: string): value is Role {

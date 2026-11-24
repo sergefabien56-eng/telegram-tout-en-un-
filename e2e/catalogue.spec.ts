@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login } from "./helpers/auth";
+import { gotoSafely, login } from "./helpers/auth";
 
 /**
  * Écrans Produits et Stocks : sans synchronisation, les pages affichent un
@@ -19,11 +19,11 @@ test("Produits et Stocks affichent un état vide honnête", async ({ page }) => 
     },
   });
 
-  await page.goto("/produits");
+  await gotoSafely(page, "/produits");
   await expect(page.getByRole("heading", { name: "Produits", level: 1 })).toBeVisible();
   await expect(page.getByText(/Aucun produit enregistré/)).toBeVisible();
 
-  await page.goto("/stocks");
+  await gotoSafely(page, "/stocks");
   await expect(page.getByRole("heading", { name: "Stocks", level: 1 })).toBeVisible();
   await expect(page.getByText(/Aucune déclinaison enregistrée/)).toBeVisible();
 });

@@ -140,9 +140,14 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
     }
 
     case "mimi": {
+      const link = appLink("/mini-app?page=mimi", "ouvrir MIMI");
       return {
         handled: true,
-        reply: "🤖 MIMI arrive bientôt dans la Mini App.",
+        reply:
+          "🤖 <b>MIMI</b> répond à vos questions avec les données réelles de vos boutiques :\n" +
+          "commandes, stocks et relevés Jumia. Chaque chiffre est sourcé, et « donnée indisponible » " +
+          "est affiché quand l'outil ne peut pas répondre.\n\n" +
+          `→ ${link}`,
       };
     }
 

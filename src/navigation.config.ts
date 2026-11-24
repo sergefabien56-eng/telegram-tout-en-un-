@@ -41,7 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "inventory", label: "Stocks", href: "/stocks", icon: "Boxes", section: "D", permission: "inventory:read" },
   { key: "finance", label: "Finances", href: "/finances", icon: "Wallet", section: "E", permission: "finance:read" },
   { key: "reports", label: "Rapports", href: "/rapports", icon: "BarChart3", section: "F", permission: "reports:read" },
-  { key: "mimi", label: "MIMI", href: "/mimi", icon: "Sparkles", section: "G", permission: "mimi:use", soon: true },
+  { key: "mimi", label: "MIMI", href: "/mimi", icon: "Sparkles", section: "G", permission: "mimi:use" },
   { key: "securite", label: "Sécurité", href: "/securite", icon: "ShieldCheck", section: "H" },
   { key: "sante", label: "Santé", href: "/sante", icon: "Activity", section: "H", permission: "admin:read" },
   { key: "admin", label: "Administration", href: "/admin", icon: "Settings", section: "H", permission: "admin:read", soon: true },

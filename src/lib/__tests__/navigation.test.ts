@@ -46,6 +46,10 @@ describe("navigation", () => {
     // Rapports est branché (Phase 2, lot 5).
     const reports = NAV_ITEMS.find((item) => item.key === "reports");
     expect(reports?.soon).toBeUndefined();
+    // MIMI est branchée (Phase 2, lot 6).
+    const mimi = NAV_ITEMS.find((item) => item.key === "mimi");
+    expect(mimi?.soon).toBeUndefined();
+    expect(mimi?.permission).toBe("mimi:use");
     const reste = NAV_ITEMS.filter((item) => item.soon);
     expect(reste.length).toBeGreaterThan(0);
     const shops = NAV_ITEMS.find((item) => item.key === "shops");

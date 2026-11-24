@@ -57,6 +57,13 @@
       "when": 1795522108411,
       "tag": "0007_silent_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795525498884,
+      "tag": "0008_fixed_guardian",
+      "breakpoints": true
     }
   ]
 }

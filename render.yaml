@@ -43,3 +43,12 @@ services:
       # Surtout en staging : https://vendor-api-staging.jumia.com
       - key: JUMIA_API_BASE
         sync: false
+      # --- MIMI : fournisseur IA gratuit (optionnel) ---
+      - key: AI_PROVIDER
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
