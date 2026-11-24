@@ -43,6 +43,9 @@ describe("navigation", () => {
     // Finances est branché (Phase 2, lot 4) ; les modules restants restent marqués.
     const finance = NAV_ITEMS.find((item) => item.key === "finance");
     expect(finance?.soon).toBeUndefined();
+    // Rapports est branché (Phase 2, lot 5).
+    const reports = NAV_ITEMS.find((item) => item.key === "reports");
+    expect(reports?.soon).toBeUndefined();
     const reste = NAV_ITEMS.filter((item) => item.soon);
     expect(reste.length).toBeGreaterThan(0);
     const shops = NAV_ITEMS.find((item) => item.key === "shops");
