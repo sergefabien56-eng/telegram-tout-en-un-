@@ -17,11 +17,6 @@ export async function POST(request: Request) {
   const ip = clientIp(request.headers);
   const userAgent = requestUserAgent(request);
 
-  if (await isLoginBlocked(ip)) {
-    await audit({ action: "auth.account_locked", result: "blocked", ip, userAgent });
-    return fail(429, "Trop de tentatives. Réessayez dans 15 minutes.");
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -37,6 +32,10 @@ export async function POST(request: Request) {
   const { email, password } = parsed.data;
 
   try {
+    if (await isLoginBlocked(ip)) {
+      await audit({ action: "auth.account_locked", result: "blocked", ip, userAgent });
+      return fail(429, "Trop de tentatives. Réessayez dans 15 minutes.");
+    }
     return await authenticate(email, password, ip, userAgent);
   } catch {
     // Base inaccessible : mieux vaut un 503 clair qu'une page d'erreur brute.
