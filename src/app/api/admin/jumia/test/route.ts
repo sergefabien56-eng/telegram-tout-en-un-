@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     // obtenu. Un échec ici ne fait pas échouer le test d'authentification.
     let shopsStatus: number | null = null;
     let shopCount: number | null = null;
+    let shopSample: string[] = [];
     try {
       const shopsResponse = await fetch(`${JUMIA_TOKEN_URL}/shops`, {
         headers: { Authorization: `Bearer ${result.accessToken}`, Accept: "application/json" },
@@ -54,8 +55,22 @@ export async function POST(request: Request) {
       });
       shopsStatus = shopsResponse.status;
       if (shopsResponse.ok) {
-        const body = (await shopsResponse.json()) as { shops?: unknown[] } | undefined;
-        if (Array.isArray(body?.shops)) shopCount = body.shops.length;
+        // La doc GPM : GET /shops renvoie un tableau de boutiques.
+        const body = (await shopsResponse.json()) as unknown;
+        const list: unknown[] = Array.isArray(body)
+          ? body
+          : Array.isArray((body as { shops?: unknown[] })?.shops)
+            ? ((body as { shops: unknown[] }).shops ?? [])
+            : [];
+        shopCount = list.length;
+        shopSample = list.slice(0, 5).flatMap((entry) => {
+          const shop = entry as { name?: unknown; businessClients?: { countryCode?: unknown }[] };
+          if (typeof shop.name !== "string") return [];
+          const countries = (shop.businessClients ?? [])
+            .map((client) => (typeof client.countryCode === "string" ? client.countryCode : null))
+            .filter((code): code is string => Boolean(code));
+          return [`${shop.name}${countries.length ? ` (${countries.join(",")})` : ""}`];
+        });
       }
     } catch {
       shopsStatus = null;
@@ -87,6 +102,7 @@ export async function POST(request: Request) {
       /** 200 attendu ; null si l'appel de lecture n'a pas abouti. */
       shopsStatus,
       shopCount,
+      shops: shopSample,
     });
   } catch (error) {
     const message =

@@ -28,6 +28,7 @@ export function JumiaConnection() {
           refreshExpiresIn: number | null;
           shopsStatus: number | null;
           shopCount: number | null;
+          shops?: string[];
         };
         error?: string;
       };
@@ -50,7 +51,9 @@ export function JumiaConnection() {
           ? "lecture des boutiques non aboutie"
           : data.shopCount === null
             ? `boutiques : réponse ${data.shopsStatus}`
-            : `${data.shopCount} boutique(s) Jumia accessible(s)`,
+            : `${data.shopCount} boutique(s) Jumia accessible(s)${
+                data.shops && data.shops.length > 0 ? ` — ${data.shops.join(", ")}` : ""
+              }`,
       ].join(" · ");
       setStatus({
         kind: "success",
