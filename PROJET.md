@@ -89,11 +89,12 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 1. ~~Actions rapides dans la barre du haut~~ ✅ **livré** (commit `4fb888f`) — « Ajouter une boutique » ouvre une modale réelle ; « Nouvelle commande » porte le badge « Bientôt disponible » (module non branché, R1).
 2. ~~Bottom nav + thème Telegram de la Mini App~~ ✅ **livré** (commit `701acc2`) — coquille basse (4 accès + « Plus »), en-tête compact avec retour natif, `themeParams` fusionnés, bascule web ↔ mini (`teu_ui`).
 3. ~~Tests E2E complets + accessibilité~~ ✅ **livré** (commit `2b73435`) — contrastes mesurés par un test qui relit `globals.css` (102/102), audits axe-core WCAG 2.1 AA en CI, clavier complet (Échap, piège à focus, retour du focus).
-4. **Déploiement automatique** — 🔵 **workflow livré** (commit `540b6aa`, `.github/workflows/deploy.yml`) ; **1 action manuelle restante** : créer le secret GitHub `RENDER_DEPLOY_HOOK` (pas à pas dans `docs/deploiement.md` §2bis). Il déploie uniquement si la CI est verte.
-5. Sauvegarde planifiée + documentation Lot 7.
-6. Accès Vendor Center Jumia (Phase 2).
+4. ~~Déploiement automatique~~ ✅ **vivant** — secret `RENDER_DEPLOY_HOOK` créé ; le workflow « Déploiement Render » se déclenche **uniquement après une CI verte** et a déjà déployé les commits `bef9701`, `b258d5b`, `d87eef7` (dernier `dep-dc2f39an7ras7389utu0`, live).
+5. **CI/E2E** ✅ **verte** — la CI tournait rouge jusque-là ; causes corrigées : stub `SESSION_SECRET` dans `totp.test.ts`, navigateurs Playwright + librairies système, nettoyage des comptes de test (`--attempts`), **bug réel du flux 2FA** (la page lisait `requiresTwoFactor` à la racine au lieu de `data` → redirection vers `/dashboard` sans second facteur), déconnexion qui affichait du JSON, contraste de la nav active (4,47:1 → 5,75:1), 503 lisible si la base est absente. 24 tests E2E + 103 tests unitaires passent.
+6. Sauvegarde planifiée + documentation Lot 7.
+7. Accès Vendor Center Jumia (Phase 2).
 
-**Déploiement** : workflow GitHub Actions (après CI verte) via Deploy Hook, ou manuellement via `scripts/render-deploy.mjs`. L'`autoDeploy` natif de Render ne s'est jamais déclenché.
+**Déploiement** : push sur `main` → CI verte → « Déploiement Render » via Deploy Hook. Vérifié en production : connexion + 2FA + code de vérification → `/dashboard` (11/2026).
 
 ## 8. Questions ouvertes (décisions du propriétaire)
 
