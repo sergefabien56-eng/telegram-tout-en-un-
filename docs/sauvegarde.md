@@ -144,6 +144,26 @@ n'est modifiée. Exécuté chaque dimanche par le workflow.
 
 ---
 
+## Vérification en conditions réelles
+
+Exécution du **24 novembre 2026 à 08:01 UTC** (workflow `backup.yml`, run
+`45352625217`) : toutes les étapes en succès, artefact `backup-sql`
+**11 310 octets** déposé. C'est la preuve que le secret GitHub
+`DATABASE_URL` est correct et que la copie automatique fonctionne de bout en bout.
+
+Étapes observées :
+
+```
+Vérifie la valeur de DATABASE_URL -> success
+Diagnostic de l'URL             -> success
+Sauvegarde compressée           -> success
+Vérifie l'intégrité du fichier  -> success
+Artefact (14 jours)             -> success
+```
+
+Le job du dimanche ajoute `Test de restauration` ; `Copie vers Cloudflare R2`
+reste ignoré tant que `R2_BUCKET` n'est pas défini.
+
 ## Copie externe (Google Drive)
 
 Un exemplaire est déposé dans le Drive connecté à ce compte, pour survivre
