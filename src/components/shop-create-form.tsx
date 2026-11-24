@@ -78,19 +78,20 @@ export function ShopCreateForm({
           htmlFor={`${idPrefix}-external`}
           className="mb-1 block text-xs font-medium text-night"
         >
-          Identifiant boutique Jumia
+          Identifiant boutique Jumia{" "}
+          <span className="font-normal text-muted">(facultatif)</span>
         </label>
         <input
           id={`${idPrefix}-external`}
           value={externalShopId}
           onChange={(event) => setExternalShopId(event.target.value)}
-          required
           autoComplete="off"
           className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
-          placeholder="ex. AgWgmxKZuk-ZNu92dAkyX43yenzDaA9DVkrfGXV__c0"
+          placeholder="Laisser vide : identifiant interne généré"
         />
         <p className="mt-1 text-[11px] text-muted">
-          L&apos;identifiant figure dans le Vendor Center (pas le nom commercial).
+          Inutile de le chercher : la liaison à Jumia se fait après, depuis « Connexions
+          Jumia ».
         </p>
       </div>
 

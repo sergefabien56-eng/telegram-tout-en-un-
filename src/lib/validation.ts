@@ -62,8 +62,14 @@ export const platformSchema = z.string().trim().min(2).max(40).default("jumia");
 export const externalShopIdSchema = z
   .string()
   .trim()
-  .min(1, "L'identifiant boutique Jumia est requis.")
-  .max(80);
+  .max(80)
+  .optional()
+  .transform((value) => {
+    // Identifiant interne : l'utilisateur n'a pas à inventer une valeur
+    // technique, la liaison Jumia se fait ensuite depuis « Connexions Jumia ».
+    if (value) return value;
+    return `local-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  });
 export const countrySchema = z.string().trim().min(2).max(80).optional();
 export const currencySchema = z
   .string()

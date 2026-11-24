@@ -1,5 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { loginSchema, passwordSchema, registerSchema } from "@/lib/validation";
+import {
+  createShopSchema,
+  loginSchema,
+  passwordSchema,
+  registerSchema,
+} from "@/lib/validation";
+
+describe("création de boutique", () => {
+  const base = { name: "Maxi Shop", country: "CI", currency: "XOF" };
+
+  it("génère un identifiant interne quand aucun n'est fourni", () => {
+    const result = createShopSchema.safeParse(base);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.externalShopId).toMatch(/^local-[a-z0-9]+$/);
+      expect(result.data.name).toBe("Maxi Shop");
+    }
+  });
+
+  it("conserve un identifiant fourni par l'utilisateur", () => {
+    const result = createShopSchema.safeParse({ ...base, externalShopId: "MAXI-001" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.externalShopId).toBe("MAXI-001");
+  });
+
+  it("exige au moins un nom", () => {
+    expect(createShopSchema.safeParse({ ...base, name: "M" }).success).toBe(false);
+  });
+});
 
 describe("validation des entrées", () => {
   it("accepte une inscription valide", () => {
