@@ -40,7 +40,17 @@ jobs:
           if-no-files-found: warn
 
       - name: Build
-        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=800
+        run: npm run build 2>&1 | tee build-output.txt
+
+      - name: Sortie du build (diagnostic)
+        if: ${{ always() && hashFiles('build-output.txt') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build-output.txt
+          if-no-files-found: warn
 
   e2e-smoke:
     runs-on: ubuntu-latest
