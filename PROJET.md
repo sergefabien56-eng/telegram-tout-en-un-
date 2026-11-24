@@ -87,7 +87,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 **Reste à faire (par priorité)** :
 1. ~~Actions rapides dans la barre du haut~~ ✅ **livré** (commit `4fb888f`) — « Ajouter une boutique » ouvre une modale réelle ; « Nouvelle commande » porte le badge « Bientôt disponible » (module non branché, R1).
-2. Bottom nav + thème Telegram de la Mini App.
+2. ~~Bottom nav + thème Telegram de la Mini App~~ ✅ **livré** (commit `701acc2`) — coquille basse (4 accès + « Plus »), en-tête compact avec retour natif, `themeParams` fusionnés, bascule web ↔ mini (`teu_ui`).
 3. Tests E2E complets + accessibilité (clavier, contrastes).
 4. Déploiement automatique GitHub → Render (`autoDeploy` inefficace sur Free).
 5. Sauvegarde planifiée + documentation Lot 7.
