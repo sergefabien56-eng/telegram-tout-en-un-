@@ -1,0 +1,72 @@
+name: Déploiement Render
+
+# Déclenché quand la CI est verte (workflow_run) : rien n'est mis en production
+# si le lint, les tests unitaires, le build ou les tests E2E échouent.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
+# Un seul déploiement à la fois ; le plus récent annule l'autre.
+concurrency:
+  group: render-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # On ne déploie que si la CI a réussi.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: production
+      url: https://tout-en-un-business-manager.onrender.com
+    steps:
+      - name: Vérifier qu'un secret de déploiement existe
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          if [ -z "$HOOK" ] && [ -z "$API_KEY" ]; then
+            echo "::error::Aucun secret de déploiement configuré." >&2
+            echo "Crée RENDER_DEPLOY_HOOK (recommandé) ou RENDER_API_KEY dans :" >&2
+            echo "https://github.com/sergefabien56-eng/telegram-tout-en-un-/settings/secrets/actions" >&2
+            exit 1
+          fi
+
+      - name: Déclencher le déploiement Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "$HOOK" ]; then
+            echo "Déclenchement via le Deploy Hook (permission minimale)."
+            curl -sSf -X POST "$HOOK"
+          else
+            echo "Déclenchement via l'API Render."
+            curl -sSf -X POST \
+              -H "Authorization: Bearer $API_KEY" \
+              -H "Content-Type: application/json" \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+              -d '{"clearCache":"clear"}'
+          fi
+
+      - name: Attendre la mise en ligne et vérifier /api/health
+        env:
+          URL: https://tout-en-un-business-manager.onrender.com
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            body="$(curl -fsS --max-time 20 "$URL/api/health" || true)"
+            if echo "$body" | grep -q '"status":"ok"'; then
+              echo "✅ En ligne après ${attempt} tentative(s) : $body"
+              exit 0
+            fi
+            echo "  [${attempt}] pas encore prêt…"
+            sleep 15
+          done
+          echo "::error::Le service ne répond pas après 10 minutes." >&2
+          exit 1

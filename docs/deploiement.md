@@ -44,6 +44,31 @@ RENDER_API_KEY=xxx node scripts/render-deploy.mjs
 Le script : retrouve le service → corrige le `buildCommand` → synchronise les 9 variables →
 déploiement avec purge du cache → attend `live` → vérifie `/api/health`.
 
+## 2bis. Déploiement automatique à chaque push (CI verte)
+
+Le workflow `.github/workflows/deploy.yml` déploie **uniquement si la CI réussit**
+(lint + typecheck + tests unitaires + build + tests E2E). Rien n'est donc mis en production sur un
+commit rouge.
+
+**Une seule action manuelle est nécessaire** : créer un secret GitHub.
+
+1. Render → https://dashboard.render.com/web/srv-dc1m8rqfngtc7381n0rg → onglet **Settings** →
+   descendre jusqu'à **Deploy Hook** → copier l'URL
+   (de la forme `https://api.render.com/deploy/srv-dc1m8rqfngtc7381n0rg/xxxxxxxx`).
+2. GitHub → dépôt → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** :
+   - Name : `RENDER_DEPLOY_HOOK`
+   - Secret : l'URL copiée
+
+C'est tout. Le hook est une permission **minimale** : il ne sert qu'à déclencher UN déploiement, et
+il se régénère dans le même écran si tu soupçonnes une fuite.
+
+**Alternative** (si le hook n'est pas disponible) : créer aussi `RENDER_API_KEY`
+(Render → Account Settings → API Keys → Create API Key, préfixe `rnd_`) et `RENDER_SERVICE_ID`
+(vaut `srv-dc1m8rqfngtc7381n0rg`). Le workflow utilise alors l'API avec attente du statut `live`.
+
+Vérifier que ça a marché : onglet **Actions** du dépôt → workflow « Déploiement Render ».
+Échec fréquent : secret absent → le job affiche explicitement l'URL où le créer.
+
 ## 3. Variables d'environnement de production
 
 | Variable | Où la trouver |
