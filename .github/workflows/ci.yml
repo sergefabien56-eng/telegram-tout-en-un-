@@ -50,12 +50,16 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: E2E (pages publiques + accessibilité WCAG 2.1 AA)
-        run: npx playwright test e2e/smoke.spec.ts e2e/accessibilite.spec.ts
+        run: |
+          set +e
+          npx playwright test e2e/smoke.spec.ts e2e/accessibilite.spec.ts 2>&1 | tee e2e-output.txt
+          echo "E2E_EXIT=${PIPESTATUS[0]}" >> e2e-output.txt
+          exit ${PIPESTATUS[0]}
 
-      - name: Rapport Playwright (diagnostic)
+      - name: Sortie E2E (diagnostic)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-e2e
-          path: playwright-report/
-          if-no-files-found: ignore
+          name: e2e-output
+          path: e2e-output.txt
+          if-no-files-found: warn
