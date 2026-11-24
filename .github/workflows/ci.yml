@@ -27,7 +27,17 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test
+        env:
+          NODE_OPTIONS: --max-old-space-size=800
+        run: npm test 2>&1 | tee unit-output.txt
+
+      - name: Sortie des tests (diagnostic)
+        if: ${{ always() && hashFiles('unit-output.txt') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-output
+          path: unit-output.txt
+          if-no-files-found: warn
 
       - name: Build
         run: npm run build
