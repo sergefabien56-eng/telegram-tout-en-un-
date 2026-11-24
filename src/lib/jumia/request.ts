@@ -43,7 +43,7 @@ export function retryDelayMs(retryAfter: string | null, attempt: number): number
  */
 export async function jumiaGet(
   path: string,
-  params?: Record<string, string | number | undefined>,
+  params?: Record<string, string | number | boolean | undefined>,
 ): Promise<Response> {
   const accessToken = await getAccessToken();
 

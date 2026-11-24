@@ -5,7 +5,16 @@ import { getNavItems, NAV_ITEMS, NAV_SECTIONS } from "@/navigation.config";
 describe("navigation", () => {
   it("expose les 8 sections prévues", () => {
     expect(NAV_SECTIONS).toHaveLength(8);
-    expect(NAV_SECTIONS.map((section) => section.key)).toEqual(["A", "B", "C", "D", "E", "F", "G", "H"]);
+    expect(NAV_SECTIONS.map((section) => section.key)).toEqual([
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+    ]);
   });
 
   it("filtre les entrées par permission (côté serveur)", () => {
@@ -26,8 +35,13 @@ describe("navigation", () => {
     // Commandes est branché (Phase 2, lot 2) : la mention a dû disparaître.
     const orders = NAV_ITEMS.find((item) => item.key === "orders");
     expect(orders?.soon).toBeUndefined();
+    // Produits et Stocks sont branchés (Phase 2, lot 3).
     const products = NAV_ITEMS.find((item) => item.key === "products");
-    expect(products?.soon).toBe(true);
+    expect(products?.soon).toBeUndefined();
+    const inventory = NAV_ITEMS.find((item) => item.key === "inventory");
+    expect(inventory?.soon).toBeUndefined();
+    const finance = NAV_ITEMS.find((item) => item.key === "finance");
+    expect(finance?.soon).toBe(true);
     const shops = NAV_ITEMS.find((item) => item.key === "shops");
     expect(shops?.soon).toBeUndefined();
   });

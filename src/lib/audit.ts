@@ -29,7 +29,9 @@ export type AuditAction =
   | "admin.jumia_shops"
   | "shop.jumia_linked"
   | "shop.jumia_unlinked"
-  | "shop.orders_synced";
+  | "shop.orders_synced"
+  | "shop.products_synced"
+  | "shop.stocks_synced";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

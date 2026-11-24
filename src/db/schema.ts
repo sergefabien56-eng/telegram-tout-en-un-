@@ -328,6 +328,71 @@ export const orders = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// Catalogue & stocks (Phase 2)
+// ---------------------------------------------------------------------------
+
+/** Ensemble produit (product set) tel que renvoyé par GPM `GET /catalog/products`. */
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    externalProductId: text("external_product_id").notNull(),
+    parentSku: text("parent_sku"),
+    name: text("name").notNull(),
+    brandName: text("brand_name"),
+    categoryCode: text("category_code"),
+    categoryName: text("category_name"),
+    primaryImage: text("primary_image"),
+    /** Statut sur le business client du pays (ACTIVE / INACTIVE / DELETED). */
+    status: text("status"),
+    qcStatus: text("qc_status"),
+    remoteCreatedAt: timestamp("remote_created_at", { withTimezone: true }),
+    remoteUpdatedAt: timestamp("remote_updated_at", { withTimezone: true }),
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("products_shop_external_idx").on(t.shopId, t.externalProductId),
+    index("products_shop_status_idx").on(t.shopId, t.status),
+  ],
+);
+
+/** Déclinaison (SKU vendeur) : c'est elle qui porte le prix et le stock. */
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    externalVariantId: text("external_variant_id").notNull(),
+    sellerSku: text("seller_sku"),
+    barcodeEan: text("barcode_ean"),
+    variationName: text("variation_name"),
+    currency: text("currency").notNull().default("XOF"),
+    priceMinor: integer("price_minor"),
+    salePriceMinor: integer("sale_price_minor"),
+    status: text("status"),
+    visible: boolean("visible"),
+    qcStatus: text("qc_status"),
+    /** Stock global du SKU (GPM `GET /catalog/stock`). */
+    stockGlobal: integer("stock_global"),
+    stockUpdatedAt: timestamp("stock_updated_at", { withTimezone: true }),
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("variants_product_external_idx").on(t.productId, t.externalVariantId),
+    // Le stock est relu par `sellerSku` : un SKU appartient à une boutique.
+    uniqueIndex("variants_shop_sku_idx").on(t.productId, t.sellerSku),
+    index("variants_stock_idx").on(t.stockGlobal),
+  ],
+);
+
 // Type pratique pour l'application.
 export type User = typeof users.$inferSelect;
 export type Shop = typeof shops.$inferSelect;

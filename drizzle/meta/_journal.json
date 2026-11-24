@@ -43,6 +43,13 @@
       "when": 1795514761406,
       "tag": "0005_low_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795520221720,
+      "tag": "0006_pink_katie_power",
+      "breakpoints": true
     }
   ]
 }
