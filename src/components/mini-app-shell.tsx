@@ -18,6 +18,8 @@ import { NAV_ITEMS } from "@/navigation.config";
 type MiniAppShellProps = {
   user: { fullName: string; email: string };
   shops: { id: string; name: string; role: string }[];
+  /** Permissions calculées côté serveur : le « Plus » n'affiche que du réel. */
+  permissions: string[];
   children: ReactNode;
 };
 
@@ -25,7 +27,7 @@ type MiniAppShellProps = {
  * Coquille Mini App (spec 4.4) : en-tête compact, contenu identique à la
  * version web, navigation basse à 5 accès max + « Plus ».
  */
-export function MiniAppShell({ user, shops, children }: MiniAppShellProps) {
+export function MiniAppShell({ user, shops, permissions, children }: MiniAppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -34,8 +36,7 @@ export function MiniAppShell({ user, shops, children }: MiniAppShellProps) {
   // Bouton retour natif Telegram quand il est disponible.
   useEffect(() => {
     const app = window.Telegram?.WebApp as
-      | { BackButton?: { show: () => void; hide: () => void }; back?: () => void }
-      | undefined;
+      { BackButton?: { show: () => void; hide: () => void }; back?: () => void } | undefined;
     if (!app) return;
     if (pathname === "/dashboard") app.BackButton?.hide();
     else app.BackButton?.show();
@@ -63,9 +64,18 @@ export function MiniAppShell({ user, shops, children }: MiniAppShellProps) {
     { key: "securite", label: "Sécurité", href: "/securite", icon: ShieldCheck },
   ];
 
-  // Sorties et réglages : rien de factice, uniquement des pages qui existent.
+  // « Plus » : toutes les pages autorisées, puis les réglages. Rien de factice.
+  const allowed = new Set(permissions);
+  // Les 4 onglets du bas restent hors liste pour éviter les doublons.
+  const TAB_KEYS = new Set(["dashboard", "boutiques", "notifications", "securite"]);
   const extraLinks = [
-    { key: "securite", label: "Sécurité du compte", href: "/securite" },
+    ...NAV_ITEMS.filter(
+      (item) =>
+        !TAB_KEYS.has(item.key) &&
+        (!item.permission || allowed.has(item.permission) || allowed.has("*")),
+    ).map((item) => ({ key: item.key, label: item.label, href: item.href })),
+    // Pages de réglage toujours proposées : leur contenu reste protégé par
+    // leurs propres permissions (Santé = admin:read).
     { key: "sante", label: "Santé du système", href: "/sante" },
     { key: "web", label: "Ouvrir la version web", href: "/version-web" },
   ];

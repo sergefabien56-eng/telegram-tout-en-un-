@@ -10,6 +10,9 @@ import {
   LogOut,
   Menu,
   Package,
+  ChevronsDownUp,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -23,6 +26,7 @@ import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { QuickActions } from "@/components/quick-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { applySidebarState, readSidebarState, type SidebarState } from "@/lib/sidebar-state";
 import { NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -56,6 +60,8 @@ function isVisible(item: NavItem, permissions: Set<string>): boolean {
   return !item.permission || permissions.has(item.permission) || permissions.has("*");
 }
 
+const ALL_SECTIONS = NAV_SECTIONS.map((section) => section.key);
+
 /** Sidebar : sections dépliables + entrées filtrées par permission. */
 function Sidebar({
   permissions,
@@ -78,6 +84,16 @@ function Sidebar({
     setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
   }
 
+  /** Ouvre ou ferme toutes les sections d'un coup (bouton unique). */
+  function toggleAll() {
+    const allOpen = ALL_SECTIONS.every((key) => expanded[key]);
+    if (allOpen) {
+      setExpanded({});
+      return;
+    }
+    setExpanded(Object.fromEntries(ALL_SECTIONS.map((key) => [key, true])));
+  }
+
   return (
     <>
       {/* Voile mobile */}
@@ -90,7 +106,7 @@ function Sidebar({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card transition-transform lg:translate-x-0 ${
+        className={`teu-sidebar fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-card transition-transform lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Navigation principale"
@@ -98,22 +114,41 @@ function Sidebar({
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <Link href="/dashboard" className="focusable flex items-center gap-2" onClick={onClose}>
             <Logo className="h-8 w-8" />
-            <span className="text-sm font-semibold text-night">TOUT EN UN</span>
+            <span className="teu-rail-hide text-sm font-semibold text-night">TOUT EN UN</span>
           </Link>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer le menu"
-            className="focusable inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-ink lg:hidden"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleAll}
+              aria-expanded={ALL_SECTIONS.every((key) => expanded[key])}
+              title="Ouvrir ou fermer toutes les sections"
+              className="focusable inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted hover:text-ink"
+            >
+              <ChevronsDownUp
+                className={`h-4 w-4 ${ALL_SECTIONS.every((key) => expanded[key]) ? "" : "rotate-180"}`}
+                aria-hidden="true"
+              />
+              <span className="teu-rail-hide">
+                {ALL_SECTIONS.every((key) => expanded[key]) ? "Tout fermer" : "Tout ouvrir"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer le menu"
+              className="focusable inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-ink lg:hidden"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-4">
             {NAV_SECTIONS.map((section) => {
-              const items = NAV_ITEMS.filter((item) => item.section === section.key && isVisible(item, permissions));
+              const items = NAV_ITEMS.filter(
+                (item) => item.section === section.key && isVisible(item, permissions),
+              );
               if (items.length === 0) return null;
               const isOpen = Boolean(expanded[section.key]);
               const sectionActive = items.some((item) => item.href === pathname);
@@ -125,9 +160,9 @@ function Sidebar({
                     aria-expanded={isOpen}
                     className="focusable flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted hover:text-night"
                   >
-                    <span>{section.label}</span>
+                    <span className="teu-rail-hide">{section.label}</span>
                     <ChevronDown
-                      className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      className={`teu-rail-hide h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
                       aria-hidden="true"
                     />
                   </button>
@@ -140,7 +175,7 @@ function Sidebar({
                         return (
                           <li key={item.key}>
                             {item.soon ? (
-                              <span className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted">
+                              <span className="teu-rail-center flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted">
                                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="flex-1">{item.label}</span>
                                 <span className="badge badge-neutral">Bientôt</span>
@@ -149,8 +184,9 @@ function Sidebar({
                               <Link
                                 href={item.href}
                                 onClick={onClose}
+                                title={item.label}
                                 aria-current={active ? "page" : undefined}
-                                className={`focusable flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                                className={`teu-rail-center focusable flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
                                   active
                                     ? "bg-primary-50 font-medium text-primary-600"
                                     : "text-night hover:bg-surface"
@@ -176,8 +212,10 @@ function Sidebar({
         </nav>
 
         <div className="border-t border-border px-4 py-3">
-          <p className="text-xs text-muted">Plan gratuit · 0 FCFA</p>
-          <p className="mt-0.5 text-xs text-muted">Données hébergées en Côte d&apos;Ivoire.</p>
+          <p className="teu-rail-hide text-xs text-muted">Plan gratuit · 0 FCFA</p>
+          <p className="teu-rail-hide mt-0.5 text-xs text-muted">
+            Données hébergées en Côte d&apos;Ivoire.
+          </p>
         </div>
       </aside>
     </>
@@ -186,10 +224,23 @@ function Sidebar({
 
 export function AppShell({ user, shops, permissions, children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebar, setSidebar] = useState<SidebarState>("open");
   const [userMenu, setUserMenu] = useState(false);
   const [shopId, setShopId] = useState(shops[0]?.id ?? "");
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Le réglage est posé avant le premier rendu par `SidebarScript` ; on ne fait
+  // que reprendre la main pour le bouton.
+  useEffect(() => {
+    setSidebar(readSidebarState());
+  }, []);
+
+  function toggleSidebar() {
+    const next: SidebarState = sidebar === "rail" ? "open" : "rail";
+    applySidebarState(next);
+    setSidebar(next);
+  }
 
   // Fermeture au clic extérieur ou à Échap, avec retour du focus au déclencheur.
   useEffect(() => {
@@ -227,7 +278,7 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
     <div className="min-h-screen bg-surface">
       <Sidebar permissions={permissionSet} open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <div className="lg:pl-72">
+      <div className="teu-main">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-card px-4 py-2.5">
           <button
             type="button"
@@ -236,6 +287,22 @@ export function AppShell({ user, shops, permissions, children }: AppShellProps) 
             className="focusable inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-ink lg:hidden"
           >
             <Menu className="h-4 w-4" aria-hidden="true" />
+          </button>
+
+          {/* Replier / déployer la barre latérale (bureau uniquement) */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={sidebar === "rail" ? "Déployer le menu" : "Replier le menu"}
+            title={sidebar === "rail" ? "Déployer le menu" : "Replier le menu"}
+            aria-pressed={sidebar === "rail"}
+            className="focusable hidden h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-ink lg:inline-flex"
+          >
+            {sidebar === "rail" ? (
+              <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+            )}
           </button>
 
           {/* Sélecteur de boutique */}

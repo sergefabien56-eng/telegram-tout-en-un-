@@ -78,3 +78,49 @@
     @apply outline-none focus-visible:ring-2 focus-visible:ring-primary-ink focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Barre latérale : « open » (pleine largeur) ou « rail » (icônes seules).
+   L'état est posé sur <html data-sidebar> avant le premier rendu.
+   --------------------------------------------------------------------------- */
+.teu-sidebar {
+  width: 18rem;
+}
+
+@media (min-width: 1024px) {
+  html[data-sidebar="rail"] .teu-sidebar {
+    width: 4.5rem;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .teu-main {
+    margin-left: 0 !important;
+  }
+}
+
+.teu-main {
+  transition: margin-left 180ms ease;
+}
+
+@media (min-width: 1024px) {
+  .teu-main {
+    margin-left: 18rem;
+  }
+  html[data-sidebar="rail"] .teu-main {
+    margin-left: 4.5rem;
+  }
+}
+
+/* En mode rail, les libellés laissent la place aux icônes. */
+@media (min-width: 1024px) {
+  html[data-sidebar="rail"] .teu-rail-hide {
+    display: none;
+  }
+  html[data-sidebar="rail"] .teu-rail-center {
+    justify-content: center;
+  }
+  html[data-sidebar="rail"] .teu-rail-justify {
+    justify-content: flex-start;
+  }
+}

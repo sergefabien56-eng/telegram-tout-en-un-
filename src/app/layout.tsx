@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SidebarScript } from "@/components/sidebar-script";
 import { ThemeScript } from "@/components/theme-script";
 import "./globals.css";
 
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <SidebarScript />
       </head>
       <body>{children}</body>
     </html>

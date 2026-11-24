@@ -44,7 +44,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (mini) {
     return (
       <TelegramThemeSync>
-        <MiniAppShell user={{ fullName: user.fullName, email: user.email }} shops={shellShops}>
+        <MiniAppShell
+          user={{ fullName: user.fullName, email: user.email }}
+          shops={shellShops}
+          permissions={[...permissions]}
+        >
           {children}
         </MiniAppShell>
       </TelegramThemeSync>
