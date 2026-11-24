@@ -21,7 +21,14 @@ describe("describeOAuthError", () => {
   });
 });
 
-describe("getAccessToken sans identifiants", () => {
+/**
+ * Ce test ne doit PAS toucher une base réelle : localement et en intégration,
+ * `DATABASE_URL` pointe sur la base de production où les identifiants Jumia sont
+ * stockés. On le réserve donc à un environnement sans base (CI).
+ */
+const hasDb = Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(hasDb)("getAccessToken sans identifiants", () => {
   it("refuse proprement quand rien n'est configuré", async () => {
     await expect(getAccessToken()).rejects.toMatchObject({ code: "not_configured" });
   });
