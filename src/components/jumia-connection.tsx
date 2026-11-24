@@ -22,7 +22,13 @@ export function JumiaConnection() {
       const response = await fetch("/api/admin/jumia/test", { method: "POST" });
       const payload = (await response.json()) as {
         ok?: boolean;
-        data?: { source: string; expiresIn: number; refreshExpiresIn: number | null };
+        data?: {
+          source: string;
+          expiresIn: number;
+          refreshExpiresIn: number | null;
+          shopsStatus: number | null;
+          shopCount: number | null;
+        };
         error?: string;
       };
       if (!response.ok || !payload.ok) {
@@ -40,6 +46,11 @@ export function JumiaConnection() {
         data.refreshExpiresIn === null
           ? "refresh sans durée annoncée"
           : `refresh valable ${Math.round(data.refreshExpiresIn / 86400)} j`,
+        data.shopsStatus === null
+          ? "lecture des boutiques non aboutie"
+          : data.shopCount === null
+            ? `boutiques : réponse ${data.shopsStatus}`
+            : `${data.shopCount} boutique(s) Jumia accessible(s)`,
       ].join(" · ");
       setStatus({
         kind: "success",
@@ -58,8 +69,8 @@ export function JumiaConnection() {
         Connexion Jumia (Vendor Center)
       </h2>
       <p className="mt-2 text-sm text-muted">
-        Vérifie l&apos;échange d&apos;un refresh token contre un access token et ré-écrit le
-        nouveau jeton en base, chiffré. Aucun identifiant n&apos;est affiché.
+        Vérifie l&apos;échange d&apos;un refresh token contre un access token et ré-écrit le nouveau
+        jeton en base, chiffré. Aucun identifiant n&apos;est affiché.
       </p>
 
       <button
