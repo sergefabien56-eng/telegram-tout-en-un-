@@ -35,3 +35,11 @@ services:
         sync: false
       - key: NEXT_PUBLIC_APP_URL
         sync: false
+      # --- Jumia Vendor Center (optionnel tant que Phase 2 n'est pas lancee) ---
+      - key: JUMIA_CLIENT_ID
+        sync: false
+      - key: JUMIA_REFRESH_TOKEN
+        sync: false
+      # Surtout en staging : https://vendor-api-staging.jumia.com
+      - key: JUMIA_API_BASE
+        sync: false

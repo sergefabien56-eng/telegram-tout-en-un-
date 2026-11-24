@@ -1,0 +1,46 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { describeOAuthError, JumiaError, getAccessToken } from "@/lib/jumia/client";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete process.env.JUMIA_CLIENT_ID;
+  delete process.env.JUMIA_REFRESH_TOKEN;
+});
+
+describe("describeOAuthError", () => {
+  it("explique un refresh token expiré", () => {
+    expect(describeOAuthError("invalid_grant")).toContain("Générez-en un nouveau");
+  });
+
+  it("explique un mauvais type d'application", () => {
+    expect(describeOAuthError("unauthorized_client")).toContain("Self Authorization");
+  });
+
+  it("retombe sur la description fournie", () => {
+    expect(describeOAuthError(null, "Quota dépassé")).toBe("Quota dépassé");
+  });
+});
+
+describe("getAccessToken sans identifiants", () => {
+  it("refuse proprement quand rien n'est configuré", async () => {
+    await expect(getAccessToken()).rejects.toMatchObject({ code: "not_configured" });
+  });
+});
+
+describe("réponse OAuth en erreur", () => {
+  it("traduit invalid_grant sans rien écrire", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ error: "invalid_grant", error_description: "expiré" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const { requestAccessToken } = await import("@/lib/jumia/client");
+    await expect(
+      requestAccessToken({ clientId: "c", refreshToken: "r" }),
+    ).rejects.toBeInstanceOf(JumiaError);
+  });
+});

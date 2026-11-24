@@ -24,7 +24,8 @@ export type AuditAction =
   | "shop.member_removed"
   | "shop.member_role_changed"
   | "notifications.pref_changed"
-  | "admin.database_export";
+  | "admin.database_export"
+  | "admin.jumia_test";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

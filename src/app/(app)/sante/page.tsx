@@ -1,4 +1,5 @@
 import { getDb } from "@/db";
+import { JumiaConnection } from "@/components/jumia-connection";
 import { listUserNotifications } from "@/lib/notifications";
 import { listUserShops } from "@/lib/shops";
 import { getSessionUser } from "@/lib/session";
@@ -127,6 +128,8 @@ export default async function SantePage() {
               </p>
             </section>
           ) : null}
+
+          {isOwner ? <JumiaConnection /> : null}
 
           <section className="card p-5">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-night">

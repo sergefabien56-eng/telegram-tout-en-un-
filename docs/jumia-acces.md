@@ -82,6 +82,26 @@ Appels API : `Authorization: Bearer <access_token>`.
 6. **Limites de débit** : 200 requêtes/minute et 4 requêtes/seconde, **par mastershop**
    (donc partagées entre toutes nos boutiques) → backoff et respect de `Retry-After`.
 
+## 4bis. Où coller les valeurs (recommandé : Render, pas moi)
+
+Les deux valeurs sont **des secrets** : elles donnent accès au compte vendeur.
+Elles ne doivent ni dans le dépôt, ni m'être affichées.
+
+1. Ouvrir **https://dashboard.render.com/web/srv-dc1m8rqfngtc7381n0rg/env**
+2. **Add Environment Variable** → `JUMIA_CLIENT_ID` = la valeur affichée dans Vendor Center.
+3. **Add Environment Variable** → `JUMIA_REFRESH_TOKEN` = le jeton généré.
+4. **Save Changes** : le service redémarre.
+
+Ensuite, dans l'application : **Santé → « Tester la connexion Jumia »**. Le serveur
+échange le refresh token, **ré-écrit automatiquement le nouveau jeton en base
+(chiffré AES-256-GCM)** et affiche la durée de validité. Je n'ai jamais besoin de
+connaître ces valeurs.
+
+> Si vous aviez généré un token il y a longtemps sans l'avoir utilisé depuis :
+> un autre utilisateur connecté à Vendor Center invalide les jetons en cours, et
+> chaque utilisation en remplace le précédent. Le plus sûr est de cliquer une
+> dernière fois sur **Generate Token** et d'utiliser ce jeton tout neuf.
+
 ## 5. Qu'est-ce qu'il faut me fournir
 
 Deux valeurs, **à ne jamais coller dans le dépôt** :
