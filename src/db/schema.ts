@@ -150,6 +150,13 @@ export const shops = pgTable(
     country: text("country"),
     currency: text("currency").notNull().default("XOF"),
     status: text("status").notNull().default("pending"),
+    /**
+     * Rattachement à la plateforme (Phase 2) : identifiant de la boutique distante,
+     * nom lu à la source et date du dernier rattachement. `null` = non rattachée.
+     */
+    remoteShopId: text("remote_shop_id"),
+    remoteShopName: text("remote_shop_name"),
+    remoteLinkedAt: timestamp("remote_linked_at", { withTimezone: true }),
     connectedAt: timestamp("connected_at", { withTimezone: true }),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastSyncStatus: text("last_sync_status"),
@@ -157,7 +164,11 @@ export const shops = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("shops_platform_external_idx").on(t.platform, t.externalShopId)],
+  (t) => [
+    uniqueIndex("shops_platform_external_idx").on(t.platform, t.externalShopId),
+    // PostgreSQL autorise plusieurs NULL : une boutique distante = une boutique locale.
+    uniqueIndex("shops_remote_shop_idx").on(t.remoteShopId),
+  ],
 );
 
 export const shopMembers = pgTable(

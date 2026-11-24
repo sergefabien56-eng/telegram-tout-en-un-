@@ -1,6 +1,8 @@
 "use client";
 
 import { ShopCreateForm } from "@/components/shop-create-form";
+import { JumiaShopLink } from "@/components/jumia-shop-link";
+import { roleHasPermission } from "@/lib/permissions";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type ShopRow = {
@@ -11,6 +13,8 @@ type ShopRow = {
   country: string | null;
   currency: string;
   status: string;
+  remoteShopId?: string | null;
+  remoteShopName?: string | null;
   createdAt: string;
   role: string;
 };
@@ -90,7 +94,11 @@ export default function BoutiquesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
     });
-    const payload = (await response.json()) as { ok: boolean; error?: string; data?: { status: string } };
+    const payload = (await response.json()) as {
+      ok: boolean;
+      error?: string;
+      data?: { status: string };
+    };
     if (!response.ok || !payload.ok) {
       setError(payload.error ?? "Invitation impossible.");
       return;
@@ -107,7 +115,9 @@ export default function BoutiquesPage() {
   async function onRemove(memberUserId: string) {
     if (!selected) return;
     if (!window.confirm("Retirer ce membre de la boutique ?")) return;
-    const response = await fetch(`/api/shops/${selected}/members/${memberUserId}`, { method: "DELETE" });
+    const response = await fetch(`/api/shops/${selected}/members/${memberUserId}`, {
+      method: "DELETE",
+    });
     const payload = (await response.json()) as { ok: boolean; error?: string };
     if (!response.ok || !payload.ok) {
       setError(payload.error ?? "Suppression impossible.");
@@ -124,7 +134,9 @@ export default function BoutiquesPage() {
           Boutiques connectées et équipes. Les permissions sont appliquées côté serveur.
         </p>
 
-        {error ? <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
+        {error ? (
+          <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+        ) : null}
         {notice ? (
           <p className="mt-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
         ) : null}
@@ -160,6 +172,9 @@ export default function BoutiquesPage() {
                       </p>
                       <p className="mt-1 text-xs text-muted">
                         Statut : <span className="font-medium">{shop.status}</span>
+                        {shop.remoteShopName ? (
+                          <span className="text-success"> · Jumia : {shop.remoteShopName}</span>
+                        ) : null}
                       </p>
                     </button>
                   </li>
@@ -175,6 +190,19 @@ export default function BoutiquesPage() {
             </div>
           </section>
         </div>
+
+        {selected && shops.find((shop) => shop.id === selected)?.role ? (
+          <JumiaShopLink
+            shopId={selected}
+            remoteShopId={shops.find((shop) => shop.id === selected)?.remoteShopId ?? null}
+            remoteShopName={shops.find((shop) => shop.id === selected)?.remoteShopName ?? null}
+            canWrite={roleHasPermission(
+              shops.find((shop) => shop.id === selected)?.role as never,
+              "shops:write",
+            )}
+            onChanged={loadShops}
+          />
+        ) : null}
 
         {selected ? (
           <section className="card mt-6 p-5">

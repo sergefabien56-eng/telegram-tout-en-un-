@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { describeOAuthError, JumiaError, getAccessToken } from "@/lib/jumia/client";
+import { listRemoteShopsFromBody } from "@/lib/jumia/shops";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -49,5 +50,33 @@ describe("réponse OAuth en erreur", () => {
     await expect(
       requestAccessToken({ clientId: "c", refreshToken: "r" }),
     ).rejects.toBeInstanceOf(JumiaError);
+  });
+});
+
+describe("normalisation GET /shops", () => {
+  it("lit le tableau brut et conserve les pays", () => {
+    const shops = listRemoteShopsFromBody([
+      {
+        id: "abc",
+        name: "NKSF Shop",
+        email: "shop@example.com",
+        businessClients: [{ countryCode: "CI", name: "Jumia", status: "ACTIVE" }],
+      },
+    ]);
+    expect(shops).toEqual([
+      { id: "abc", name: "NKSF Shop", email: "shop@example.com", countries: [
+        { code: "CI", name: "Jumia", status: "ACTIVE" },
+      ] },
+    ]);
+  });
+
+  it("ignore les entrées incomplètes sans échouer", () => {
+    const shops = listRemoteShopsFromBody([{ id: "abc" }, { name: "sans id" }, 42]);
+    expect(shops).toEqual([]);
+  });
+
+  it("accepte la forme { shops: [] } en secours", () => {
+    const shops = listRemoteShopsFromBody({ shops: [{ id: "x", name: "X" }] });
+    expect(shops).toHaveLength(1);
   });
 });
