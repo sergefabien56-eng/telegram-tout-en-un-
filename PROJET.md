@@ -99,7 +99,9 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 **Accès requis (Phase 2)** : `JUMIA_CLIENT_ID`, `JUMIA_REFRESH_TOKEN` (secrets GitHub + Render).
 
-**Sauvegarde** : l'export depuis l'application ne demande aucun secret ; le workflow programmé (optionnel) utilise `DATABASE_URL`. Le secret GitHub `DATABASE_URL` est facultatif et n'empêche pas l'export manuel.
+**Sauvegarde** : export en un clic depuis l'appli (bouton sur « Santé »), script CLI `npm run backup`, dump partagé `scripts/lib/dump-sql.mjs`, workflow quotidien optionnel. Le secret `DATABASE_URL` reste **facultatif** : une valeur mal formée (hôte « base ») entraîne un message + saut de l'étape, **sans mettre le dépôt en rouge**.
+
+**Tests après ces changements** : 103 tests unitaires + 24 tests E2E verts, lint/typecheck OK, CI + déploiement Render success (`1e231b3`).
 
 **Déploiement** : push sur `main` → CI verte → « Déploiement Render » via Deploy Hook. Vérifié en production : connexion + 2FA + code de vérification → `/dashboard` (11/2026).
 
