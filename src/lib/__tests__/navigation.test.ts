@@ -50,8 +50,11 @@ describe("navigation", () => {
     const mimi = NAV_ITEMS.find((item) => item.key === "mimi");
     expect(mimi?.soon).toBeUndefined();
     expect(mimi?.permission).toBe("mimi:use");
+    // Administration est branchée (Phase 2, lot 7) : tout le plan l'est.
+    const admin = NAV_ITEMS.find((item) => item.key === "admin");
+    expect(admin?.soon).toBeUndefined();
     const reste = NAV_ITEMS.filter((item) => item.soon);
-    expect(reste.length).toBeGreaterThan(0);
+    expect(reste).toHaveLength(0);
     const shops = NAV_ITEMS.find((item) => item.key === "shops");
     expect(shops?.soon).toBeUndefined();
   });

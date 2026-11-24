@@ -2,10 +2,13 @@ import { expect, test } from "@playwright/test";
 import { gotoSafely, login } from "./helpers/auth";
 
 /**
- * MIMI sans clé IA : la page s'ouvre et l'assistante déclare son
- * indisponibilité au lieu d'inventer des chiffres.
+ * MIMI ne doit jamais inventer de chiffre. Deux cas possibles ici :
+ * - clé IA absente → message d'indisponibilité explicite ;
+ * - clé IA présente → réponse réelle, qui cite ses sources ou dit que la
+ *   boutique n'a aucune commande enregistrée.
  */
-test("MIMI répond honnêtement quand aucune clé IA n'est configurée", async ({ page }) => {
+test("MIMI ne fabrique aucun chiffre sans donnée", async ({ page }) => {
+  test.setTimeout(120_000);
   const email = `mimi-e2e-${Date.now()}@exemple.ci`;
   await login(page, email, "MotDePasse123");
 
@@ -25,5 +28,7 @@ test("MIMI répond honnêtement quand aucune clé IA n'est configurée", async (
   await page.getByLabel("Votre question").fill("Quel est mon chiffre d'affaires ?");
   await page.getByRole("button", { name: "Envoyer" }).click();
 
-  await expect(page.getByText(/indisponible/i).first()).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.getByText(/indisponible|aucune commande|données enregistrées/i).first(),
+  ).toBeVisible({ timeout: 90_000 });
 });

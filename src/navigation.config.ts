@@ -44,7 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "mimi", label: "MIMI", href: "/mimi", icon: "Sparkles", section: "G", permission: "mimi:use" },
   { key: "securite", label: "Sécurité", href: "/securite", icon: "ShieldCheck", section: "H" },
   { key: "sante", label: "Santé", href: "/sante", icon: "Activity", section: "H", permission: "admin:read" },
-  { key: "admin", label: "Administration", href: "/admin", icon: "Settings", section: "H", permission: "admin:read", soon: true },
+  { key: "admin", label: "Administration", href: "/admin", icon: "Settings", section: "H", permission: "admin:read" },
 ];
 
 /** Retourne les éléments d'une section, filtrés par permissions. */

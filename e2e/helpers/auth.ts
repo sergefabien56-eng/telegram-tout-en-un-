@@ -54,10 +54,15 @@ export async function login(page: Page, email: string, password: string) {
  * détache la frame en cours de `goto`. On réessaie une fois.
  */
 export async function gotoSafely(page: Page, url: string) {
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-  } catch {
-    await page.waitForTimeout(1500);
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      return;
+    } catch (error) {
+      // Serveur de dev en cours de compilation : on reprend la main.
+      lastError = error;
+    }
   }
+  throw lastError;
 }
