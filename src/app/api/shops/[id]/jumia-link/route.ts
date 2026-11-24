@@ -107,7 +107,13 @@ export async function DELETE(request: Request, { params }: Params) {
 
   const updated = await getDb()
     .update(schema.shops)
-    .set({ remoteShopId: null, remoteShopName: null, remoteLinkedAt: null, updatedAt: new Date() })
+    .set({
+      remoteShopId: null,
+      remoteShopName: null,
+      remoteLinkedAt: null,
+      status: "pending",
+      updatedAt: new Date(),
+    })
     .where(eq(schema.shops.id, id))
     .returning();
 

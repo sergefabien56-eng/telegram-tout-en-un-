@@ -34,7 +34,14 @@ export default async function globalSetup() {
 
   const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
   try {
-    const pattern = "(2fa|dbg|smoke|e2e|a11y|mini)[.-].*@exemple\\.ci$";
+    const pattern =
+      "(2fa|dbg|smoke|e2e|a11y|mini|jumia|link|owner|probe|prod|ui)[.-].*@exemple\\.ci$";
+    // `shops.owner_user_id` est en RESTRICT : on supprime d'abord les boutiques
+    // et leurs membres, sinon le DELETE des utilisateurs échoue.
+    await pool.query(
+      `DELETE FROM shops WHERE owner_user_id IN (SELECT id FROM users WHERE email ~ $1)`,
+      [pattern],
+    );
     const users = await pool.query(`DELETE FROM users WHERE email ~ $1 RETURNING id`, [pattern]);
     const attempts = await pool.query(`DELETE FROM login_attempts`);
     console.log(
