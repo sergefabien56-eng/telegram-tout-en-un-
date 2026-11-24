@@ -141,3 +141,20 @@ n'est modifiée. Exécuté chaque dimanche par le workflow.
 - pas de PITR fin : on restaure au moment du dump, pas à la seconde près ;
 - l'artefact GitHub expire au bout de 14 jours : une copie externe (R2 ou Drive)
   est recommandée pour l'archivage.
+
+---
+
+## Copie externe (Google Drive)
+
+Un exemplaire est déposé dans le Drive connecté à ce compte, pour survivre
+à une perte de la base _et_ du dépôt.
+
+| Date             | Fichier                             | Taille   | SHA-256                                                            |
+| ---------------- | ----------------------------------- | -------- | ------------------------------------------------------------------ |
+| 2026-11-24 07:56 | `backup-2026-11-24-07-56-51.sql.gz` | 11 122 o | `ff4e48fc8426fc4a3f28936faf6835d981903c1984be36a253263cb240bca02b` |
+
+Lien : <https://drive.google.com/file/d/1CvXVyP8itNw-nGjFhSlnjqE8lCAnHo6V/view>
+
+**Après chaque dépôt d'un dump, ajoutez ici la date, le nom, la taille et le
+SHA-256**, et supprimez l'exemplaire précédent. C'est le seul endroit où la
+date d'une copie externe est garantie.
