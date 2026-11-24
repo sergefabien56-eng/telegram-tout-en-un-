@@ -2,7 +2,7 @@
 
 import { ShopCreateForm } from "@/components/shop-create-form";
 import { JumiaShopLink } from "@/components/jumia-shop-link";
-import { roleHasPermission } from "@/lib/permissions";
+import { roleHasPermission } from "@/lib/roles";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type ShopRow = {

@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/db";
 import { generateToken, sha256Hex } from "@/lib/crypto";
-import { isRole, roleHasPermission, type Role } from "@/lib/permissions";
+import { isRole, roleHasPermission, type Role } from "@/lib/roles";
 import { and, eq, sql } from "drizzle-orm";
 
 /** Durée de validité d'une invitation (7 jours). */
@@ -197,8 +197,10 @@ export async function removeMember(
     .limit(1);
 
   if (!target[0]) return { ok: false, reason: "Membre introuvable." };
-  if (target[0].role === "owner") return { ok: false, reason: "Impossible de retirer le propriétaire." };
-  if (targetUserId === userId) return { ok: false, reason: "Vous ne pouvez pas vous retirer vous-même." };
+  if (target[0].role === "owner")
+    return { ok: false, reason: "Impossible de retirer le propriétaire." };
+  if (targetUserId === userId)
+    return { ok: false, reason: "Vous ne pouvez pas vous retirer vous-même." };
 
   await db
     .delete(schema.shopMembers)
@@ -228,7 +230,8 @@ export async function changeMemberRole(
     .limit(1);
 
   if (!target[0]) return { ok: false, reason: "Membre introuvable." };
-  if (target[0].role === "owner") return { ok: false, reason: "Impossible de modifier le propriétaire." };
+  if (target[0].role === "owner")
+    return { ok: false, reason: "Impossible de modifier le propriétaire." };
 
   await db
     .update(schema.shopMembers)
