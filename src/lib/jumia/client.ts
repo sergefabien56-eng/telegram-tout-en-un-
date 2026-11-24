@@ -79,7 +79,10 @@ export async function readCredentials(): Promise<{
         try {
           const parsed = JSON.parse(plain) as Partial<JumiaCredentials>;
           if (parsed.clientId && parsed.refreshToken) {
-            return { credentials: { clientId: parsed.clientId, refreshToken: parsed.refreshToken }, source: "base" };
+            return {
+              credentials: { clientId: parsed.clientId, refreshToken: parsed.refreshToken },
+              source: "base",
+            };
           }
         } catch {
           // valeur illisible : on retombe sur l'environnement
@@ -101,7 +104,11 @@ export async function readCredentials(): Promise<{
 /** Persiste les identifiants (chiffrés AES-256-GCM) après une rotation réussie. */
 export async function writeCredentials(credentials: JumiaCredentials): Promise<void> {
   const secret = process.env.ENCRYPTION_KEY;
-  if (!secret) throw new JumiaError("ENCRYPTION_KEY manquante : impossible de stocker les identifiants.", "no_encryption_key");
+  if (!secret)
+    throw new JumiaError(
+      "ENCRYPTION_KEY manquante : impossible de stocker les identifiants.",
+      "no_encryption_key",
+    );
   const payload = encryptText(JSON.stringify(credentials), secret);
   await getDb()
     .insert(schema.appSettings)
@@ -144,7 +151,8 @@ export async function requestAccessToken(credentials: JumiaCredentials): Promise
 
   if (!response.ok) {
     const oauthError = typeof payload.error === "string" ? payload.error : null;
-    const oauthDescription = typeof payload.error_description === "string" ? payload.error_description : undefined;
+    const oauthDescription =
+      typeof payload.error_description === "string" ? payload.error_description : undefined;
     throw new JumiaError(
       describeOAuthError(oauthError, oauthDescription),
       oauthError ?? "http_error",
@@ -157,10 +165,18 @@ export async function requestAccessToken(credentials: JumiaCredentials): Promise
   const nextRefreshToken = typeof payload.refresh_token === "string" ? payload.refresh_token : "";
 
   if (!accessToken || !Number.isFinite(expiresIn)) {
-    throw new JumiaError("Réponse Jumia incomplète (access_token / expires_in absents).", "bad_response", response.status);
+    throw new JumiaError(
+      "Réponse Jumia incomplète (access_token / expires_in absents).",
+      "bad_response",
+      response.status,
+    );
   }
   if (!nextRefreshToken) {
-    throw new JumiaError("Jumia n'a pas renvoyé de nouveau refresh token.", "bad_response", response.status);
+    throw new JumiaError(
+      "Jumia n'a pas renvoyé de nouveau refresh token.",
+      "bad_response",
+      response.status,
+    );
   }
 
   const result: JumiaTokenResult = {
@@ -175,7 +191,10 @@ export async function requestAccessToken(credentials: JumiaCredentials): Promise
   // Le refresh token tourne à chaque appel : on le ré-écrit tout de suite.
   await writeCredentials({ clientId: credentials.clientId, refreshToken: nextRefreshToken });
 
-  cached = { accessToken, expiresAt: Date.now() + Math.max(0, expiresIn - EXPIRY_SKEW_SECONDS) * 1000 };
+  cached = {
+    accessToken,
+    expiresAt: Date.now() + Math.max(0, expiresIn - EXPIRY_SKEW_SECONDS) * 1000,
+  };
   return result;
 }
 

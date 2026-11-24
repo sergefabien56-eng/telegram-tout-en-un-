@@ -39,17 +39,18 @@ describe("réponse OAuth en erreur", () => {
   it("traduit invalid_grant sans rien écrire", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: "invalid_grant", error_description: "expiré" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: "invalid_grant", error_description: "expiré" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }),
       ),
     );
     const { requestAccessToken } = await import("@/lib/jumia/client");
-    await expect(
-      requestAccessToken({ clientId: "c", refreshToken: "r" }),
-    ).rejects.toBeInstanceOf(JumiaError);
+    await expect(requestAccessToken({ clientId: "c", refreshToken: "r" })).rejects.toBeInstanceOf(
+      JumiaError,
+    );
   });
 });
 
@@ -64,9 +65,12 @@ describe("normalisation GET /shops", () => {
       },
     ]);
     expect(shops).toEqual([
-      { id: "abc", name: "NKSF Shop", email: "shop@example.com", countries: [
-        { code: "CI", name: "Jumia", status: "ACTIVE" },
-      ] },
+      {
+        id: "abc",
+        name: "NKSF Shop",
+        email: "shop@example.com",
+        countries: [{ code: "CI", name: "Jumia", status: "ACTIVE" }],
+      },
     ]);
   });
 

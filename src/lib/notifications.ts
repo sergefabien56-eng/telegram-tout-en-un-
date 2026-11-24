@@ -5,13 +5,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 export const NOTIFICATION_CHANNELS = ["web", "telegram"] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
-export const NOTIFICATION_TYPES = [
-  "order",
-  "stock",
-  "finance",
-  "shop",
-  "system",
-] as const;
+export const NOTIFICATION_TYPES = ["order", "stock", "finance", "shop", "system"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export type NotificationPref = {
@@ -92,6 +86,8 @@ export async function countUnread(userId: string): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(schema.notifications)
-    .where(and(eq(schema.notifications.userId, userId), eq(schema.notifications.status, "pending")));
+    .where(
+      and(eq(schema.notifications.userId, userId), eq(schema.notifications.status, "pending")),
+    );
   return rows[0]?.count ?? 0;
 }

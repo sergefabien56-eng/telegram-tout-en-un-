@@ -33,9 +33,7 @@ export async function createLinkCode(userId: string): Promise<{ code: string; ex
   return { code, expiresAt };
 }
 
-export type LinkResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: string };
+export type LinkResult = { ok: true; userId: string } | { ok: false; reason: string };
 
 /** Consomme un code et associe le compte Telegram à l'utilisateur. */
 export async function consumeLinkCode(

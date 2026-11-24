@@ -179,7 +179,7 @@ export default async function RapportsPage({
         )}
       </section>
 
-      <section className="card p-5">
+      <section id="produit" className="card p-5">
         <h2 className="text-sm font-semibold text-night">
           Catalogue au {windowLabel.split(" → ")[1]}
         </h2>

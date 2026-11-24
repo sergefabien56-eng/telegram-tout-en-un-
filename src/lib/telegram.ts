@@ -53,7 +53,10 @@ export function verifyInitData(
 
   const expectedBuffer = Buffer.from(expected, "hex");
   const givenBuffer = Buffer.from(hash, "hex");
-  if (expectedBuffer.length !== givenBuffer.length || !timingSafeEqual(expectedBuffer, givenBuffer)) {
+  if (
+    expectedBuffer.length !== givenBuffer.length ||
+    !timingSafeEqual(expectedBuffer, givenBuffer)
+  ) {
     return { ok: false, reason: "signature invalide." };
   }
 
@@ -89,9 +92,7 @@ export function verifyWebhookSecret(headerValue: string | null, secret: string):
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type TelegramApiResult =
-  | { ok: true; result: unknown }
-  | { ok: false; error: string };
+export type TelegramApiResult = { ok: true; result: unknown } | { ok: false; error: string };
 
 /** Appel à la Bot API (jamais de token dans les erreurs ou logs). */
 export async function callTelegramApi(

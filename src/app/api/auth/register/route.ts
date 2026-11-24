@@ -32,7 +32,13 @@ export async function POST(request: Request) {
     .limit(1);
 
   if (existing[0]) {
-    await audit({ action: "auth.register", result: "failure", ip, userAgent, metadata: { email: input.email } });
+    await audit({
+      action: "auth.register",
+      result: "failure",
+      ip,
+      userAgent,
+      metadata: { email: input.email },
+    });
     // Message volontairement identique à un succès pour ne pas révéler l'existence du compte.
     return ok({ message: "Si cette adresse n'était pas encore utilisée, un compte a été créé." });
   }

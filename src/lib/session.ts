@@ -47,12 +47,7 @@ export async function getSessionUser() {
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
-    .where(
-      and(
-        eq(schema.sessions.tokenHash, sha256Hex(token)),
-        isNull(schema.sessions.revokedAt),
-      ),
-    )
+    .where(and(eq(schema.sessions.tokenHash, sha256Hex(token)), isNull(schema.sessions.revokedAt)))
     .limit(1);
 
   const row = rows[0];

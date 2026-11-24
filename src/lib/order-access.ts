@@ -1,36 +1,12 @@
-import { getShopAccess } from "@/lib/permissions";
-import { listUserShops } from "@/lib/shops";
+import { scopedShops, type ScopedShop } from "@/lib/shop-scope";
 
-export type ScopedShop = {
-  id: string;
-  name: string;
-  remoteShopId: string | null;
-  remoteShopName: string | null;
-  currency: string;
-};
+export type { ScopedShop } from "@/lib/shop-scope";
 
-/**
- * Périmètre réel des rubriques « Ventes et commandes » : uniquement les
- * boutiques dont le rôle donne `orders:read`.
- */
+/** Périmètre « Ventes et commandes » : boutiques avec `orders:read`. */
 export async function orderScope(
   userId: string,
 ): Promise<{ total: number; allowed: ScopedShop[] }> {
-  const all = await listUserShops(userId);
-  const allowed: ScopedShop[] = [];
-  for (const shop of all) {
-    const access = await getShopAccess(userId, shop.id);
-    if (access?.permissions.has("orders:read")) {
-      allowed.push({
-        id: shop.id,
-        name: shop.name,
-        remoteShopId: shop.remoteShopId ?? null,
-        remoteShopName: shop.remoteShopName ?? null,
-        currency: shop.currency ?? "XOF",
-      });
-    }
-  }
-  return { total: all.length, allowed };
+  return scopedShops(userId, "orders:read");
 }
 
 /** Convertit un paramètre `JJ-MM-AAAA` en date UTC ; `null` si invalide. */

@@ -47,7 +47,8 @@ export function applyTelegramTheme(params: TelegramThemeParams, scheme: "light" 
   const card = params.secondary_bg_color ? toRgbTriplet(params.secondary_bg_color) : null;
   const ink = params.text_color ? toRgbTriplet(params.text_color) : null;
   const muted = params.hint_color ? toRgbTriplet(params.hint_color) : null;
-  const primary = params.link_color ?? (params.button_color ? toRgbTriplet(params.button_color) : null);
+  const primary =
+    params.link_color ?? (params.button_color ? toRgbTriplet(params.button_color) : null);
 
   if (surface) {
     setVariable("--surface", surface);
@@ -62,7 +63,13 @@ export function applyTelegramTheme(params: TelegramThemeParams, scheme: "light" 
 }
 
 /** Observe les changements de thème Telegram (`themeChanged`). */
-export function useTelegramTheme(webApp: { themeParams: TelegramThemeParams; colorScheme: "light" | "dark"; onEvent?: (event: string, cb: () => void) => void } | null) {
+export function useTelegramTheme(
+  webApp: {
+    themeParams: TelegramThemeParams;
+    colorScheme: "light" | "dark";
+    onEvent?: (event: string, cb: () => void) => void;
+  } | null,
+) {
   useEffect(() => {
     if (!webApp) return;
     applyTelegramTheme(webApp.themeParams ?? {}, webApp.colorScheme ?? "light");

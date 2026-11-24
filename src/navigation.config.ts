@@ -175,7 +175,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/boutiques/synchronisations",
     icon: "RefreshCw",
     section: "C",
-    soon: true,
+    permission: "shops:read",
   },
   {
     key: "shops-settings",
@@ -202,7 +202,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "Tag",
     section: "D",
     permission: "products:read",
-    soon: true,
   },
   {
     key: "catalog-prices",
@@ -211,7 +210,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "TrendingUp",
     section: "D",
     permission: "products:read",
-    soon: true,
   },
   {
     key: "inventory",
@@ -326,7 +324,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "Package",
     section: "F",
     permission: "reports:read",
-    soon: true,
   },
   {
     key: "reports-profitability",
@@ -334,8 +331,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/rentabilite",
     icon: "TrendingUp",
     section: "F",
-    permission: "reports:read",
-    soon: true,
+    permission: "finance:read",
   },
   {
     key: "reports-downloads",
@@ -343,8 +339,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/telechargements",
     icon: "Download",
     section: "F",
-    permission: "reports:read",
-    soon: true,
   },
 
   // --- G. Automatisation et IA -------------------------------------------
@@ -388,7 +382,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "Users",
     section: "H",
     permission: "admin:read",
-    soon: true,
   },
   {
     key: "admin-roles",
@@ -396,8 +389,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/roles",
     icon: "KeyRound",
     section: "H",
-    permission: "admin:read",
-    soon: true,
   },
   {
     key: "admin-members",

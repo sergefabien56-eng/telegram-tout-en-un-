@@ -487,4 +487,3 @@ export const aiUsage = pgTable(
   },
   (t) => [index("ai_usage_created_idx").on(t.createdAt)],
 );
-

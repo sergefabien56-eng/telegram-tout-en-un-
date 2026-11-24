@@ -31,10 +31,10 @@ describe("MIMI", () => {
     });
     expect(args).toEqual({ shop_id: "shop-1", days: 45 });
 
+    expect(() => parseToolArguments("get_sales_kpis", { shop_id: "shop-1", days: 9999 })).toThrow();
     expect(() =>
-      parseToolArguments("get_sales_kpis", { shop_id: "shop-1", days: 9999 }),
+      parseToolArguments("search_products", { shop_id: "shop-1", query: "a" }),
     ).toThrow();
-    expect(() => parseToolArguments("search_products", { shop_id: "shop-1", query: "a" })).toThrow();
   });
 
   it("donne l'usage de MIMI à tous les rôles (les données restent filtrées)", () => {

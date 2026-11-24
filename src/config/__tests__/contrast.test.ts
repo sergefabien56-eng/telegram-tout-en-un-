@@ -22,7 +22,10 @@ function parseTriplet(value: string): [number, number, number] | null {
 }
 
 function loadTokens(selector: ":root" | ".dark"): Tokens {
-  const css = readFileSync(fileURLToPath(new URL("../../app/globals.css", import.meta.url)), "utf8");
+  const css = readFileSync(
+    fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+    "utf8",
+  );
   const start = css.indexOf(selector === ":root" ? ":root {" : ".dark {");
   expect(start, `${selector} introuvable`).toBeGreaterThan(-1);
   const end = css.indexOf("}", start);
@@ -56,7 +59,11 @@ function ratio(a: [number, number, number], b: [number, number, number]): number
 }
 
 /** Mélange hex + alpha (utilisé par Tailwind : bg-success/10). */
-function mix(foreground: [number, number, number], background: [number, number, number], alpha: number) {
+function mix(
+  foreground: [number, number, number],
+  background: [number, number, number],
+  alpha: number,
+) {
   return foreground.map((c, i) => Math.round(c * alpha + (background[i] ?? 0) * (1 - alpha))) as [
     number,
     number,
@@ -100,8 +107,14 @@ describe("contrastes des jetons (WCAG AA)", () => {
   it("liens et libellés primaires sur les fonds (clair et sombre)", () => {
     for (const selector of [":root", ".dark"] as const) {
       const t = loadTokens(selector);
-      expect(ratio(token(t, "primary-ink"), token(t, "surface")), `primary-ink sur surface (${selector})`).toBeGreaterThanOrEqual(AA);
-      expect(ratio(token(t, "primary-ink"), token(t, "card")), `primary-ink sur card (${selector})`).toBeGreaterThanOrEqual(AA);
+      expect(
+        ratio(token(t, "primary-ink"), token(t, "surface")),
+        `primary-ink sur surface (${selector})`,
+      ).toBeGreaterThanOrEqual(AA);
+      expect(
+        ratio(token(t, "primary-ink"), token(t, "card")),
+        `primary-ink sur card (${selector})`,
+      ).toBeGreaterThanOrEqual(AA);
     }
   });
 
@@ -136,7 +149,10 @@ describe("contrastes des jetons (WCAG AA)", () => {
       const t = loadTokens(selector);
       for (const tone of ["success", "danger"] as const) {
         const tint = mix(token(t, tone), token(t, "card"), 0.1);
-        expect(ratio(token(t, tone), tint), `${tone} sur ${tone}/10% (${selector})`).toBeGreaterThanOrEqual(AA);
+        expect(
+          ratio(token(t, tone), tint),
+          `${tone} sur ${tone}/10% (${selector})`,
+        ).toBeGreaterThanOrEqual(AA);
       }
     }
   });
@@ -145,7 +161,10 @@ describe("contrastes des jetons (WCAG AA)", () => {
     for (const selector of [":root", ".dark"] as const) {
       const t = loadTokens(selector);
       // .badge-neutral : texte muted sur fond surface
-      expect(ratio(token(t, "muted"), token(t, "surface")), `badge-neutral (${selector})`).toBeGreaterThanOrEqual(AA);
+      expect(
+        ratio(token(t, "muted"), token(t, "surface")),
+        `badge-neutral (${selector})`,
+      ).toBeGreaterThanOrEqual(AA);
     }
   });
 });

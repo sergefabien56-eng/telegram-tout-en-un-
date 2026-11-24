@@ -74,11 +74,21 @@ describe("navigation.config", () => {
     }
   });
 
-  it("marque « À venir » exactement les rubriques sans page dédiée", () => {
+  it("ne marque « À venir » que les rubriques sans fonction réelle", () => {
     const soon = NAV_ITEMS.filter((item) => item.soon).map((item) => item.label);
-    expect(soon).toContain("Synchronisations");
-    expect(soon).toContain("Catégories");
-    expect(soon).not.toContain("Toutes les commandes");
-    expect(soon).not.toContain("Vue d'ensemble");
+    expect(new Set(soon)).toEqual(
+      new Set([
+        "Réglages boutiques",
+        "Mouvements",
+        "Entrepôts",
+        "Inventaires",
+        "Dépenses",
+        "Achats",
+        "Rapprochements",
+        "Règles",
+        "Tâches planifiées",
+        "Paramètres",
+      ]),
+    );
   });
 });

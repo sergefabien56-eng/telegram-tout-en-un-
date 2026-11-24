@@ -1,6 +1,11 @@
 import { fail, ok, requestIp, requestUserAgent } from "@/lib/http";
 import { getSessionUser } from "@/lib/session";
-import { listUserPrefs, setPref, type NotificationChannel, type NotificationType } from "@/lib/notifications";
+import {
+  listUserPrefs,
+  setPref,
+  type NotificationChannel,
+  type NotificationType,
+} from "@/lib/notifications";
 import { audit } from "@/lib/audit";
 import { z } from "zod";
 

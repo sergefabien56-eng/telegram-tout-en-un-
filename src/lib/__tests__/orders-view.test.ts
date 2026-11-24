@@ -18,7 +18,10 @@ describe("groupes de statuts des commandes", () => {
 describe("CSV", () => {
   it("produit un fichier Excel-compatible avec BOM et guillemets doublés", () => {
     const csv = toCsv(
-      [{ key: "a", label: "Article" }, { key: "b", label: "Note" }],
+      [
+        { key: "a", label: "Article" },
+        { key: "b", label: "Note" },
+      ],
       [{ a: 'Chaise "bois"', b: "1" }],
     );
     expect(csv.charCodeAt(0)).toBe(0xfeff);
@@ -34,8 +37,32 @@ describe("CSV", () => {
 
 describe("périmètre des rubriques", () => {
   const shops = [
-    { id: "s1", name: "A", remoteShopId: null, remoteShopName: null, currency: "XOF" },
-    { id: "s2", name: "B", remoteShopId: null, remoteShopName: null, currency: "USD" },
+    {
+      id: "s1",
+      name: "A",
+      platform: "jumia",
+      country: "CI",
+      status: "active",
+      currency: "XOF",
+      remoteShopId: null,
+      remoteShopName: null,
+      remoteLinkedAt: null,
+      lastSyncAt: null,
+      lastSyncStatus: null,
+    },
+    {
+      id: "s2",
+      name: "B",
+      platform: "jumia",
+      country: "CI",
+      status: "active",
+      currency: "USD",
+      remoteShopId: null,
+      remoteShopName: null,
+      remoteLinkedAt: null,
+      lastSyncAt: null,
+      lastSyncStatus: null,
+    },
   ];
 
   it("ignore une boutique hors du périmètre autorisé", () => {

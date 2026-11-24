@@ -8,8 +8,7 @@ import { UI_COOKIE } from "@/lib/cookies";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const target = url.searchParams.get("redirect");
-  const destination =
-    target === "/login" || target === "/dashboard" ? target : "/dashboard";
+  const destination = target === "/login" || target === "/dashboard" ? target : "/dashboard";
 
   const response = new Response(null, { status: 307, headers: { Location: destination } });
   response.headers.append(

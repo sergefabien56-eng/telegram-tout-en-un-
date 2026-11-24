@@ -3,13 +3,20 @@ import { Download } from "lucide-react";
 type Props = {
   href: string;
   /** Nombre de lignes réelles incluses, pour un libellé honnête. */
-  count: number | null;
+  count?: number | null;
   label?: string;
+  /** Toujours afficher (centre des téléchargements), même sans compteur. */
+  always?: boolean;
 };
 
-/** Lien de téléchargement CSV — uniquement si des données existent. */
-export function ExportButton({ href, count, label = "Exporter en CSV" }: Props) {
-  if (count === 0 || count === null) return null;
+/** Lien de téléchargement CSV — absent si aucune donnée, sauf si `always`. */
+export function ExportButton({
+  href,
+  count = null,
+  label = "Exporter en CSV",
+  always = false,
+}: Props) {
+  if (!always && (count === 0 || count === null)) return null;
 
   return (
     <a

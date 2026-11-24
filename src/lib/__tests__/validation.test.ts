@@ -13,9 +13,10 @@ describe("validation des entrées", () => {
   });
 
   it("rejette un e-mail invalide", () => {
-    expect(registerSchema.safeParse({ email: "pas-un-email", password: "MotDePasse1", fullName: "AB" }).success).toBe(
-      false,
-    );
+    expect(
+      registerSchema.safeParse({ email: "pas-un-email", password: "MotDePasse1", fullName: "AB" })
+        .success,
+    ).toBe(false);
   });
 
   it("exige une lettre et un chiffre dans le mot de passe", () => {

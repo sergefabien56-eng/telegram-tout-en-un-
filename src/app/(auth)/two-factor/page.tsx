@@ -58,8 +58,8 @@ export default function TwoFactorPage() {
             <Logo className="h-10 w-10" />
             <h1 className="text-xl font-semibold text-night">Vérification en deux étapes</h1>
             <p className="text-center text-sm text-muted">
-              Ouvre ton application d&apos;authentification et saisis le code à 6 chiffres,
-              ou un code de secours.
+              Ouvre ton application d&apos;authentification et saisis le code à 6 chiffres, ou un
+              code de secours.
             </p>
           </div>
 

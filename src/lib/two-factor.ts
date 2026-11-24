@@ -82,10 +82,16 @@ export async function startTwoFactorSetup(userId: string): Promise<{
  * Étape 2 : vérifie le premier code, active la 2FA et renvoie les codes de
  * secours **à afficher une seule fois**.
  */
-export async function confirmTwoFactorSetup(userId: string, token: string): Promise<{
-  ok: true;
-  recoveryCodes: string[];
-} | { ok: false; reason: string }> {
+export async function confirmTwoFactorSetup(
+  userId: string,
+  token: string,
+): Promise<
+  | {
+      ok: true;
+      recoveryCodes: string[];
+    }
+  | { ok: false; reason: string }
+> {
   const user = await readUserRow(userId);
   if (!user) return { ok: false, reason: "Utilisateur introuvable." };
   if (user.enabled) return { ok: false, reason: "La 2FA est déjà activée." };

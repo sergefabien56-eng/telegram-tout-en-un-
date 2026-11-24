@@ -91,9 +91,12 @@ test.describe.serial("Mini App — menu", () => {
     }
 
     // Une rubrique non développée : texte + badge, mais aucun lien.
-    await expect(dialog.getByText("Synchronisations")).toBeVisible();
-    await expect(dialog.getByRole("link", { name: "Synchronisations" })).toHaveCount(0);
+    await expect(dialog.getByText("Mouvements")).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "Mouvements" })).toHaveCount(0);
     await expect(dialog.locator("text=À venir").first()).toBeVisible();
+
+    // Rubrique nouvellement livrée : c'est bien un lien.
+    await expect(dialog.getByRole("link", { name: "Synchronisations" })).toBeVisible();
 
     // Tout fermer : les rubriques disparaissent (il reste « version web »).
     await dialog.getByRole("button", { name: "Tout fermer" }).click();

@@ -73,6 +73,13 @@
   .badge-neutral {
     @apply border border-border bg-surface text-muted;
   }
+  /* Succès / attention : pastilles de statut uniquement. */
+  .badge-success {
+    @apply border border-success/30 bg-success/10 text-success;
+  }
+  .badge-warning {
+    @apply border border-warning/30 bg-warning/10 text-warning;
+  }
   /* Lien et bouton de base (accessible au clavier). */
   .focusable {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-primary-ink focus-visible:ring-offset-2 focus-visible:ring-offset-surface;

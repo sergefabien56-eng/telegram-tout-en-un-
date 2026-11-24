@@ -22,7 +22,11 @@ function ResetForm({ token }: { token: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const payload = (await response.json()) as { ok: boolean; error?: string; details?: string[] };
+      const payload = (await response.json()) as {
+        ok: boolean;
+        error?: string;
+        details?: string[];
+      };
       if (!response.ok || !payload.ok) {
         setError(payload.details?.[0] ?? payload.error ?? "Réinitialisation impossible.");
         return;

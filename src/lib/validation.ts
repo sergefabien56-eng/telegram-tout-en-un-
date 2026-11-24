@@ -19,10 +19,7 @@ export const passwordSchema = z
   .string()
   .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
   .max(128, "Le mot de passe est trop long.")
-  .regex(
-    passwordRegex,
-    "Le mot de passe doit contenir au moins une lettre et un chiffre.",
-  );
+  .regex(passwordRegex, "Le mot de passe doit contenir au moins une lettre et un chiffre.");
 
 export const fullNameSchema = z
   .string()
@@ -68,7 +65,11 @@ export const externalShopIdSchema = z
   .min(1, "L'identifiant boutique Jumia est requis.")
   .max(80);
 export const countrySchema = z.string().trim().min(2).max(80).optional();
-export const currencySchema = z.string().trim().length(3).regex(/^[A-Z]{3}$/);
+export const currencySchema = z
+  .string()
+  .trim()
+  .length(3)
+  .regex(/^[A-Z]{3}$/);
 
 export const createShopSchema = z.object({
   name: shopNameSchema,
@@ -95,5 +96,7 @@ export const changeRoleSchema = z.object({
 });
 
 export function formatZodErrors(error: z.ZodError): string[] {
-  return error.issues.map((issue) => `${issue.path.join(".") || "(formulaire)"} : ${issue.message}`);
+  return error.issues.map(
+    (issue) => `${issue.path.join(".") || "(formulaire)"} : ${issue.message}`,
+  );
 }

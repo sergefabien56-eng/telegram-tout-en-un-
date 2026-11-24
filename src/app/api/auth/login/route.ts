@@ -1,10 +1,6 @@
 import { audit } from "@/lib/audit";
 import { fail, ok, requestUserAgent } from "@/lib/http";
-import {
-  clientIp,
-  isLoginBlocked,
-  recordLoginAttempt,
-} from "@/lib/auth-rate-limit";
+import { clientIp, isLoginBlocked, recordLoginAttempt } from "@/lib/auth-rate-limit";
 import { createSession, sessionCookieOptions } from "@/lib/session";
 import { issueTwoFactorChallenge } from "@/lib/totp";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -69,7 +65,13 @@ async function authenticate(email: string, password: string, ip: string, userAge
 
   if (!user || !passwordOk) {
     await recordLoginAttempt(email, ip, false);
-    await audit({ action: "auth.login_failed", result: "failure", ip, userAgent, metadata: { email } });
+    await audit({
+      action: "auth.login_failed",
+      result: "failure",
+      ip,
+      userAgent,
+      metadata: { email },
+    });
     return fail(401, "Adresse e-mail ou mot de passe incorrect.");
   }
 
@@ -98,7 +100,10 @@ async function authenticate(email: string, password: string, ip: string, userAge
   const store = await cookies();
   store.set(sessionCookieOptions.name, token, sessionCookieOptions);
 
-  await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, user.id));
+  await db
+    .update(schema.users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(schema.users.id, user.id));
   await audit({ action: "auth.login", result: "success", userId: user.id, ip, userAgent });
 
   return ok({ id: user.id, email, fullName: user.fullName });

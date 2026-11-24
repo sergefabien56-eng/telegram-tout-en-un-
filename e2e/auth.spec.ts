@@ -30,7 +30,6 @@ loadEnvLocal();
 const hasDb = Boolean(process.env.DATABASE_URL);
 test.skip(!hasDb, "DATABASE_URL requis pour les tests d'authentification.");
 
-
 /**
  * Parcours d'authentification et de double authentification.
  * Nécessite la base Neon réelle (variables d'environnement chargées).
@@ -54,9 +53,7 @@ async function ensureAccount(page: import("@playwright/test").Page) {
   });
   const payload = (await response.json().catch(() => null)) as { ok?: boolean } | null;
   if (!payload?.ok) {
-    throw new Error(
-      `Inscription impossible (${response.status()}) : ${JSON.stringify(payload)}`,
-    );
+    throw new Error(`Inscription impossible (${response.status()}) : ${JSON.stringify(payload)}`);
   }
 }
 
@@ -87,7 +84,9 @@ async function login(page: import("@playwright/test").Page) {
       data: { password },
     });
     if (!disable.ok()) {
-      throw new Error(`Impossible de désactiver la 2FA : ${disable.status()} ${await disable.text()}`);
+      throw new Error(
+        `Impossible de désactiver la 2FA : ${disable.status()} ${await disable.text()}`,
+      );
     }
     const retry = await page.request.post("/api/auth/login", { data: { email, password } });
     if (!retry.ok()) throw new Error(`Connexion refusée après reset 2FA : ${retry.status()}`);

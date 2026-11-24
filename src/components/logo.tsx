@@ -1,13 +1,7 @@
 import { cn } from "@/lib/cn";
 
 /** Logo TOUT EN UN (marque + nom). Purement présententiel. */
-export function Logo({
-  className,
-  withName = true,
-}: {
-  className?: string;
-  withName?: boolean;
-}) {
+export function Logo({ className, withName = true }: { className?: string; withName?: boolean }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       <span

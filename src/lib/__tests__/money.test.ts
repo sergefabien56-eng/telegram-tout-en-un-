@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  addMoney,
-  formatMoney,
-  minorUnits,
-  parseMoneyToMinor,
-} from "@/lib/money";
+import { addMoney, formatMoney, minorUnits, parseMoneyToMinor } from "@/lib/money";
 
 const norm = (s: string) => s.replace(/[\u202f\u00a0]/g, " ").trim();
 

@@ -36,9 +36,7 @@ const envSchema = z.object({
 
 export type AppEnv = z.infer<typeof envSchema>;
 
-export type ParseEnvResult =
-  | { ok: true; data: AppEnv }
-  | { ok: false; errors: string[] };
+export type ParseEnvResult = { ok: true; data: AppEnv } | { ok: false; errors: string[] };
 
 /** Valide l'environnement sans lever d'exception (sûr au build). */
 export function parseEnv(source: Record<string, string | undefined>): ParseEnvResult {

@@ -14,7 +14,15 @@ type SessionResponse = {
 };
 
 /** Pages de la Mini App atteignables par lien direct (`?page=`). */
-const MINI_APP_PAGES = new Set(["mimi", "dashboard", "commandes", "produits", "stocks", "finances", "rapports"]);
+const MINI_APP_PAGES = new Set([
+  "mimi",
+  "dashboard",
+  "commandes",
+  "produits",
+  "stocks",
+  "finances",
+  "rapports",
+]);
 
 function targetFromQuery(): string {
   const page = new URLSearchParams(window.location.search).get("page");
@@ -98,7 +106,9 @@ function MiniAppContent() {
               {session && !session.ok ? (
                 <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                   <p>{session.error}</p>
-                  {session.details?.[0] ? <p className="mt-1 text-xs">{session.details[0]}</p> : null}
+                  {session.details?.[0] ? (
+                    <p className="mt-1 text-xs">{session.details[0]}</p>
+                  ) : null}
                 </div>
               ) : null}
 

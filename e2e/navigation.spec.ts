@@ -37,7 +37,9 @@ test("La navigation se déplie et se replie", async ({ page }) => {
   await page.getByRole("button", { name: "Tout ouvrir" }).click();
   const openedLabels = await page.getByRole("link", { name: "Toutes les commandes" }).count();
   expect(openedLabels).toBe(1);
-  await expect(page.getByRole("link", { name: "Tous les rapports", exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Tous les rapports", exact: true }).first(),
+  ).toBeVisible();
 
   // Tout fermer : les entrées de menu disparaissent.
   await page.getByRole("button", { name: "Tout fermer" }).click();

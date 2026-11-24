@@ -44,7 +44,8 @@ export default async function ClientsPage({
 
   const shopIds = resolveShopIds(values.boutique, scope.allowed);
   const customers = await listOrderCustomers(shopIds);
-  const singleShop = shopIds.length === 1 ? (scope.allowed.find((s) => s.id === shopIds[0]) ?? null) : null;
+  const singleShop =
+    shopIds.length === 1 ? (scope.allowed.find((s) => s.id === shopIds[0]) ?? null) : null;
 
   return (
     <div className="space-y-6">
@@ -54,14 +55,17 @@ export default async function ClientsPage({
           Informations issues des commandes enregistrées : identité et ville uniquement.
         </p>
         <p className="mt-1 text-xs text-muted">
-          Aucun téléphone ni adresse n&apos;est conservé dans notre base ; ces colonnes n&apos;existent
-          donc pas ici.
+          Aucun téléphone ni adresse n&apos;est conservé dans notre base ; ces colonnes
+          n&apos;existent donc pas ici.
         </p>
       </div>
 
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-night">Boutique</h2>
-        <OrderFilters shops={scope.allowed} values={{ ...values, du: undefined, au: undefined, statut: undefined }} />
+        <OrderFilters
+          shops={scope.allowed}
+          values={{ ...values, du: undefined, au: undefined, statut: undefined }}
+        />
       </section>
 
       <section className="card p-5">
@@ -85,22 +89,22 @@ export default async function ClientsPage({
               </thead>
               <tbody>
                 {customers.map((row, index) => (
-                    <tr
-                      key={`${row.firstName ?? ""}-${row.lastName ?? ""}-${row.city ?? ""}-${index}`}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="py-2.5 pr-3 text-night">
-                        {[row.firstName, row.lastName].filter(Boolean).join(" ") || "—"}
-                      </td>
-                      <td className="py-2.5 pr-3 text-muted">{row.city ?? "—"}</td>
-                      <td className="py-2.5 pr-3 text-muted">{row.commands}</td>
-                      <td className="py-2.5 pr-3 text-muted">
-                        {row.lastAt ? new Date(row.lastAt).toLocaleDateString("fr-FR") : "—"}
-                      </td>
-                      <td className="py-2.5 text-right font-medium text-night">
-                        {singleShop ? formatMoney(row.totalMinor, singleShop.currency) : "—"}
-                      </td>
-                    </tr>
+                  <tr
+                    key={`${row.firstName ?? ""}-${row.lastName ?? ""}-${row.city ?? ""}-${index}`}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="py-2.5 pr-3 text-night">
+                      {[row.firstName, row.lastName].filter(Boolean).join(" ") || "—"}
+                    </td>
+                    <td className="py-2.5 pr-3 text-muted">{row.city ?? "—"}</td>
+                    <td className="py-2.5 pr-3 text-muted">{row.commands}</td>
+                    <td className="py-2.5 pr-3 text-muted">
+                      {row.lastAt ? new Date(row.lastAt).toLocaleDateString("fr-FR") : "—"}
+                    </td>
+                    <td className="py-2.5 text-right font-medium text-night">
+                      {singleShop ? formatMoney(row.totalMinor, singleShop.currency) : "—"}
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

@@ -60,7 +60,9 @@ describe("verifyInitData", () => {
   });
 
   it("rejette un hash manquant ou malformé", () => {
-    expect(verifyInitData("auth_date=1&user=" + encodeURIComponent(USER), BOT_TOKEN).ok).toBe(false);
+    expect(verifyInitData("auth_date=1&user=" + encodeURIComponent(USER), BOT_TOKEN).ok).toBe(
+      false,
+    );
     expect(verifyInitData("", BOT_TOKEN).ok).toBe(false);
   });
 });

@@ -82,7 +82,10 @@ export default function ForgotPasswordPage() {
                 <p className="mb-1 font-medium text-night">
                   Développement : aucun e-mail n&apos;est encore envoyé.
                 </p>
-                <Link href={`/reset-password?token=${encodeURIComponent(devToken)}`} className="text-primary-ink hover:underline">
+                <Link
+                  href={`/reset-password?token=${encodeURIComponent(devToken)}`}
+                  className="text-primary-ink hover:underline"
+                >
                   Ouvrir le lien de réinitialisation
                 </Link>
               </div>

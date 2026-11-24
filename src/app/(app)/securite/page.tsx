@@ -112,8 +112,12 @@ export default function SecuritePage() {
         </p>
       </div>
 
-      {error ? <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
-      {notice ? <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{notice}</p> : null}
+      {error ? (
+        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+      ) : null}
+      {notice ? (
+        <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
+      ) : null}
 
       <section className="card p-5">
         <div className="flex items-center justify-between gap-4">
@@ -137,7 +141,12 @@ export default function SecuritePage() {
             </div>
           </div>
           {enabled === false ? (
-            <button type="button" onClick={start} disabled={loading} className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60">
+            <button
+              type="button"
+              onClick={start}
+              disabled={loading}
+              className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+            >
               {loading ? "Préparation…" : "Activer"}
             </button>
           ) : null}
@@ -154,7 +163,9 @@ export default function SecuritePage() {
                 alt="QR code de configuration de la double authentification"
                 className="h-52 w-52 rounded-xl border border-border bg-white p-2"
               />
-              <p className="text-xs text-muted">Application recommandée : Google Authenticator, Authy ou FreeOTP.</p>
+              <p className="text-xs text-muted">
+                Application recommandée : Google Authenticator, Authy ou FreeOTP.
+              </p>
               <div>
                 <p className="text-xs font-medium text-muted">Ou saisis cette clé manuellement :</p>
                 <code className="mt-1 block break-all rounded-lg bg-surface px-3 py-2 text-xs text-night">
@@ -213,7 +224,9 @@ export default function SecuritePage() {
         {/* Désactivation */}
         {enabled ? (
           <div className="mt-5 border-t border-border pt-5">
-            <p className="text-sm font-semibold text-night">Désactiver la double authentification</p>
+            <p className="text-sm font-semibold text-night">
+              Désactiver la double authentification
+            </p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
               <input
                 type="password"

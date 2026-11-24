@@ -23,7 +23,13 @@ type Props = {
  * Rattache une boutique locale à sa boutique Jumia.
  * La liste distante est lue côté serveur ; aucun jeton n'apparaît dans le navigateur.
  */
-export function JumiaShopLink({ shopId, remoteShopId, remoteShopName, canWrite, onChanged }: Props) {
+export function JumiaShopLink({
+  shopId,
+  remoteShopId,
+  remoteShopName,
+  canWrite,
+  onChanged,
+}: Props) {
   const [remotes, setRemotes] = useState<RemoteShop[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(remoteShopId ?? "");
@@ -123,9 +129,7 @@ export function JumiaShopLink({ shopId, remoteShopId, remoteShopName, canWrite, 
           <span className="text-muted"> ({remoteShopId})</span>
         </p>
       ) : (
-        <p className="mt-3 text-sm text-muted">
-          Aucune boutique Jumia rattachée pour le moment.
-        </p>
+        <p className="mt-3 text-sm text-muted">Aucune boutique Jumia rattachée pour le moment.</p>
       )}
 
       {loading ? (
@@ -179,8 +183,16 @@ export function JumiaShopLink({ shopId, remoteShopId, remoteShopName, canWrite, 
         </div>
       )}
 
-      {error ? <p role="alert" className="mt-3 text-sm text-danger">{error}</p> : null}
-      {notice ? <p role="status" className="mt-3 text-sm text-success">{notice}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-3 text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p role="status" className="mt-3 text-sm text-success">
+          {notice}
+        </p>
+      ) : null}
     </section>
   );
 }

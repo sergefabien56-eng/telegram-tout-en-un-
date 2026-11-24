@@ -23,7 +23,10 @@ export function NotificationsBell() {
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/notifications");
-      const payload = (await response.json()) as { ok: boolean; data?: { notifications: NotificationRow[] } };
+      const payload = (await response.json()) as {
+        ok: boolean;
+        data?: { notifications: NotificationRow[] };
+      };
       if (payload.ok) setRows(payload.data?.notifications ?? []);
     } catch {
       // réseau indisponible : on affiche simplement un panneau vide
@@ -57,7 +60,10 @@ export function NotificationsBell() {
       >
         <Bell className="h-4 w-4" aria-hidden="true" />
         {rows.length > 0 ? (
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" aria-hidden="true" />
+          <span
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger"
+            aria-hidden="true"
+          />
         ) : null}
       </button>
 
@@ -80,7 +86,9 @@ export function NotificationsBell() {
                 <li key={row.id} className="rounded-lg border border-border p-2">
                   <p className="text-sm font-medium text-night">{row.title}</p>
                   <p className="mt-0.5 text-xs text-muted">{row.body}</p>
-                  <p className="mt-1 text-[11px] text-muted">{new Date(row.createdAt).toLocaleString("fr-FR")}</p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    {new Date(row.createdAt).toLocaleString("fr-FR")}
+                  </p>
                 </li>
               ))}
             </ul>

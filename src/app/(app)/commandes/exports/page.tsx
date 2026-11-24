@@ -27,8 +27,8 @@ export default async function ExportsPage({
       <div>
         <h1 className="text-2xl font-semibold text-night">Exports</h1>
         <p className="mt-1 text-sm text-muted">
-          Téléchargez les commandes autorisées, pour le périmètre choisi. Les boutiques sans droit
-          « commandes:lecture » ne sont pas proposées et l&apos;API les écarterait de toute façon.
+          Téléchargez les commandes autorisées, pour le périmètre choisi. Les boutiques sans droit «
+          commandes:lecture » ne sont pas proposées et l&apos;API les écarterait de toute façon.
         </p>
       </div>
 
@@ -57,9 +57,7 @@ export default async function ExportsPage({
                     type="checkbox"
                     name="shopIds"
                     value={shop.id}
-                    defaultChecked={
-                      values.boutique ? values.boutique === shop.id : true
-                    }
+                    defaultChecked={values.boutique ? values.boutique === shop.id : true}
                     className="h-4 w-4 rounded border-border"
                   />
                   {shop.name}

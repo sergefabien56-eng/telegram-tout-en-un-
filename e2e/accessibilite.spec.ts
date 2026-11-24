@@ -153,17 +153,16 @@ test.describe.serial("accessibilité des pages connectées", () => {
     const reached = new Set<string | null>();
     for (let i = 0; i < 24; i += 1) {
       await page.keyboard.press("Tab");
-      reached.add(
-        await page.evaluate(() => document.activeElement?.getAttribute("href")),
-      );
+      reached.add(await page.evaluate(() => document.activeElement?.getAttribute("href")));
     }
 
     const reachableLinks = sidebarHrefs.filter((href) => href && reached.has(href));
     // Au moins les trois premiers liens de la barre latérale doivent être
     // atteignables au clavier (le reste dépend de la longueur du menu).
-    expect(reachableLinks.length, "liens de navigation atteignables au clavier").toBeGreaterThanOrEqual(
-      Math.min(count, 3),
-    );
+    expect(
+      reachableLinks.length,
+      "liens de navigation atteignables au clavier",
+    ).toBeGreaterThanOrEqual(Math.min(count, 3));
     expect(reachableLinks.length).toBeLessThanOrEqual(count);
   });
 

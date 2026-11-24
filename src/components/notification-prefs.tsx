@@ -70,7 +70,9 @@ export function NotificationPrefs({ initial }: { initial: PrefRow[] }) {
         Choisis les canaux et les types d&apos;alertes. Tout est activé par défaut.
       </p>
 
-      {error ? <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+      ) : null}
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -97,9 +99,7 @@ export function NotificationPrefs({ initial }: { initial: PrefRow[] }) {
                         type="checkbox"
                         checked={enabled}
                         disabled={saving === key}
-                        onChange={() =>
-                          toggle({ channel: channel.key, type: type.key, enabled })
-                        }
+                        onChange={() => toggle({ channel: channel.key, type: type.key, enabled })}
                         aria-label={`${type.label} — ${channel.label}`}
                         className="h-4 w-4 accent-primary disabled:opacity-50"
                       />

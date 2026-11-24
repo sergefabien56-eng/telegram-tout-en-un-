@@ -54,7 +54,11 @@ export function ShopCreateForm({
   }
 
   return (
-    <form className="space-y-3" onSubmit={onSubmit} aria-describedby={error ? `${idPrefix}-error` : undefined}>
+    <form
+      className="space-y-3"
+      onSubmit={onSubmit}
+      aria-describedby={error ? `${idPrefix}-error` : undefined}
+    >
       <div>
         <label htmlFor={`${idPrefix}-name`} className="mb-1 block text-xs font-medium text-night">
           Nom
@@ -70,7 +74,10 @@ export function ShopCreateForm({
       </div>
 
       <div>
-        <label htmlFor={`${idPrefix}-external`} className="mb-1 block text-xs font-medium text-night">
+        <label
+          htmlFor={`${idPrefix}-external`}
+          className="mb-1 block text-xs font-medium text-night"
+        >
           Identifiant boutique Jumia
         </label>
         <input
@@ -89,7 +96,10 @@ export function ShopCreateForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor={`${idPrefix}-country`} className="mb-1 block text-xs font-medium text-night">
+          <label
+            htmlFor={`${idPrefix}-country`}
+            className="mb-1 block text-xs font-medium text-night"
+          >
             Pays
           </label>
           <input
@@ -101,7 +111,10 @@ export function ShopCreateForm({
           />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-currency`} className="mb-1 block text-xs font-medium text-night">
+          <label
+            htmlFor={`${idPrefix}-currency`}
+            className="mb-1 block text-xs font-medium text-night"
+          >
             Devise
           </label>
           <input
@@ -115,7 +128,10 @@ export function ShopCreateForm({
       </div>
 
       {error ? (
-        <p id={`${idPrefix}-error`} className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p
+          id={`${idPrefix}-error`}
+          className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
           {error}
         </p>
       ) : null}

@@ -4,7 +4,9 @@ import * as schema from "@/db/schema";
 describe("schéma Phase 1", () => {
   it("définit les tables essentielles", () => {
     const tables = Object.keys(schema).filter((k) =>
-      ["users", "sessions", "shops", "shopMembers", "auditLogs", "jobs", "notifications"].includes(k),
+      ["users", "sessions", "shops", "shopMembers", "auditLogs", "jobs", "notifications"].includes(
+        k,
+      ),
     );
     expect(tables.length).toBe(7);
   });

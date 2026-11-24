@@ -50,10 +50,7 @@ function appLink(path: string, label: string): string {
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /** Traite un message entrant et renvoie la réponse à envoyer. */
@@ -95,7 +92,8 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
       if (!code) {
         return {
           handled: true,
-          reply: "Usage : <code>/lier CODE</code>\nLe code s'obtient dans votre espace web, section Telegram.",
+          reply:
+            "Usage : <code>/lier CODE</code>\nLe code s'obtient dans votre espace web, section Telegram.",
         };
       }
       return handleLink(code, from);
@@ -112,7 +110,8 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
       if (!linked) {
         return {
           handled: true,
-          reply: "⚠️ Compte non lié. Tapez <code>/lier CODE</code> après avoir généré un code sur le site.",
+          reply:
+            "⚠️ Compte non lié. Tapez <code>/lier CODE</code> après avoir généré un code sur le site.",
         };
       }
       if (command === "boutiques") {
@@ -130,12 +129,14 @@ export async function handleMessage(message: TelegramMessage): Promise<BotOutcom
       if (command === "notifications") {
         return {
           handled: true,
-          reply: "🔔 Vous recevez les alertes sur ce chat.\nLes préférences seront réglables dans la Mini App.",
+          reply:
+            "🔔 Vous recevez les alertes sur ce chat.\nLes préférences seront réglables dans la Mini App.",
         };
       }
       return {
         handled: true,
-        reply: "Bientôt disponible dans la Mini App.\nAucune donnée fictive n'est affichée pour l'instant.",
+        reply:
+          "Bientôt disponible dans la Mini App.\nAucune donnée fictive n'est affichée pour l'instant.",
       };
     }
 
@@ -185,10 +186,12 @@ async function handleLink(
       body: "Votre compte Telegram a été associé à votre espace web.",
       status: "sent",
     });
-    return { handled: true, reply: "✅ <b>Compte lié avec succès.</b>\nVous pouvez désormais utiliser la Mini App et recevoir les alertes ici." };
+    return {
+      handled: true,
+      reply:
+        "✅ <b>Compte lié avec succès.</b>\nVous pouvez désormais utiliser la Mini App et recevoir les alertes ici.",
+    };
   }
 
   return { handled: true, reply: `⚠️ ${escapeHtml(result.reason)}` };
 }
-
-

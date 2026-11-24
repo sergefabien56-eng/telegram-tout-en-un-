@@ -16,7 +16,11 @@ export type ShopHit = {
  * Seules les boutiques auxquelles l'utilisateur a accès sont parcourues ;
  * les modules pas encore implémentés (produits, commandes…) ne sont pas simulés.
  */
-export async function searchUserShops(userId: string, query: string, limit = 8): Promise<ShopHit[]> {
+export async function searchUserShops(
+  userId: string,
+  query: string,
+  limit = 8,
+): Promise<ShopHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 

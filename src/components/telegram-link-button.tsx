@@ -35,8 +35,8 @@ export function TelegramLinkButton() {
     <div className="card p-5">
       <h2 className="text-sm font-semibold text-night">Telegram</h2>
       <p className="mt-1 text-xs text-muted">
-        Générez un code à usage unique, puis envoyez <span className="font-medium">/lier CODE</span> au
-        bot.
+        Générez un code à usage unique, puis envoyez <span className="font-medium">/lier CODE</span>{" "}
+        au bot.
       </p>
 
       {code ? (

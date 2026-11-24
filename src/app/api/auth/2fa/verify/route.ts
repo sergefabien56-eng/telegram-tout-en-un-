@@ -44,7 +44,10 @@ export async function POST(request: Request) {
       userAgent,
       metadata: { reason: result.reason },
     });
-    return fail(401, result.reason === "Code à 6 chiffres attendu." ? "Code invalide." : result.reason);
+    return fail(
+      401,
+      result.reason === "Code à 6 chiffres attendu." ? "Code invalide." : result.reason,
+    );
   }
 
   const { token } = await createSession(userId, ip, userAgent);
