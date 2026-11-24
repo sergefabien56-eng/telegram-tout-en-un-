@@ -3,6 +3,7 @@ import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
 import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { normalizeOrder, upsertOrders } from "@/lib/orders";
+import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 
 export type SyncResult = {
   ok: boolean;
@@ -75,12 +76,16 @@ export async function syncShopOrders(params: {
     return { ok: false, reason: "Une synchronisation est déjà en cours pour cette boutique." };
   }
 
+  // Compte vendeur Jumia de la boutique (multi-comptes).
+  const accountId = await resolveDefaultAccount(params.userId, params.shopId);
+
   const before = new Date();
   const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   try {
     const { orders, pages, truncated } = await fetchAllOrderPages({
       shopId: remoteShopId,
+      accountId: accountId ?? undefined,
       createdAfter: isoDate(after),
       createdBefore: isoDate(before),
       size: 200,

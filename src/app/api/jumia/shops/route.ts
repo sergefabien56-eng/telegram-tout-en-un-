@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db";
 import { fail, ok, requestIp, requestUserAgent } from "@/lib/http";
 import { listUserShops } from "@/lib/shops";
 import { getSessionUser } from "@/lib/session";
+import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 import { JumiaError } from "@/lib/jumia/client";
 import { listRemoteShops } from "@/lib/jumia/shops";
 
@@ -26,8 +27,27 @@ export async function GET(request: Request) {
     return fail(403, "Seul un propriétaire peut consulter les boutiques Jumia.");
   }
 
+  // Compte demandé à l'écran ; sans précision, on retombe sur le premier
+  // compte enregistré puis sur l'identifiant historique.
+  const requested = new URL(request.url).searchParams.get("compte")?.trim() ?? "";
+  let scope: { accountId: string } | undefined;
+  if (requested) {
+    const owned = await getDb()
+      .select({ ownerUserId: schema.jumiaAccounts.ownerUserId })
+      .from(schema.jumiaAccounts)
+      .where(eq(schema.jumiaAccounts.id, requested))
+      .limit(1);
+    if (!owned[0] || owned[0].ownerUserId !== user.id) {
+      return fail(403, "Ce compte Jumia ne vous appartient pas.");
+    }
+    scope = { accountId: requested };
+  } else {
+    const fallback = await resolveDefaultAccount(user.id);
+    scope = fallback ? { accountId: fallback } : undefined;
+  }
+
   try {
-    const remote = await listRemoteShops();
+    const remote = await listRemoteShops(scope);
 
     // Rattachements existants (toutes boutiques de l'utilisateur).
     const linked = await getDb()

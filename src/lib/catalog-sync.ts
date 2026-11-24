@@ -3,6 +3,7 @@ import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
 import { fetchAllProductPages, fetchAllStockPages } from "@/lib/jumia/catalog";
 import { applyStocks, normalizeProductSet, upsertProductSets } from "@/lib/catalog";
+import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 
 export type CatalogSyncKind = "products" | "stocks" | "all";
 
@@ -56,6 +57,9 @@ export async function syncShopCatalog(params: {
     return { ok: false, reason: "Une synchronisation est déjà en cours pour cette boutique." };
   }
 
+  // Compte vendeur Jumia de la boutique (multi-comptes).
+  const accountId = await resolveDefaultAccount(params.userId, params.shopId);
+
   let released = false;
   async function releaseLock() {
     if (released) return;
@@ -75,6 +79,7 @@ export async function syncShopCatalog(params: {
 
     if (params.kind === "products" || params.kind === "all") {
       const fetched = await fetchAllProductPages({
+        accountId: accountId ?? undefined,
         shopId: shop.remoteShopId,
         size: PAGE_SIZE,
         maxPages: MAX_PAGES,
@@ -98,7 +103,11 @@ export async function syncShopCatalog(params: {
     let stockMatched = 0;
     let stockMissing = 0;
     if (params.kind === "stocks" || params.kind === "all") {
-      const stocks = await fetchAllStockPages({ size: PAGE_SIZE, maxPages: MAX_PAGES });
+      const stocks = await fetchAllStockPages({
+        accountId: accountId ?? undefined,
+        size: PAGE_SIZE,
+        maxPages: MAX_PAGES,
+      });
       const applied = await applyStocks(params.shopId, stocks.stocks);
       stockMatched = applied.matched;
       stockMissing = applied.missing;

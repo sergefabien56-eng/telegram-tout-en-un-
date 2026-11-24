@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Link2, Unlink } from "lucide-react";
 
+type Account = { id: string; label: string; email: string | null; linkedShops: number };
+
 type RemoteShop = {
   id: string;
   name: string;
@@ -31,6 +33,8 @@ export function JumiaShopLink({
   onChanged,
 }: Props) {
   const [remotes, setRemotes] = useState<RemoteShop[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountId, setAccountId] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(remoteShopId ?? "");
   const [busy, setBusy] = useState(false);
@@ -40,17 +44,29 @@ export function JumiaShopLink({
   async function load() {
     setLoading(true);
     try {
-      const response = await fetch("/api/jumia/shops");
-      const payload = (await response.json()) as {
+      const query = accountId ? `?compte=${encodeURIComponent(accountId)}` : "";
+      const [shopsResponse, accountsResponse] = await Promise.all([
+        fetch(`/api/jumia/shops${query}`),
+        fetch("/api/jumia/accounts"),
+      ]);
+      const shopsPayload = (await shopsResponse.json()) as {
         ok: boolean;
         data?: { shops: RemoteShop[] };
         error?: string;
       };
-      if (!response.ok || !payload.ok) {
-        setError(payload.error ?? "Lecture des boutiques Jumia impossible.");
+      const accountsPayload = (await accountsResponse.json()) as {
+        ok: boolean;
+        data?: { accounts: Account[] };
+        error?: string;
+      };
+      if (!shopsResponse.ok || !shopsPayload.ok) {
+        setError(shopsPayload.error ?? "Lecture des boutiques Jumia impossible.");
         return;
       }
-      setRemotes(payload.data?.shops ?? []);
+      setRemotes(shopsPayload.data?.shops ?? []);
+      if (accountsPayload.ok && accountsPayload.data) {
+        setAccounts(accountsPayload.data.accounts);
+      }
     } catch {
       setError("Erreur réseau pendant la lecture des boutiques Jumia.");
     } finally {
@@ -75,7 +91,10 @@ export function JumiaShopLink({
       const response = await fetch(`/api/shops/${shopId}/jumia-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remoteShopId: selected }),
+        body: JSON.stringify({
+          remoteShopId: selected,
+          accountId: accountId || undefined,
+        }),
       });
       const payload = (await response.json()) as { ok: boolean; error?: string };
       if (!response.ok || !payload.ok) {
@@ -132,10 +151,41 @@ export function JumiaShopLink({
         <p className="mt-3 text-sm text-muted">Aucune boutique Jumia rattachée pour le moment.</p>
       )}
 
+      {accounts.length === 0 ? (
+        <p className="mt-3 text-xs text-muted">
+          Aucun compte Jumia enregistré dans l&apos;application : la liste ci-dessous
+          utilise le compte historique. Pour connecter une boutique qui dépend d&apos;une autre
+          adresse e-mail, ajoutez ce compte dans « Comptes Jumia connectés ».
+        </p>
+      ) : null}
+
       {loading ? (
         <p className="mt-3 text-sm text-muted">Chargement des boutiques Jumia…</p>
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label htmlFor="jumia-account-select" className="text-xs font-medium text-muted">
+            Compte vendeur
+            <select
+              id="jumia-account-select"
+              value={accountId}
+              onChange={(event) => {
+                setAccountId(event.target.value);
+                void load();
+              }}
+              className="focusable ml-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-night"
+            >
+              <option value="">
+                {accounts.length === 0 ? "Compte historique" : "Choisir un compte…"}
+              </option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.label}
+                  {account.email ? ` (${account.email})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label htmlFor="jumia-shop-select" className="sr-only">
             Boutique Jumia à rattacher
           </label>

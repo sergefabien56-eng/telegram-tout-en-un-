@@ -38,6 +38,7 @@ describe("navigation.config", () => {
       "Exports",
       "Toutes les boutiques",
       "Ajouter une boutique",
+      "Comptes Jumia",
       "Connexions Jumia",
       "Synchronisations",
       "Réglages boutiques",

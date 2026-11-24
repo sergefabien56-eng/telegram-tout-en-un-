@@ -61,6 +61,55 @@ export function describeOAuthError(error: unknown, description?: string): string
   return "Refus par le serveur d'authentification Jumia.";
 }
 
+/**
+ * Lit les identifiants d'un compte vendeur Jumia enregistré dans l'application.
+ *
+ * Le refresh token est déchiffré à la volée ; il n'existe jamais en clair en
+ * dehors de cette fonction. Un compte supprimé ou illisible renvoie `null`.
+ */
+export async function readAccountCredentials(
+  accountId: string,
+): Promise<(JumiaCredentials & { status: string | null }) | null> {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) return null;
+  try {
+    const rows = await getDb()
+      .select({
+        clientId: schema.jumiaAccounts.clientId,
+        ciphertext: schema.jumiaAccounts.refreshTokenCiphertext,
+        status: schema.jumiaAccounts.status,
+      })
+      .from(schema.jumiaAccounts)
+      .where(eq(schema.jumiaAccounts.id, accountId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    const refreshToken = decryptText(row.ciphertext, secret);
+    if (!refreshToken) return null;
+    return { clientId: row.clientId, refreshToken, status: row.status };
+  } catch {
+    return null;
+  }
+}
+
+/** Écrit le refresh token chiffré d'un compte Jumia après rotation réussie. */
+export async function writeAccountRefreshToken(
+  accountId: string,
+  refreshToken: string,
+): Promise<void> {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret)
+    throw new JumiaError(
+      "ENCRYPTION_KEY manquante : impossible de stocker les identifiants.",
+      "no_encryption_key",
+    );
+  const ciphertext = encryptText(refreshToken, secret);
+  await getDb()
+    .update(schema.jumiaAccounts)
+    .set({ refreshTokenCiphertext: ciphertext, lastTokenAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.jumiaAccounts.id, accountId));
+}
+
 /** Lit les identifiants : base d'abord, sinon les variables d'environnement. */
 export async function readCredentials(): Promise<{
   credentials: JumiaCredentials | null;
@@ -119,10 +168,34 @@ export async function writeCredentials(credentials: JumiaCredentials): Promise<v
     });
 }
 
-let cached: { accessToken: string; expiresAt: number } | null = null;
+/**
+ * Cache des access tokens, **par compte** : chaque boutique utilise le jeton
+ * de son propre compte vendeur.
+ */
+const tokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
 
-/** Échange un refresh token contre un access token et ré-écrit le refresh token. */
-export async function requestAccessToken(credentials: JumiaCredentials): Promise<JumiaTokenResult> {
+/** Extrait l'e-mail du porteur du jeton (revendication `email` du JWT). */
+export function emailFromAccessToken(accessToken: string): string | null {
+  const parts = accessToken.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1] ?? "", "base64url").toString("utf8")) as {
+      email?: unknown;
+    };
+    return typeof payload.email === "string" && payload.email ? payload.email : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Échange un refresh token contre un access token, SANS persistance ni cache.
+ * L'appelant décide où écrire le nouveau refresh token (compte ou ancien
+ * emplacement unique).
+ */
+export async function exchangeAccessToken(
+  credentials: JumiaCredentials,
+): Promise<JumiaTokenResult> {
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     client_id: credentials.clientId,
@@ -179,7 +252,7 @@ export async function requestAccessToken(credentials: JumiaCredentials): Promise
     );
   }
 
-  const result: JumiaTokenResult = {
+  return {
     accessToken,
     expiresIn,
     nextRefreshToken,
@@ -187,27 +260,88 @@ export async function requestAccessToken(credentials: JumiaCredentials): Promise
       ? Number(payload.refresh_expires_in)
       : null,
   };
-
-  // Le refresh token tourne à chaque appel : on le ré-écrit tout de suite.
-  await writeCredentials({ clientId: credentials.clientId, refreshToken: nextRefreshToken });
-
-  cached = {
-    accessToken,
-    expiresAt: Date.now() + Math.max(0, expiresIn - EXPIRY_SKEW_SECONDS) * 1000,
-  };
-  return result;
 }
 
-/** Access token courant (cache mémoire respectant `expires_in`). */
+/**
+ * Access token d'un compte Jumia (rotation du refresh token ré-écrite sur le
+ * compte, cache mémoire respectant `expires_in`).
+ */
+async function accessTokenForAccount(accountId: string): Promise<string> {
+  const cached = tokenCache.get(`account:${accountId}`);
+  if (cached && cached.expiresAt > Date.now()) return cached.accessToken;
+
+  const credentials = await readAccountCredentials(accountId);
+  if (!credentials) {
+    throw new JumiaError("Ce compte Jumia est introuvable.", "not_configured");
+  }
+  const result = await exchangeAccessToken(credentials);
+  await writeAccountRefreshToken(accountId, result.nextRefreshToken);
+  tokenCache.set(`account:${accountId}`, {
+    accessToken: result.accessToken,
+    expiresAt: Date.now() + Math.max(0, result.expiresIn - EXPIRY_SKEW_SECONDS) * 1000,
+  });
+  return result.accessToken;
+}
+
+/**
+ * Access token du compte Jumia rattaché à une boutique locale.
+ *
+ * Les boutiques rattachées avant l'arrivée du multi-compte n'ont pas encore de
+ * `jumia_account_id` : on retombe alors sur l'identifiant historique, ce qui
+ * préserve la synchronisation existante sans manipulation en base.
+ */
+export async function getAccessTokenForShop(shopId: string): Promise<string> {
+  let accountId: string | null = null;
+  try {
+    const rows = await getDb()
+      .select({
+        jumiaAccountId: schema.shops.jumiaAccountId,
+        remoteShopId: schema.shops.remoteShopId,
+      })
+      .from(schema.shops)
+      .where(eq(schema.shops.id, shopId))
+      .limit(1);
+    accountId = rows[0]?.jumiaAccountId ?? null;
+    if (!accountId && !rows[0]?.remoteShopId) {
+      throw new JumiaError(
+        "Cette boutique n'est rattachée à aucun compte Jumia.",
+        "not_configured",
+      );
+    }
+  } catch (error) {
+    if (error instanceof JumiaError) throw error;
+    // Base inaccessible : on tente l'identifiant historique.
+  }
+  if (accountId) return accessTokenForAccount(accountId);
+  return getAccessToken();
+}
+
+/**
+ * Access token historique (identifiants uniques, variables d'environnement ou
+ * ancienne clé de `app_settings`). Conservé pour le test de connexion global et
+ * comme repli des boutiques attachées avant le multi-compte.
+ */
 export async function getAccessToken(): Promise<string> {
+  const cached = tokenCache.get("legacy");
   if (cached && cached.expiresAt > Date.now()) return cached.accessToken;
   const { credentials } = await readCredentials();
   if (!credentials) {
     throw new JumiaError(
-      "Aucun identifiant Jumia configuré. Renseignez JUMIA_CLIENT_ID et JUMIA_REFRESH_TOKEN, ou lancez le test de connexion.",
+      "Aucun identifiant Jumia configuré. Ajoutez un compte vendeur dans Boutiques → Comptes Jumia.",
       "not_configured",
     );
   }
-  const result = await requestAccessToken(credentials);
+  const result = await exchangeAccessToken(credentials);
+  // Le refresh token tourne à chaque appel : on le ré-écrit tout de suite.
+  await writeCredentials({ clientId: credentials.clientId, refreshToken: result.nextRefreshToken });
+  tokenCache.set("legacy", {
+    accessToken: result.accessToken,
+    expiresAt: Date.now() + Math.max(0, result.expiresIn - EXPIRY_SKEW_SECONDS) * 1000,
+  });
   return result.accessToken;
+}
+
+/** Access token d'un compte Jumia donné (utilisé par les écrans et scripts). */
+export async function getAccessTokenForAccount(accountId: string): Promise<string> {
+  return accessTokenForAccount(accountId);
 }

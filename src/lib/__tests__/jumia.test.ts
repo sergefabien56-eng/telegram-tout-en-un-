@@ -47,10 +47,10 @@ describe("réponse OAuth en erreur", () => {
           }),
       ),
     );
-    const { requestAccessToken } = await import("@/lib/jumia/client");
-    await expect(requestAccessToken({ clientId: "c", refreshToken: "r" })).rejects.toBeInstanceOf(
-      JumiaError,
-    );
+    const { exchangeAccessToken } = await import("@/lib/jumia/client");
+    await expect(
+      exchangeAccessToken({ clientId: "c", refreshToken: "r" }),
+    ).rejects.toBeInstanceOf(JumiaError);
   });
 });
 

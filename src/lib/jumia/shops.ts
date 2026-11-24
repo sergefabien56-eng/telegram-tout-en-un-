@@ -1,4 +1,5 @@
-import { getAccessToken, JUMIA_TOKEN_URL, JumiaError } from "./client";
+import { JumiaError } from "./client";
+import { jumiaGet, type JumiaAccountScope } from "./request";
 
 /** Boutique distante normalisée (GPM `GET /shops`). */
 export type RemoteShop = {
@@ -53,28 +54,63 @@ export function listRemoteShopsFromBody(body: unknown): RemoteShop[] {
   });
 }
 
-/** Liste les boutiques du compte vendeur Jumia (appel Réseau + normalisation). */
-export async function listRemoteShops(): Promise<RemoteShop[]> {
-  const accessToken = await getAccessToken();
+/**
+ * Liste les boutiques d'un compte vendeur Jumia.
+ *
+ * Deux endpoints officiels sont lus et fusionnés, car un master-shop peut
+ * associer des boutiques qui n'apparaissent pas dans `/shops` :
+ * - `GET /shops` : boutiques du compte ;
+ * - `GET /shops-of-master-shop` : boutiques du compte **et** du master-shop.
+ *
+ * Sans `scope` explicite, on utilise l'identifiant historique (repli).
+ */
+export async function listRemoteShops(scope?: JumiaAccountScope): Promise<RemoteShop[]> {
+  const paths = ["/shops", "/shops-of-master-shop"];
+  const merged = new Map<string, RemoteShop>();
 
-  let response: Response;
-  try {
-    response = await fetch(`${JUMIA_TOKEN_URL}/shops`, {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-      signal: AbortSignal.timeout(20_000),
-    });
-  } catch {
-    throw new JumiaError("Jumia injoignable pendant la lecture des boutiques.", "network");
+  for (const path of paths) {
+    let response: Response;
+    try {
+      response = await jumiaGet(path, undefined, scope);
+    } catch (error) {
+      // Le second endpoint peut être indisponible sur certains comptes :
+      // on ne bloque que si le premier a déjà échoué.
+      if (merged.size === 0 && path === paths[0]) throw error;
+      continue;
+    }
+    if (!response.ok) {
+      if (merged.size === 0 && path === paths[0]) {
+        throw new JumiaError(
+          `Jumia a refusé la lecture des boutiques (HTTP ${response.status}).`,
+          "http_error",
+          response.status,
+        );
+      }
+      continue;
+    }
+    const body: unknown = await response.json().catch(() => null);
+    for (const shop of listRemoteShopsFromBody(body)) {
+      const existing = merged.get(shop.id);
+      if (!existing) {
+        merged.set(shop.id, shop);
+        continue;
+      }
+      // Fusion des clients commerciaux (un appel peut en apporter d'autres).
+      const countries = new Map(existing.countries.map((row) => [row.code, row]));
+      for (const row of shop.countries) countries.set(row.code, row);
+      merged.set(shop.id, {
+        ...existing,
+        email: existing.email ?? shop.email,
+        countries: Array.from(countries.values()),
+      });
+    }
   }
 
-  if (!response.ok) {
+  if (merged.size === 0) {
     throw new JumiaError(
-      `Jumia a refusé la lecture des boutiques (HTTP ${response.status}).`,
-      "http_error",
-      response.status,
+      "Aucune boutique Jumia n'est accessible avec ce compte.",
+      "no_shop",
     );
   }
-
-  const body: unknown = await response.json().catch(() => null);
-  return listRemoteShopsFromBody(body);
+  return Array.from(merged.values());
 }

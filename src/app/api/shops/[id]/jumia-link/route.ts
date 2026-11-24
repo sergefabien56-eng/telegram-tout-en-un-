@@ -5,6 +5,7 @@ import { fail, ok, requestIp, requestUserAgent } from "@/lib/http";
 import { getSessionUser } from "@/lib/session";
 import { getShopAccess } from "@/lib/permissions";
 import { JumiaError } from "@/lib/jumia/client";
+import { isOwnedBy, resolveDefaultAccount } from "@/lib/jumia/accounts";
 import { listRemoteShops } from "@/lib/jumia/shops";
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,16 +32,35 @@ export async function POST(request: Request, { params }: Params) {
   } catch {
     return fail(400, "Corps de requête invalide (JSON attendu).");
   }
-  const remoteShopId =
-    typeof (body as { remoteShopId?: unknown })?.remoteShopId === "string"
-      ? (body as { remoteShopId: string }).remoteShopId.trim()
-      : "";
+  const raw = body as { remoteShopId?: unknown; accountId?: unknown };
+  const remoteShopId = typeof raw?.remoteShopId === "string" ? raw.remoteShopId.trim() : "";
+  const accountId = typeof raw?.accountId === "string" ? raw.accountId.trim() : "";
   if (!remoteShopId) return fail(422, "Identifiant de boutique Jumia manquant.");
+
+  // Compte vendeur utilisé : celui choisi à l'écran, sinon le compte déjà
+  // rattaché à la boutique, sinon le premier compte enregistré, sinon
+  // l'identifiant historique unique.
+  let scope: { accountId: string } | undefined;
+  if (accountId) {
+    const owned = await getDb()
+      .select({ id: schema.jumiaAccounts.id })
+      .from(schema.jumiaAccounts)
+      .where(eq(schema.jumiaAccounts.id, accountId))
+      .limit(1);
+    const mine = owned[0];
+    if (!mine || !(await isOwnedBy(user.id, accountId))) {
+      return fail(403, "Ce compte Jumia ne vous appartient pas.");
+    }
+    scope = { accountId: mine.id };
+  } else {
+    const fallback = await resolveDefaultAccount(user.id, id);
+    scope = fallback ? { accountId: fallback } : undefined;
+  }
 
   // Le rattachement doit pointer vers une boutique qui existe réellement.
   let remote;
   try {
-    const shops = await listRemoteShops();
+    const shops = await listRemoteShops(scope);
     remote = shops.find((shop) => shop.id === remoteShopId) ?? null;
   } catch (error) {
     return fail(
@@ -60,6 +80,7 @@ export async function POST(request: Request, { params }: Params) {
         remoteShopName: remote.name,
         remoteLinkedAt: new Date(),
         country: country ?? undefined,
+        jumiaAccountId: scope?.accountId ?? undefined,
         status: "connected",
         updatedAt: new Date(),
       })
@@ -111,6 +132,7 @@ export async function DELETE(request: Request, { params }: Params) {
       remoteShopId: null,
       remoteShopName: null,
       remoteLinkedAt: null,
+      jumiaAccountId: null,
       status: "pending",
       updatedAt: new Date(),
     })

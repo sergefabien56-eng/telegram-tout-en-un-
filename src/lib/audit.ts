@@ -27,6 +27,8 @@ export type AuditAction =
   | "admin.database_export"
   | "admin.jumia_test"
   | "admin.jumia_shops"
+  | "jumia.account_added"
+  | "jumia.account_removed"
   | "shop.jumia_linked"
   | "shop.jumia_unlinked"
   | "shop.orders_synced"

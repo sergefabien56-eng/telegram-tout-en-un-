@@ -1,6 +1,7 @@
 "use client";
 
 import { ShopCreateForm } from "@/components/shop-create-form";
+import { JumiaAccounts } from "@/components/jumia-accounts";
 import { JumiaShopLink } from "@/components/jumia-shop-link";
 import { roleHasPermission } from "@/lib/roles";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -191,8 +192,12 @@ export default function BoutiquesPage() {
           </section>
         </div>
 
+        <div className="mt-6">
+          <JumiaAccounts />
+        </div>
+
         {selected && shops.find((shop) => shop.id === selected)?.role ? (
-          <div id="connexions">
+          <div id="connexions" className="mt-6">
             <JumiaShopLink
               shopId={selected}
               remoteShopId={shops.find((shop) => shop.id === selected)?.remoteShopId ?? null}

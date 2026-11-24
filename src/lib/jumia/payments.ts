@@ -35,8 +35,15 @@ export async function fetchPayoutStatements(params: {
   paid?: boolean;
   country?: string;
   currency?: "LOCAL" | "USD";
+  /** Compte vendeur Jumia à utiliser (multi-comptes). */
+  accountId?: string;
 }): Promise<{ statements: PayoutStatement[]; page: PageInfo }> {
-  const response = await jumiaGet("/payout-statement", params);
+  const { accountId: _accountId, ...query } = params;
+  const response = await jumiaGet(
+    "/payout-statement",
+    query,
+    params.accountId ? { accountId: params.accountId } : undefined,
+  );
   if (!response.ok) {
     throw new Error(`Jumia a répondu HTTP ${response.status} pour /payout-statement.`);
   }

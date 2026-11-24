@@ -3,6 +3,8 @@ import { jumiaGet } from "./request";
 /** Une page du catalogue GPM (`GET /catalog/products`). */
 export async function fetchProductPage(params: {
   shopId?: string;
+  /** Compte vendeur Jumia à utiliser (multi-comptes). */
+  accountId?: string;
   size?: number;
   token?: string | null;
   status?: "ACTIVE" | "INACTIVE";
@@ -15,7 +17,7 @@ export async function fetchProductPage(params: {
     // On récupère d'abord les plus récents : utile quand la limite de pages
     // tronque la fin de la liste.
     latestFirst: true,
-  });
+  }, params.accountId ? { accountId: params.accountId } : undefined);
 
   if (!response.ok) {
     return Promise.reject(
@@ -39,6 +41,7 @@ export async function fetchProductPage(params: {
 /** Parcourt le catalogue, dans la limite de `maxPages`. */
 export async function fetchAllProductPages(params: {
   shopId?: string;
+  accountId?: string;
   size?: number;
   maxPages?: number;
   status?: "ACTIVE" | "INACTIVE";
@@ -61,13 +64,19 @@ export async function fetchAllProductPages(params: {
 
 /** Une page de stocks (`GET /catalog/stock`). */
 export async function fetchStockPage(params: {
+  /** Compte vendeur Jumia à utiliser (multi-comptes). */
+  accountId?: string;
   size?: number;
   token?: string | null;
 }): Promise<{ stocks: unknown[]; nextToken: string | null; isLastPage: boolean }> {
-  const response = await jumiaGet("/catalog/stock", {
-    size: params.size ?? 100,
-    token: params.token ?? undefined,
-  });
+  const response = await jumiaGet(
+    "/catalog/stock",
+    {
+      size: params.size ?? 100,
+      token: params.token ?? undefined,
+    },
+    params.accountId ? { accountId: params.accountId } : undefined,
+  );
 
   if (!response.ok) {
     return Promise.reject(
@@ -90,6 +99,7 @@ export async function fetchStockPage(params: {
 
 /** Parcourt les stocks, dans la limite de `maxPages`. */
 export async function fetchAllStockPages(params: {
+  accountId?: string;
   size?: number;
   maxPages?: number;
 }): Promise<{ stocks: unknown[]; pages: number; truncated: boolean }> {

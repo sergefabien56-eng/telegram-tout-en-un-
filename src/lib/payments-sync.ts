@@ -5,6 +5,7 @@ import { shops } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { fetchPayoutStatements } from "@/lib/jumia/payments";
 import { upsertPayoutStatements } from "@/lib/payments";
+import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 
 export async function syncShopPayments(input: {
   userId: string;
@@ -26,7 +27,9 @@ export async function syncShopPayments(input: {
   if (!locked) throw new Error("Une synchronisation est déjà en cours pour cette boutique.");
 
   try {
+    const accountId = await resolveDefaultAccount(input.userId, input.shopId);
     const { statements } = await fetchPayoutStatements({
+      accountId: accountId ?? undefined,
       createdAfter: input.createdAfter,
       currency: "LOCAL",
       size: 100,

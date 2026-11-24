@@ -1,4 +1,10 @@
-import { getAccessToken, JUMIA_TOKEN_URL, JumiaError } from "./client";
+import {
+  getAccessToken,
+  getAccessTokenForAccount,
+  getAccessTokenForShop,
+  JUMIA_TOKEN_URL,
+  JumiaError,
+} from "./client";
 
 /**
  * Appels authentifiés aux API Jumia GPM/GOP.
@@ -41,11 +47,26 @@ export function retryDelayMs(retryAfter: string | null, attempt: number): number
  * Effectue un appel GET authentifié, avec retries.
  * Retourne la réponse (y compris 4xx non réessayables) ou lève `JumiaError`.
  */
+export type JumiaAccountScope =
+  /** Compte vendeur enregistré dans l'application (multi-comptes). */
+  | { accountId: string }
+  /** Boutique locale : le compte est déduit du rattachement. */
+  | { shopId: string }
+  /** Identifiant historique unique (repli). */
+  | { legacy?: true };
+
 export async function jumiaGet(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
+  scope?: JumiaAccountScope,
 ): Promise<Response> {
-  const accessToken = await getAccessToken();
+  const accessToken = !scope
+    ? await getAccessToken()
+    : "accountId" in scope
+      ? await getAccessTokenForAccount(scope.accountId)
+      : "shopId" in scope
+        ? await getAccessTokenForShop(scope.shopId)
+        : await getAccessToken();
 
   const url = new URL(`${JUMIA_TOKEN_URL}${path}`);
   for (const [key, value] of Object.entries(params ?? {})) {

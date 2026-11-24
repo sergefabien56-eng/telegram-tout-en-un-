@@ -134,6 +134,38 @@ export const accountLinkCodes = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Comptes Jumia (un compte vendeur = un jeu d'identifiants)
+// ---------------------------------------------------------------------------
+
+/**
+ * Un compte vendeur Jumia (Vendor Center) peut contenir une ou plusieurs
+ * boutiques. L'application en gère donc plusieurs, chacun avec ses propres
+ * identifiants chiffrés — plus aucune intervention manuelle en base.
+ *
+ * `refreshTokenCiphertext` est chiffré AES-256-GCM (voir `lib/crypto`) ;
+ * le jeton n'est jamais stocké ni affiché en clair.
+ */
+export const jumiaAccounts = pgTable(
+  "jumia_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    email: text("email"),
+    clientId: text("client_id").notNull(),
+    refreshTokenCiphertext: text("refresh_token_ciphertext").notNull(),
+    /** `active` tant que le refresh token fonctionne, `expired` sinon. */
+    status: text("status").notNull().default("active"),
+    lastTokenAt: timestamp("last_token_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("jumia_accounts_owner_idx").on(t.ownerUserId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Boutiques & permissions
 // ---------------------------------------------------------------------------
 
@@ -157,6 +189,10 @@ export const shops = pgTable(
     remoteShopId: text("remote_shop_id"),
     remoteShopName: text("remote_shop_name"),
     remoteLinkedAt: timestamp("remote_linked_at", { withTimezone: true }),
+    /** Compte vendeur Jumia utilisé pour cette boutique (multi-comptes). */
+    jumiaAccountId: uuid("jumia_account_id").references(() => jumiaAccounts.id, {
+      onDelete: "set null",
+    }),
     /** Verrou de synchronisation : une seule synchronisation par boutique. */
     syncInProgress: boolean("sync_in_progress").notNull().default(false),
     connectedAt: timestamp("connected_at", { withTimezone: true }),

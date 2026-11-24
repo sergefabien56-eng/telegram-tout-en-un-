@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { getDb, schema } from "@/db";
 import { adminOverview, hasAdminAccess } from "@/lib/admin";
@@ -8,8 +9,18 @@ const hasDb = Boolean(process.env.DATABASE_URL);
 describe.skipIf(!hasDb)("administration (base réelle)", () => {
   it("retourne des agrégats cohérents pour le propriétaire", async () => {
     const db = getDb();
-    const [owner] = await db.select().from(schema.users).limit(1);
-    if (!owner) throw new Error("Aucun utilisateur en base de test.");
+    // On cible un propriétaire de boutique, pas le premier utilisateur venu :
+    // les passes de tests précédentes peuvent laisser des comptes en base.
+    const owners = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .innerJoin(
+        schema.shopMembers,
+        and(eq(schema.shopMembers.userId, schema.users.id), eq(schema.shopMembers.role, "owner")),
+      )
+      .limit(1);
+    const [owner] = owners;
+    if (!owner) throw new Error("Aucun propriétaire de boutique en base de test.");
 
     expect(await hasAdminAccess(owner.id)).toBe(true);
 

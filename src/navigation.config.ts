@@ -163,6 +163,13 @@ export const NAV_ITEMS: NavItem[] = [
     section: "C",
   },
   {
+    key: "shops-accounts",
+    label: "Comptes Jumia",
+    href: "/boutiques#comptes-jumia",
+    icon: "KeyRound",
+    section: "C",
+  },
+  {
     key: "shops-jumia",
     label: "Connexions Jumia",
     href: "/boutiques#connexions",

@@ -15,6 +15,8 @@ export type OrdersPage = {
  */
 export async function fetchOrdersPage(params: {
   shopId?: string;
+  /** Compte vendeur Jumia à utiliser (multi-comptes). */
+  accountId?: string;
   createdAfter: string;
   createdBefore: string;
   size?: number;
@@ -28,7 +30,7 @@ export async function fetchOrdersPage(params: {
     size: params.size ?? 200,
     sort: params.sort ?? "DESC",
     token: params.token ?? undefined,
-  });
+  }, params.accountId ? { accountId: params.accountId } : undefined);
 
   if (!response.ok) {
     return Promise.reject(
@@ -55,6 +57,7 @@ export async function fetchOrdersPage(params: {
  */
 export async function fetchAllOrderPages(params: {
   shopId?: string;
+  accountId?: string;
   createdAfter: string;
   createdBefore: string;
   size?: number;

@@ -2,12 +2,16 @@ import { audit } from "@/lib/audit";
 import { fail, ok, requestIp, requestUserAgent } from "@/lib/http";
 import { getSessionUser } from "@/lib/session";
 import { listUserShops } from "@/lib/shops";
+import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 import {
   describeOAuthError,
+  exchangeAccessToken,
   JUMIA_TOKEN_URL,
   JumiaError,
+  readAccountCredentials,
   readCredentials,
-  requestAccessToken,
+  writeAccountRefreshToken,
+  writeCredentials,
 } from "@/lib/jumia/client";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +32,23 @@ export async function POST(request: Request) {
     return fail(403, "Seul un propriétaire peut tester la connexion Jumia.");
   }
 
-  const { credentials, source } = await readCredentials();
+  // Priorité au compte enregistré dans l'application ; l'identifiant historique
+  // ne sert que de repli (et n'est plus utilisé dès qu'un compte existe).
+  const accountId = await resolveDefaultAccount(user.id);
+  let credentials;
+  let source;
+  if (accountId) {
+    const row = await readAccountCredentials(accountId);
+    if (!row) {
+      return fail(503, "Ce compte Jumia est illisible (ENCRYPTION_KEY différente ?).");
+    }
+    credentials = { clientId: row.clientId, refreshToken: row.refreshToken };
+    source = "compte";
+  } else {
+    const legacy = await readCredentials();
+    credentials = legacy.credentials;
+    source = legacy.source;
+  }
   if (!credentials) {
     await audit({
       action: "admin.jumia_test",
@@ -38,11 +58,22 @@ export async function POST(request: Request) {
       userAgent: requestUserAgent(request),
       metadata: { reason: "not_configured" },
     });
-    return fail(503, "Aucun identifiant Jumia configuré (JUMIA_CLIENT_ID et JUMIA_REFRESH_TOKEN).");
+    return fail(
+      503,
+      "Aucun compte Jumia configuré. Ajoutez un compte vendeur dans Boutiques → Comptes Jumia.",
+    );
   }
 
   try {
-    const result = await requestAccessToken(credentials);
+    const result = await exchangeAccessToken(credentials);
+    if (accountId) {
+      await writeAccountRefreshToken(accountId, result.nextRefreshToken);
+    } else {
+      await writeCredentials({
+        clientId: credentials.clientId,
+        refreshToken: result.nextRefreshToken,
+      });
+    }
     // Preuve d'accès aux données : on lit la liste des boutiques avec le jeton
     // obtenu. Un échec ici ne fait pas échouer le test d'authentification.
     let shopsStatus: number | null = null;
