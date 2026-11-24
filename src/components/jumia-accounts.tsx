@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, PlusCircle, RefreshCw, Trash2 } from "lucide-react";
 
+type RemoteShop = {
+  id: string;
+  name: string;
+  countries: { code: string; name: string | null; status: string | null }[];
+  linkedTo: { shopId: string; name: string } | null;
+};
+
 type Account = {
   id: string;
   label: string;
@@ -36,6 +43,9 @@ export function JumiaAccounts() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, string>>({});
+  const [remoteByAccount, setRemoteByAccount] = useState<Record<string, RemoteShop[]>>({});
+  const [attaching, setAttaching] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,7 +60,25 @@ export function JumiaAccounts() {
         setStatus({ kind: "error", message: payload.error ?? "Lecture impossible." });
         return;
       }
-      setAccounts(payload.data?.accounts ?? []);
+      const loaded = payload.data?.accounts ?? [];
+      setAccounts(loaded);
+      // Boutiques accessibles sur chaque compte : elles seront proposées au
+      // rattachement en un clic.
+      const entries = await Promise.all(
+        loaded.map(async (account) => {
+          try {
+            const response = await fetch(`/api/jumia/shops?compte=${encodeURIComponent(account.id)}`);
+            const body = (await response.json()) as {
+              ok?: boolean;
+              data?: { shops: RemoteShop[] };
+            };
+            return [account.id, body.ok ? (body.data?.shops ?? []) : []] as const;
+          } catch {
+            return [account.id, []] as const;
+          }
+        }),
+      );
+      setRemoteByAccount(Object.fromEntries(entries));
       setStatus({ kind: "idle" });
     } catch {
       setStatus({ kind: "error", message: "Erreur réseau pendant la lecture des comptes." });
@@ -109,6 +137,33 @@ export function JumiaAccounts() {
     }
   }
 
+  async function attach(accountId: string, remoteShopId: string) {
+    setAttaching(`${accountId}:${remoteShopId}`);
+    setAttachError(null);
+    setStatus({ kind: "idle" });
+    try {
+      const response = await fetch(`/api/jumia/accounts/${accountId}/shops`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remoteShopId }),
+      });
+      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !payload.ok) {
+        setAttachError(payload.error ?? "Rattachement impossible.");
+        return;
+      }
+      setStatus({
+        kind: "success",
+        message: "Boutique créée et rattachée. Elle apparaît dans « Toutes les boutiques ».",
+      });
+      await load();
+    } catch {
+      setAttachError("Erreur réseau pendant le rattachement.");
+    } finally {
+      setAttaching(null);
+    }
+  }
+
   async function remove(accountId: string) {
     if (
       !window.confirm(
@@ -139,6 +194,10 @@ export function JumiaAccounts() {
         Comptes Jumia connectés
       </h2>
       <p className="mt-2 text-sm text-muted">
+        Pour chaque boutique listée ci-dessous, « Créer et rattacher » enregistre la boutique
+        dans l&apos;application et la connecte automatiquement.
+      </p>
+      <p className="mt-2 text-sm text-muted">
         Un compte vendeur Jumia regroupe une ou plusieurs boutiques. Ajoutez ici
         chaque adresse e-mail qui gère vos boutiques : chacune aura ses propres
         commandes, stocks et finances. Aucun identifiant n&apos;est affiché.
@@ -165,6 +224,41 @@ export function JumiaAccounts() {
                     {testResult[account.id] ? (
                       <p className="mt-1 text-xs text-muted">{testResult[account.id]}</p>
                     ) : null}
+
+                    {/* Boutiques accessibles sur ce compte : rattachement en un clic. */}
+                    <ul className="mt-2 space-y-1">
+                      {(remoteByAccount[account.id] ?? []).map((shop) => {
+                        const taken = Boolean(shop.linkedTo);
+                        const busy = attaching === `${account.id}:${shop.id}`;
+                        return (
+                          <li
+                            key={shop.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                          >
+                            <span className="text-xs text-night">
+                              {shop.name}
+                              <span className="text-muted">
+                                {" "}
+                                · {shop.countries.map((c) => c.code).join(", ") || "pays non précisé"}
+                                {taken && shop.linkedTo ? ` · rattachée à ${shop.linkedTo.name}` : ""}
+                              </span>
+                            </span>
+                            {taken ? (
+                              <span className="badge badge-success">Rattachée</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => attach(account.id, shop.id)}
+                                disabled={busy}
+                                className="focusable rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+                              >
+                                {busy ? "Rattachement…" : "Créer et rattacher"}
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -261,6 +355,11 @@ export function JumiaAccounts() {
       {status.kind === "success" ? (
         <p role="status" className="mt-3 text-sm text-success">
           {status.message}
+        </p>
+      ) : null}
+      {attachError ? (
+        <p role="alert" className="mt-3 text-sm text-danger">
+          {attachError}
         </p>
       ) : null}
       {status.kind === "error" ? (

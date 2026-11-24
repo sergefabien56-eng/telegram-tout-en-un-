@@ -158,14 +158,7 @@ export async function createJumiaAccount(
       })
       .returning();
 
-    await audit({
-      action: "jumia.account_added",
-      result: "success",
-      userId,
-      entityType: "jumia_account",
-      metadata: { label: input.label.trim(), email },
-    });
-
+    // L'audit est écrit par la route (avec IP et user-agent) : pas de doublon.
     const row = inserted[0];
     if (!row) return { error: "Enregistrement du compte impossible." };
     return { account: toPublic(row, 0) };
@@ -205,6 +198,128 @@ export async function resolveDefaultAccount(
   return accounts[0]?.id ?? null;
 }
 
+/** Devise par pays Jumia (R3 : une boutique doit avoir la bonne devise). */
+const CURRENCY_BY_COUNTRY: Record<string, string> = {
+  CI: "XOF",
+  SN: "XOF",
+  BJ: "XOF",
+  TG: "XOF",
+  ML: "XOF",
+  BF: "XOF",
+  CM: "XAF",
+  GA: "XAF",
+  NG: "NGN",
+  KE: "KES",
+  GH: "GHS",
+  UG: "UGX",
+  TZ: "TZS",
+  ZA: "ZAR",
+  EG: "EGP",
+  MA: "MAD",
+  DZ: "DZD",
+  TN: "TND",
+};
+
+/**
+ * Crée la boutique locale et la rattache à une boutique Jumia accessible sur
+ * un compte — sans identifiant technique, sans passer par la base.
+ *
+ * Refuse si la boutique distante n'existe pas sur ce compte, si elle est déjà
+ * rattachée, ou si le pays n'a pas de devise connue (mieux vaut demander que
+ * d'inventer une devise, R3).
+ */
+export type AttachedShop = { id: string; name: string; currency: string };
+
+export async function attachRemoteShop(
+  userId: string,
+  accountId: string,
+  remoteShopId: string,
+): Promise<
+  | { ok: true; shop: AttachedShop }
+  | {
+      ok: false;
+      error: string;
+      code: "not_found" | "already_linked" | "no_currency" | "forbidden";
+    }
+> {
+  if (!(await isOwnedBy(userId, accountId))) {
+    return { ok: false, error: "Ce compte Jumia ne vous appartient pas.", code: "forbidden" };
+  }
+
+  let remote;
+  try {
+    const shops = await listRemoteShops({ accountId });
+    remote = shops.find((shop) => shop.id === remoteShopId) ?? null;
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof JumiaError ? error.message : "Lecture des boutiques impossible.",
+      code: "not_found",
+    };
+  }
+  if (!remote) {
+    return { ok: false, error: "Cette boutique n'existe pas sur ce compte.", code: "not_found" };
+  }
+
+  // Unicité du rattachement : une boutique distante = une boutique locale.
+  const existing = await getDb()
+    .select({ id: schema.shops.id, name: schema.shops.name })
+    .from(schema.shops)
+    .where(eq(schema.shops.remoteShopId, remote.id))
+    .limit(1);
+  if (existing[0]) {
+    return {
+      ok: false,
+      error: `« ${remote.name} » est déjà rattachée à la boutique « ${existing[0].name} ».`,
+      code: "already_linked",
+    };
+  }
+
+  const country = remote.countries[0]?.code ?? "";
+  const currency = CURRENCY_BY_COUNTRY[country];
+  if (!currency) {
+    return {
+      ok: false,
+      error: `Pays « ${country || "inconnu"} » sans devise reconnue : créez la boutique manuellement.`,
+      code: "no_currency",
+    };
+  }
+
+  try {
+    const created = await getDb().transaction(async (tx) => {
+      const inserted = await tx
+        .insert(schema.shops)
+        .values({
+          ownerUserId: userId,
+          name: remote.name,
+          platform: "jumia",
+          // Identifiant interne stable, dérivé de la boutique distante.
+          externalShopId: `jumia-${remote.id.slice(0, 8)}`,
+          country: country || null,
+          currency,
+          status: "connected",
+          remoteShopId: remote.id,
+          remoteShopName: remote.name,
+          remoteLinkedAt: new Date(),
+          jumiaAccountId: accountId,
+        })
+        .returning();
+      const shop = inserted[0];
+      if (!shop) throw new Error("Création de la boutique impossible.");
+      await tx.insert(schema.shopMembers).values({ shopId: shop.id, userId, role: "owner" });
+      return shop;
+    });
+
+    return { ok: true, shop: { id: created.id, name: created.name, currency } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("unique")) {
+      return { ok: false, error: "Cette boutique est déjà enregistrée.", code: "already_linked" };
+    }
+    return { ok: false, error: "Création de la boutique impossible.", code: "not_found" };
+  }
+}
+
 /** Supprime un compte Jumia (les boutiques rattachées redeviennent « non liées »). */
 export async function deleteJumiaAccount(
   userId: string,
@@ -238,8 +353,12 @@ export async function deleteJumiaAccount(
  * Utilisé par le bouton « Tester » de l'écran Comptes Jumia.
  */
 export async function testJumiaAccount(
+  userId: string,
   accountId: string,
 ): Promise<{ ok: boolean; shops: number; names: string[]; error?: string }> {
+  if (!(await isOwnedBy(userId, accountId))) {
+    return { ok: false, shops: 0, names: [], error: "Ce compte Jumia ne vous appartient pas." };
+  }
   const credentials = await readAccountCredentials(accountId);
   if (!credentials) return { ok: false, shops: 0, names: [], error: "Compte illisible." };
   try {

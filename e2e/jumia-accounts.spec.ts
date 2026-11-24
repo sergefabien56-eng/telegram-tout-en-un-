@@ -34,6 +34,26 @@ test("L'écran Comptes Jumia permet d'ajouter un compte sans passer par la base"
   }
 });
 
+/** Le bouton « Tester » répond sur une route qui existe, et protège les comptes. */
+test("Le test et le rattachement d'un compte répondent proprement", async ({ page }) => {
+  test.setTimeout(180_000);
+  const email = `jumia-api-e2e-${Date.now()}@exemple.ci`;
+  await login(page, email, "MotDePasse123");
+
+  // Compte inexistant → 403 (propriété vérifiée côté serveur).
+  const testResponse = await page.request.post(
+    "/api/jumia/accounts/00000000-0000-0000-0000-000000000000/test",
+  );
+  expect(testResponse.status()).toBe(403);
+
+  // Rattachement d'une boutique inconnue sur un compte inexistant → 403.
+  const attachResponse = await page.request.post(
+    "/api/jumia/accounts/00000000-0000-0000-0000-000000000000/shops",
+    { data: { remoteShopId: "nimporte" } },
+  );
+  expect(attachResponse.status()).toBe(403);
+});
+
 /**
  * Ajouter une boutique ne doit pas exiger d'identifiant technique : le
  * rattachement Jumia se fait ensuite depuis l'écran Connexions Jumia.
