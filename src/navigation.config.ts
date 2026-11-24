@@ -35,7 +35,7 @@ export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
 export const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Tableau de bord", href: "/dashboard", icon: "LayoutDashboard", section: "A" },
   { key: "notifications", label: "Notifications", href: "/notifications", icon: "Bell", section: "A" },
-  { key: "orders", label: "Commandes", href: "/commandes", icon: "ShoppingCart", section: "B", permission: "orders:read", soon: true },
+  { key: "orders", label: "Commandes", href: "/commandes", icon: "ShoppingCart", section: "B", permission: "orders:read" },
   { key: "shops", label: "Boutiques", href: "/boutiques", icon: "Store", section: "C" },
   { key: "products", label: "Produits", href: "/produits", icon: "Package", section: "D", permission: "products:read", soon: true },
   { key: "inventory", label: "Stocks", href: "/stocks", icon: "Boxes", section: "D", permission: "inventory:read", soon: true },

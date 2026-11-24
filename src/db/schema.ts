@@ -157,6 +157,8 @@ export const shops = pgTable(
     remoteShopId: text("remote_shop_id"),
     remoteShopName: text("remote_shop_name"),
     remoteLinkedAt: timestamp("remote_linked_at", { withTimezone: true }),
+    /** Verrou de synchronisation : une seule synchronisation par boutique. */
+    syncInProgress: boolean("sync_in_progress").notNull().default(false),
     connectedAt: timestamp("connected_at", { withTimezone: true }),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastSyncStatus: text("last_sync_status"),
@@ -277,6 +279,54 @@ export const appSettings = pgTable("app_settings", {
   value: jsonb("value"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Commandes (Phase 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Commande importée depuis une plateforme.
+ *
+ * R3 : les montants sont stockés en **entiers** (unités mineures, 2 décimales)
+ * avec leur devise — jamais de flottant. `raw` conserve la réponse d'origine
+ * pour retraiter sans perte si un champ change de forme.
+ */
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Identifiant de la commande chez la plateforme. */
+    externalOrderId: text("external_order_id").notNull(),
+    orderNumber: text("order_number"),
+    status: text("status").notNull(),
+    countryCode: text("country_code"),
+    /** Devise du montant local (XOF pour la CI). */
+    currency: text("currency").notNull().default("XOF"),
+    totalAmountMinor: integer("total_amount_minor").notNull(),
+    /** Montant USD renvoyé par Jumia, même représentation entière. */
+    totalAmountUsdMinor: integer("total_amount_usd_minor"),
+    totalItems: integer("total_items"),
+    packedItems: integer("packed_items"),
+    isPrepayment: boolean("is_prepayment"),
+    hasMultipleStatus: boolean("has_multiple_status"),
+    deliveryOption: text("delivery_option"),
+    customerFirstName: text("customer_first_name"),
+    customerLastName: text("customer_last_name"),
+    customerCity: text("customer_city"),
+    /** Dates de la plateforme, en UTC (timestamptz). */
+    remoteCreatedAt: timestamp("remote_created_at", { withTimezone: true }),
+    remoteUpdatedAt: timestamp("remote_updated_at", { withTimezone: true }),
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("orders_shop_external_idx").on(t.shopId, t.externalOrderId),
+    index("orders_shop_created_idx").on(t.shopId, t.remoteCreatedAt),
+  ],
+);
 
 // Type pratique pour l'application.
 export type User = typeof users.$inferSelect;

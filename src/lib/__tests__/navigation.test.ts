@@ -23,8 +23,11 @@ describe("navigation", () => {
   });
 
   it("conserve la mention « Bientôt disponible » pour les modules non branchés", () => {
+    // Commandes est branché (Phase 2, lot 2) : la mention a dû disparaître.
     const orders = NAV_ITEMS.find((item) => item.key === "orders");
-    expect(orders?.soon).toBe(true);
+    expect(orders?.soon).toBeUndefined();
+    const products = NAV_ITEMS.find((item) => item.key === "products");
+    expect(products?.soon).toBe(true);
     const shops = NAV_ITEMS.find((item) => item.key === "shops");
     expect(shops?.soon).toBeUndefined();
   });
