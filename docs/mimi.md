@@ -3,7 +3,7 @@
 - **Version** : 0.1 (Phase 0 — cadrage)
 - **Date** : 22/11/2026
 - **Budget IA** : **0 FCFA** (aucun appel payant automatique)
-- **Statut** : Livré (Phase 2, lot 6) — en attente d'une clé IA gratuite pour répondre
+- **Statut** : Livré et actif (Phase 2, lot 6) — clé Gemini gratuite configurée côté serveur
 
 ---
 
@@ -79,6 +79,9 @@ Chaque outil :
 - Journalisation de la consommation dans `ai_usage` (fournisseur, modèle, jetons, outil, latence).
 - Tables `ai_conversations`, `ai_messages`, `ai_usage` (migration `0008`).
 - Outils réels et typés dans `src/lib/ai/tools.ts` ; permissions vérifiées par outil.
+- Boutique en contexte injectée dans l'invite (`?conversation`), `shop_id` optionnel dans les outils.
+- Robustesse offre gratuite : 4 tentatives par modèle puis bascule `gemini-flash-lite-latest` → `gemini-3.5-flash` → `gemini-3.8-flash`.
+- Variables `AI_PROVIDER`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `AI_MODEL` déclarées dans `render.yaml` (`sync: false`).
 
 Sources : [1](https://www.aifreeapi.com/en/posts/google-gemini-api-free-tier) [2](https://ai.google.dev/gemini-api/docs/available-regions) [3](https://tokenmix.ai/blog/gemini-api-free-tier-limits)
 
