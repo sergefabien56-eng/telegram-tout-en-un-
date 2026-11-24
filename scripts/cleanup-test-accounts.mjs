@@ -19,7 +19,8 @@ const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false 
  * Compte de test = adresse jetable créée par les harnais (smokes ou E2E).
  * Une expression régulière suffit et évite les pièges des tableaux SQL.
  */
-const TEST_EMAIL_RE = "(2fa|dbg|smoke|e2e|a11y|mini)[.-].*@exemple\\.ci$";
+const TEST_EMAIL_RE =
+  "(2fa|dbg|smoke|e2e|a11y|mini|probe|prod)[.-].*@exemple\\.ci$";
 
 // 1. Journal d'audit rattaché aux comptes de test (avant suppression des comptes).
 const ids = await pool.query(`SELECT id FROM users WHERE email ~ $1`, [TEST_EMAIL_RE]);

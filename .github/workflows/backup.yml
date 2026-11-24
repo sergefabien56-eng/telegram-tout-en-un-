@@ -1,0 +1,94 @@
+name: Sauvegarde quotidienne
+
+# Sauvegarde planifiée de la base (R5 : backups exportables, 0 FCFA).
+#
+# - tous les jours à 03:37 UTC : dump SQL compressé + vérification du checksum ;
+# - le dimanche : test de restauration complet sur un schéma jetable ;
+# - le fichier est conservé 14 jours comme artefact GitHub ;
+# - si les secrets R2 sont présents, il est aussi copié sur Cloudflare R2.
+#
+# Prérequis unique : le secret GitHub `DATABASE_URL` (Settings → Secrets and
+# variables → Actions). Sans lui, le job se termine proprement avec un message.
+
+on:
+  schedule:
+    - cron: "37 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde-quotidienne
+  cancel-in-progress: false
+
+env:
+  BACKUP_DIR: backups
+  R2_BUCKET: ${{ vars.R2_BUCKET }}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Vérifie la présence de DATABASE_URL
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Le secret DATABASE_URL n'est pas défini : aucune sauvegarde."
+            echo "defined=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "defined=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sauvegarde compressée
+        if: steps.check.outputs.defined == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/backup.mjs --compress
+
+      - name: Vérifie l'intégrité du fichier
+        if: steps.check.outputs.defined == 'true'
+        run: |
+          latest="$(ls -t "$BACKUP_DIR"/*.sql.gz | head -1)"
+          echo "Fichier : $latest ($(du -h "$latest" | cut -f1))"
+          gzip -t "$latest" && echo "gzip : OK"
+          sha256sum "$latest"
+
+      - name: Test de restauration (dimanche)
+        if: steps.check.outputs.defined == 'true' && github.event.schedule == '37 3 * * 0'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/backup-test.mjs
+
+      - name: Copie vers Cloudflare R2 (si configuré)
+        if: steps.check.outputs.defined == 'true' && env.R2_BUCKET != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          latest="$(ls -t "$BACKUP_DIR"/*.sql.gz | head -1)"
+          aws s3 cp "$latest" "s3://$R2_BUCKET/backups/$latest" \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+
+      - name: Artefact (14 jours)
+        if: steps.check.outputs.defined == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-sql
+          path: backups/*.sql.gz
+          retention-days: 14
+          if-no-files-found: warn

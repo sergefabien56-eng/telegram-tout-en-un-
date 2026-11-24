@@ -4,17 +4,18 @@
 
 ## Documents de conception
 
-| # | Document | Contenu |
-|---|---|---|
-| 1 | [architecture.md](architecture.md) | Architecture générale, décisions, flux, Telegram + Web, évolution |
-| 2 | [database.md](database.md) | Tables, relations, contraintes, index, isolation, diagramme |
-| 3 | [jumia-integration.md](jumia-integration.md) | API officielle Jumia, endpoints, sync, limites |
-| 4 | [hebergement-gratuit.md](hebergement-gratuit.md) | Offres gratuites réelles, quotas, risques, migration |
-| 5 | [telegram-integration.md](telegram-integration.md) | Bot, Mini App, auth `initData`, notifications |
-| 6 | [formules-financieres.md](formules-financieres.md) | Commissions, marges, règles de calcul |
-| 7 | [design-system.md](design-system.md) | Couleurs, typographie, composants, navigation, responsive |
-| 8 | [mimi.md](mimi.md) | Architecture IA, outils, coûts, limites |
-| 9 | [plan-phase-1.md](plan-phase-1.md) | Lots, tests, démonstration, risques, questions ouvertes |
+| #   | Document                                           | Contenu                                                           |
+| --- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| 1   | [architecture.md](architecture.md)                 | Architecture générale, décisions, flux, Telegram + Web, évolution |
+| 2   | [database.md](database.md)                         | Tables, relations, contraintes, index, isolation, diagramme       |
+| 3   | [jumia-integration.md](jumia-integration.md)       | API officielle Jumia, endpoints, sync, limites                    |
+| 4   | [hebergement-gratuit.md](hebergement-gratuit.md)   | Offres gratuites réelles, quotas, risques, migration              |
+| 5   | [telegram-integration.md](telegram-integration.md) | Bot, Mini App, auth `initData`, notifications                     |
+| 6   | [formules-financieres.md](formules-financieres.md) | Commissions, marges, règles de calcul                             |
+| 7   | [design-system.md](design-system.md)               | Couleurs, typographie, composants, navigation, responsive         |
+| 8   | [mimi.md](mimi.md)                                 | Architecture IA, outils, coûts, limites                           |
+| 9   | [plan-phase-1.md](plan-phase-1.md)                 | Lots, tests, démonstration, risques, questions ouvertes           |
+| 10  | [sauvegarde.md](sauvegarde.md)                     | Sauvegarde planifiée, rétention, restauration, export R2/Drive    |
 
 ## Maquettes (présentation)
 
@@ -42,10 +43,11 @@
 - ✅ **Phase 1 — Lot 4** : bot Telegram + Mini App ([telegram.md](telegram.md)) — webhook sécurisé, liaison de compte, `initData` vérifié.
 - ✅ **Phase 1 — Lot 5** : boutiques, rôles & permissions ([boutiques.md](boutiques.md)) — API 12/12, tests 11/11.
 - ✅ **Phase 1 — Lot 6** : interface commune — coquille applicative, recherche globale, thème clair/sombre, notifications.
-- ✅ **Phase 1 — Lot 7** : page Santé, sauvegarde/restauration ([deploiement.md](deploiement.md)).
+- ✅ **Phase 1 — Lot 7** : page Santé, sauvegarde/restauration testée, **sauvegarde planifiée** quotidienne ([sauvegarde.md](sauvegarde.md)).
 - ✅ **Phase 1 — Lot 8** : CI/CD + déploiement sur **Render** ([deploiement.md](deploiement.md)) — live.
 - ✅ **Maquette interactive** : `docs/mockups/interactive.html` (bureau + mobile, bascule de version).
 - ✅ **Finitions — 2FA TOTP** : double authentification activable ([securite-2fa.md](securite-2fa.md)).
-- ⬜ **Reste à faire** : actions rapides dans la barre du haut, bottom nav + thème Telegram de la Mini App,
-  tests E2E complets + accessibilité, déploiement automatique GitHub→Render, sauvegarde planifiée,
-  accès Vendor Center Jumia.
+- ✅ **Finitions — actions rapides**, **Mini App**, **accessibilité WCAG AA**.
+- ✅ **Déploiement automatique** GitHub → Render (uniquement après une CI verte).
+- ✅ **CI + 24 tests E2E verts**, dont le parcours 2FA corrigé en production.
+- ⬜ **Reste à faire** : accès Vendor Center Jumia (Phase 2), modules commandes/catalogue/stocks.

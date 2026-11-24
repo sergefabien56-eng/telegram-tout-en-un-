@@ -14,6 +14,7 @@
 ## 1. Le projet en une phrase
 
 Un ERP/SaaS de gestion commerciale (type ERP) pour gérer **plusieurs dizaines de boutiques Jumia** depuis **une seule interface**, accessible à la fois :
+
 1. dans **Telegram** (bot officiel + Mini App) ;
 2. dans un **navigateur web** (PC, tablette, téléphone).
 
@@ -35,17 +36,17 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 ## 4. Décisions techniques (Phase 0)
 
-| Sujet | Décision |
-|---|---|
-| Application | **Next.js App Router + TypeScript strict** (une seule appli Web + Mini App) |
-| ORM / BDD | **Drizzle ORM + PostgreSQL** |
-| Hébergement | **Render ou Netlify (gratuit, commercial autorisé)** — **Vercel écarté** (Hobby non commercial) |
-| Base de données | **Neon** (gratuit 1 Go) — **Supabase en alternatif** (pause 7 j, pas de backup) |
-| Fichiers | **Cloudflare R2** (10 Go, egress gratuit) — sinon Supabase Storage (1 Go) |
-| Planificateur | **cron GitHub Actions** → route serverless ; **pas de worker permanent** |
-| Tâches | table `jobs` PostgreSQL (idempotence, reprise, verrous) |
-| IA (MIMI) | **fournisseur branchable**, Gemini gratuit (disponible en CI) ; jamais d'appel payant auto |
-| Auth | maison : web (Argon2id, sessions, 2FA) + Telegram (initData vérifié HMAC) |
+| Sujet           | Décision                                                                                        |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| Application     | **Next.js App Router + TypeScript strict** (une seule appli Web + Mini App)                     |
+| ORM / BDD       | **Drizzle ORM + PostgreSQL**                                                                    |
+| Hébergement     | **Render ou Netlify (gratuit, commercial autorisé)** — **Vercel écarté** (Hobby non commercial) |
+| Base de données | **Neon** (gratuit 1 Go) — **Supabase en alternatif** (pause 7 j, pas de backup)                 |
+| Fichiers        | **Cloudflare R2** (10 Go, egress gratuit) — sinon Supabase Storage (1 Go)                       |
+| Planificateur   | **cron GitHub Actions** → route serverless ; **pas de worker permanent**                        |
+| Tâches          | table `jobs` PostgreSQL (idempotence, reprise, verrous)                                         |
+| IA (MIMI)       | **fournisseur branchable**, Gemini gratuit (disponible en CI) ; jamais d'appel payant auto      |
+| Auth            | maison : web (Argon2id, sessions, 2FA) + Telegram (initData vérifié HMAC)                       |
 
 ## 5. Faits clés vérifiés (22/11/2026 — sources dans `docs/sources.md`)
 
@@ -62,13 +63,14 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 ## 6. Avancement
 
-| Phase | État |
-|---|---|
-| **0 — Cadrage** | ✅ **Livrée et validée** (9 documents + maquettes) |
+| Phase                           | État                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| **0 — Cadrage**                 | ✅ **Livrée et validée** (9 documents + maquettes)                               |
 | **1 — Fondations et interface** | ✅ **Terminée** — Lots 1 à 8 livrés et déployés sur Render · CI verte · build OK |
-| 2 à 8 | ⏳ Non démarrées |
+| 2 à 8                           | ⏳ Non démarrées                                                                 |
 
 **Phase 1 — lots :**
+
 - ✅ L1 Initialisation & qualité (Next.js 15, TS strict, Tailwind, ESLint/Prettier, Vitest, Playwright, CI GitHub Actions, `.env.example`)
 - ✅ L2 Base de données & migrations (schéma Drizzle 12 tables + migration `drizzle/0000_*.sql`) · **base Neon connectée** (branche `production`, 12 tables, smoke OK)
 - ✅ L3 Auth Web (scrypt, sessions serveur, réinitialisation, anti-abus 5/15 min, audit) · smoke 8/8 sur Neon · détails `docs/auth.md`
@@ -86,12 +88,13 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 ## 7. Prochaine action
 
 **Reste à faire (par priorité)** :
+
 1. ~~Actions rapides dans la barre du haut~~ ✅ **livré** (commit `4fb888f`) — « Ajouter une boutique » ouvre une modale réelle ; « Nouvelle commande » porte le badge « Bientôt disponible » (module non branché, R1).
 2. ~~Bottom nav + thème Telegram de la Mini App~~ ✅ **livré** (commit `701acc2`) — coquille basse (4 accès + « Plus »), en-tête compact avec retour natif, `themeParams` fusionnés, bascule web ↔ mini (`teu_ui`).
 3. ~~Tests E2E complets + accessibilité~~ ✅ **livré** (commit `2b73435`) — contrastes mesurés par un test qui relit `globals.css` (102/102), audits axe-core WCAG 2.1 AA en CI, clavier complet (Échap, piège à focus, retour du focus).
 4. ~~Déploiement automatique~~ ✅ **vivant** — secret `RENDER_DEPLOY_HOOK` créé ; le workflow « Déploiement Render » se déclenche **uniquement après une CI verte** et a déjà déployé les commits `bef9701`, `b258d5b`, `d87eef7` (dernier `dep-dc2f39an7ras7389utu0`, live).
 5. **CI/E2E** ✅ **verte** — la CI tournait rouge jusque-là ; causes corrigées : stub `SESSION_SECRET` dans `totp.test.ts`, navigateurs Playwright + librairies système, nettoyage des comptes de test (`--attempts`), **bug réel du flux 2FA** (la page lisait `requiresTwoFactor` à la racine au lieu de `data` → redirection vers `/dashboard` sans second facteur), déconnexion qui affichait du JSON, contraste de la nav active (4,47:1 → 5,75:1), 503 lisible si la base est absente. 24 tests E2E + 103 tests unitaires passent.
-6. Sauvegarde planifiée + documentation Lot 7.
+6. ~~Sauvegarde planifiée~~ ✅ **livrée** — `.github/workflows/backup.yml` (quotidien 03:37 UTC, dump compressé + checksum, test de restauration le dimanche, artefact 14 j, copie R2 si configuré) ; doc `docs/sauvegarde.md`. Premier dump réel : 14 tables, SHA-256 `91ad6c20…`, restauré à l'identique (`backup-test.mjs` OK), exemplaire sur Google Drive. Prérequis : le secret GitHub `DATABASE_URL`.
 7. Accès Vendor Center Jumia (Phase 2).
 
 **Déploiement** : push sur `main` → CI verte → « Déploiement Render » via Deploy Hook. Vérifié en production : connexion + 2FA + code de vérification → `/dashboard` (11/2026).
