@@ -40,7 +40,9 @@ describe.skipIf(!hasDb)("commandes : import idempotent (base réelle)", () => {
         fullName: "Test Commandes",
       })
       .returning({ id: schema.users.id });
-    ownerId = inserted[0].id;
+    const firstUser = inserted[0];
+    if (!firstUser) throw new Error("Création utilisateur impossible.");
+    ownerId = firstUser.id;
     const shop = await db
       .insert(schema.shops)
       .values({
@@ -51,7 +53,9 @@ describe.skipIf(!hasDb)("commandes : import idempotent (base réelle)", () => {
         remoteShopId: `remote-${suffix}`,
       })
       .returning({ id: schema.shops.id });
-    shopId = shop[0].id;
+    const firstShop = shop[0];
+    if (!firstShop) throw new Error("Création boutique impossible.");
+    shopId = firstShop.id;
   });
 
   it("insère puis met à jour sans doublon", async () => {
@@ -68,9 +72,10 @@ describe.skipIf(!hasDb)("commandes : import idempotent (base réelle)", () => {
 
     const stored = await listOrders(shopId);
     expect(stored).toHaveLength(1);
-    expect(stored[0].status).toBe("SHIPPED");
-    expect(stored[0].totalAmountMinor).toBe(8200);
-    expect(stored[0].currency).toBe("XOF");
+    const order = stored[0];
+    expect(order?.status).toBe("SHIPPED");
+    expect(order?.totalAmountMinor).toBe(8200);
+    expect(order?.currency).toBe("XOF");
   });
 
   it("nettoie ses données de test", async () => {
