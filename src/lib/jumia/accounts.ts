@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { audit } from "@/lib/audit";
@@ -283,6 +283,54 @@ export async function attachRemoteShop(
       error: `Pays « ${country || "inconnu"} » sans devise reconnue : créez la boutique manuellement.`,
       code: "no_currency",
     };
+  }
+
+  // Si une boutique locale au même nom existe déjà sans rattachement
+  // (créée à la main juste avant), on la complète au lieu de créer un doublon.
+  const orphan = await getDb()
+    .select({ id: schema.shops.id })
+    .from(schema.shops)
+    .where(
+      and(
+        eq(schema.shops.ownerUserId, userId),
+        eq(schema.shops.name, remote.name),
+        isNull(schema.shops.remoteShopId),
+      ),
+    )
+    .limit(1);
+
+  if (orphan[0]) {
+    try {
+      const updated = await getDb()
+        .update(schema.shops)
+        .set({
+          platform: "jumia",
+          country: country || null,
+          currency,
+          status: "connected",
+          remoteShopId: remote.id,
+          remoteShopName: remote.name,
+          remoteLinkedAt: new Date(),
+          jumiaAccountId: accountId,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.shops.id, orphan[0].id))
+        .returning();
+      return {
+        ok: true,
+        shop: { id: updated[0]?.id ?? orphan[0].id, name: remote.name, currency },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("unique")) {
+        return {
+          ok: false,
+          error: "Cette boutique Jumia est déjà rattachée.",
+          code: "already_linked",
+        };
+      }
+      return { ok: false, error: "Rattachement impossible.", code: "not_found" };
+    }
   }
 
   try {
