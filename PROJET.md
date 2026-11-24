@@ -95,7 +95,9 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 4. ~~Déploiement automatique~~ ✅ **vivant** — secret `RENDER_DEPLOY_HOOK` créé ; le workflow « Déploiement Render » se déclenche **uniquement après une CI verte** et a déjà déployé les commits `bef9701`, `b258d5b`, `d87eef7` (dernier `dep-dc2f39an7ras7389utu0`, live).
 5. **CI/E2E** ✅ **verte** — la CI tournait rouge jusque-là ; causes corrigées : stub `SESSION_SECRET` dans `totp.test.ts`, navigateurs Playwright + librairies système, nettoyage des comptes de test (`--attempts`), **bug réel du flux 2FA** (la page lisait `requiresTwoFactor` à la racine au lieu de `data` → redirection vers `/dashboard` sans second facteur), déconnexion qui affichait du JSON, contraste de la nav active (4,47:1 → 5,75:1), 503 lisible si la base est absente. 24 tests E2E + 103 tests unitaires passent.
 6. ~~Sauvegarde planifiée~~ ✅ **livrée** — `.github/workflows/backup.yml` (quotidien 03:37 UTC, dump compressé + checksum, test de restauration le dimanche, artefact 14 j, copie R2 si configuré) ; doc `docs/sauvegarde.md`. Premier dump réel : 14 tables, SHA-256 `91ad6c20…`, restauré à l'identique (`backup-test.mjs` OK), exemplaire sur Google Drive. Prérequis : le secret GitHub `DATABASE_URL`.
-7. Accès Vendor Center Jumia (Phase 2).
+7. **Accès Vendor Center Jumia** — 🔵 **préparé** : `docs/jumia-acces.md` décrit le pas-à-pas exact (Settings → Applications → Create Application → **Self Authorization** → Generate Token). Il faut créer l'application et fournir `client_id` + `refresh_token` (hors dépôt). Points de vigilance : le refresh token **tourne à chaque appel**, durées non codées en dur, quotas 200 req/min & 4 req/s par mastershop, boutiques à rattacher au mastershop.
+
+**Accès requis (Phase 2)** : `JUMIA_CLIENT_ID`, `JUMIA_REFRESH_TOKEN` (secrets GitHub + Render).
 
 **Déploiement** : push sur `main` → CI verte → « Déploiement Render » via Deploy Hook. Vérifié en production : connexion + 2FA + code de vérification → `/dashboard` (11/2026).
 
