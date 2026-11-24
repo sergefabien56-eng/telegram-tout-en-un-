@@ -53,11 +53,44 @@ jobs:
             echo "defined=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sauvegarde compressée
+      - name: Diagnostic de l'URL (sans afficher le mot de passe)
         if: steps.check.outputs.defined == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node scripts/backup.mjs --compress
+        run: |
+          node -e '
+            const u = process.env.DATABASE_URL || "";
+            console.log("présente :", Boolean(u));
+            try {
+              const parsed = new URL(u);
+              console.log("protocole :", parsed.protocol);
+              console.log("hôte     :", parsed.hostname);
+              console.log("base     :", parsed.pathname);
+              console.log("params   :", parsed.searchParams.toString() || "(aucun)");
+            } catch {
+              console.log("INVALIDE : la valeur n'est pas une URL exploitable.");
+            }
+          '
+
+      - name: Sauvegarde compressée
+        id: dump
+        if: steps.check.outputs.defined == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set +e
+          node scripts/backup.mjs --compress 2>&1 | tee backup-output.txt
+          status=${PIPESTATUS[0]}
+          echo "exit=$status" >> backup-output.txt
+          exit $status
+
+      - name: Sortie de sauvegarde (diagnostic)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-output
+          path: backup-output.txt
+          if-no-files-found: warn
 
       - name: Vérifie l'intégrité du fichier
         if: steps.check.outputs.defined == 'true'

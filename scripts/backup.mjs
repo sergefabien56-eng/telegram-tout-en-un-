@@ -188,8 +188,16 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error("ÉCHEC :", error instanceof Error ? error.message : error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("ÉCHEC :", message);
+    if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|connection terminated/i.test(message)) {
+      console.error(
+        "Indice : la base ne répond pas — DNS, pare-feu ou hôte injoignable depuis cet environnement.",
+      );
+    }
+    if (/authentication failed|password|no password supplied/i.test(message)) {
+      console.error("Indice : identifiants refusés — vérifier le mot de passe dans DATABASE_URL.");
+    }
     process.exit(1);
   })
   .finally(() => client.end());
-
