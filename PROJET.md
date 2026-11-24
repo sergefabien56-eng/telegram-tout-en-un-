@@ -101,6 +101,8 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 **Sauvegarde** : export en un clic depuis l'appli (bouton sur « Santé »), script CLI `npm run backup`, dump partagé `scripts/lib/dump-sql.mjs`, workflow quotidien optionnel. Le secret GitHub `DATABASE_URL` est **en place et vérifié** : sauvegarde automatique du 24/11/2026 08:01 UTC réussie (artefact `backup-sql`, 11 310 o). L'export manuel reste disponible.
 
+**Jumia Vendor Center** : client livré (`src/lib/jumia/client.ts`) — `POST /token`, durées lues dans `expires_in`, rotation du refresh token ré-écrite en base chiffrée, erreurs OAuth traduites ; `POST /api/admin/jumia/test` (propriétaires, audité) + bouton « Tester la connexion Jumia » sur **Santé**. Identifiants attendus dans Render : `JUMIA_CLIENT_ID`, `JUMIA_REFRESH_TOKEN`. Déployé et vérifié (route 401 sans session).
+
 **Tests après ces changements** : 103 tests unitaires + 24 tests E2E verts, lint/typecheck OK, CI + déploiement Render success (`1e231b3`).
 
 **Déploiement** : push sur `main` → CI verte → « Déploiement Render » via Deploy Hook. Vérifié en production : connexion + 2FA + code de vérification → `/dashboard` (11/2026).
