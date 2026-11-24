@@ -36,7 +36,7 @@ const EMPTY_FORM = { label: "", email: "", clientId: "", refreshToken: "" };
  * Les refresh tokens ne quittent jamais le navigateur et ne sont jamais renvoyés
  * par le serveur (ils sont stockés chiffrés AES-256-GCM).
  */
-export function JumiaAccounts() {
+export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -157,6 +157,8 @@ export function JumiaAccounts() {
         message: "Boutique créée et rattachée. Elle apparaît dans « Toutes les boutiques ».",
       });
       await load();
+      // La page doit immédiatement montrer la nouvelle boutique (sans rechargement).
+      onChanged?.();
     } catch {
       setAttachError("Erreur réseau pendant le rattachement.");
     } finally {

@@ -193,7 +193,7 @@ export default function BoutiquesPage() {
         </div>
 
         <div className="mt-6">
-          <JumiaAccounts />
+          <JumiaAccounts onChanged={loadShops} />
         </div>
 
         {selected && shops.find((shop) => shop.id === selected)?.role ? (

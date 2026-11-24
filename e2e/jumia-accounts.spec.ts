@@ -34,6 +34,32 @@ test("L'écran Comptes Jumia permet d'ajouter un compte sans passer par la base"
   }
 });
 
+/**
+ * Plusieurs boutiques rattachées = toutes visibles dans l'écran Boutiques.
+ * (Régression : après un rattachement, la liste doit montrer chaque boutique.)
+ */
+test("Toutes les boutiques rattachées apparaissent dans l'écran", async ({ page }) => {
+  test.setTimeout(180_000);
+  const email = `multi-boutiques-e2e-${Date.now()}@exemple.ci`;
+  await login(page, email, "MotDePasse123");
+
+  for (const [nom, identifiant] of [
+    ["NKSF SHOP", `E2E-A-${Date.now()}`],
+    ["MaxiShopsCI", `E2E-B-${Date.now()}`],
+  ] as [string, string][]) {
+    const created = await page.request.post("/api/shops", {
+      data: { name: nom, externalShopId: identifiant, country: "CI", currency: "XOF" },
+    });
+    expect(created.status()).toBe(201);
+  }
+
+  await gotoSafely(page, "/boutiques");
+  // Les deux cartes de la liste « Mes boutiques » (le <select> masqué donne
+  // aussi le nom : on vise la carte).
+  await expect(page.getByRole("button", { name: /^NKSF SHOP\b/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^MaxiShopsCI\b/ })).toBeVisible();
+});
+
 /** Le bouton « Tester » répond sur une route qui existe, et protège les comptes. */
 test("Le test et le rattachement d'un compte répondent proprement", async ({ page }) => {
   test.setTimeout(180_000);
