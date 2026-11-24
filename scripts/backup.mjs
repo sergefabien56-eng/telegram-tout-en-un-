@@ -24,6 +24,26 @@ if (!url) {
   process.exit(1);
 }
 
+/**
+ * Affiche la forme de l'URL (jamais le mot de passe) pour diagnostiquer une
+ * valeur mal collée dans la variable d'environnement.
+ */
+function describeUrl(raw) {
+  try {
+    const parsed = new URL(raw);
+    console.log(
+      `URL : protocole=${parsed.protocol} | hôte=${parsed.hostname} | port=${
+        parsed.port || "(défaut)"
+      } | base=${parsed.pathname} | utilisateur=${parsed.username || "(aucun)"} | mot de passe=${
+        parsed.password ? "présent" : "ABSENT"
+      } | paramètres=${parsed.searchParams.toString() || "(aucun)"}`,
+    );
+  } catch {
+    console.log("URL : valeur non analysable (la chaîne de connexion est mal formée).");
+  }
+}
+describeUrl(url);
+
 const compress = process.argv.includes("--compress");
 const outDir = process.env.BACKUP_DIR ?? "backups";
 const schema = process.env.BACKUP_SCHEMA ?? "public";
