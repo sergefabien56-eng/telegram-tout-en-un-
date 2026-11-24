@@ -45,7 +45,9 @@ export function OrderSyncButton({ shopId, linked, days = 30 }: Props) {
       setMessage(
         `${data?.orders ?? 0} commande(s) lue(s) · ${data?.inserted ?? 0} nouvelle(s) · ${
           data?.updated ?? 0
-        } mise(s) à jour${data?.truncated ? " · truncaté (augmentez la période)" : ""}.`,
+        } mise(s) à jour${
+          data?.truncated ? " · limite de pages atteinte (5 × 200), relancez pour compléter" : ""
+        }.`,
       );
     } catch {
       setError("Erreur réseau pendant la synchronisation.");
