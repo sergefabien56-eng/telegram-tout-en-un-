@@ -1,285 +1,362 @@
-import { getCurrentShop } from "@/lib/current-shop";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Boxes,
+  FileText,
+  Package,
+  RefreshCw,
+  ShoppingCart,
+  Store,
+  Truck,
+  Wallet,
+} from "lucide-react";
 import { getSessionUser } from "@/lib/session";
 import { getShopAccess } from "@/lib/permissions";
 import { dashboardOverview } from "@/lib/dashboard";
 import { formatMoney } from "@/lib/money";
-import { DashboardSearch } from "@/components/dashboard-search";
-import { ThemeToggle } from "@/components/theme-toggle";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { isRefusedScope, readSearchValues, resolveShopIds } from "@/lib/order-access";
+import { memberScope } from "@/lib/shop-scope";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Kpi } from "@/components/ui/kpi";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScopeBar } from "@/components/ui/scope-bar";
+import { ShopScopeSelect } from "@/components/shop-scope-select";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Tableau de bord — rubriques demandées : vue d'ensemble, recherche,
- * apparence, indicateurs financiers, performances globales, activités
- * récentes et alertes importantes. Tout chiffre est un agrégat réel.
+ * TABLEAU DE BORD — centre de pilotage.
+ *
+ * Cet écran ne montre que l'essentiel, et **toujours pour le périmètre
+ * affiché** : la boutique choisie dans l'en-tête par défaut, ou celle
+ * demandée dans l'URL (`?boutique=`). Les autres rubriques ont leur propre
+ * page — ici, on ne fait que pointer vers elles.
  */
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const query = await searchParams;
-  const days = Number(query.days ?? "30");
-  const period = Number.isInteger(days) && days >= 1 && days <= 90 ? days : 30;
+  const values = readSearchValues(await searchParams);
+  const daysRaw = Number(values.days ?? "30");
+  const period = Number.isInteger(daysRaw) && daysRaw >= 1 && daysRaw <= 90 ? daysRaw : 30;
 
-  const { shop } = await getCurrentShop(user.id);
-  const access = shop ? await getShopAccess(user.id, shop.id) : null;
+  const scope = await memberScope(user.id);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
+  const refused = isRefusedScope(values, shopIds);
+  const aggregate = shopIds.length > 1;
 
-  // Le tableau de bord lui-même est ouvert ; chaque rubrique reste soumise à
-  // ses propres permissions, faute de quoi elle affiche un état explicite.
-  if (shop && !access) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold text-night">Tableau de bord</h1>
-        <p className="text-sm text-danger">Aucune boutique accessible.</p>
-      </div>
-    );
-  }
-
-  const canSeeFinance = Boolean(access?.permissions.has("finance:read"));
-  const canSeeReports = Boolean(access?.permissions.has("reports:read"));
-  const canSeeInventory = Boolean(access?.permissions.has("inventory:read"));
-
-  const overview = await dashboardOverview(user.id, period);
-
-  if (overview.shops.length === 0) {
+  if (scope.allowed.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-night">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-muted">
-            Aucune boutique accessible : les indicateurs s&apos;afficheront dès qu&apos;une boutique
-            sera créée.
-          </p>
-        </div>
-        <section id="vue-ensemble" className="card p-5">
-          <h2 className="text-sm font-semibold text-night">Vue d&apos;ensemble</h2>
-          <p className="mt-3 text-sm text-muted">
-            Rien à montrer pour l&apos;instant — aucune donnée n&apos;est inventée.
-          </p>
-          <Link href="/boutiques" className="focusable mt-4 inline-block text-sm text-primary-600">
-            Créer une boutique →
-          </Link>
-        </section>
+        <PageHeader title="Tableau de bord" description="Aucun espace de travail pour l’instant." />
+        <EmptyState
+          icon={<Store className="h-6 w-6" aria-hidden="true" />}
+          title="Aucune boutique accessible"
+          description="Créez une boutique, puis rattachez-la à un compte vendeur Jumia : les indicateurs resteront vides tant que rien n’est réellement synchronisé."
+          action={
+            <Link
+              href="/boutiques"
+              className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              Gérer mes boutiques
+            </Link>
+          }
+        />
       </div>
     );
   }
 
+  if (refused) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Tableau de bord" />
+        <EmptyState
+          tone="danger"
+          icon={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
+          title="Cette boutique n’est pas dans votre périmètre"
+          description="Vous n’avez pas accès à cette boutique, ou elle n’existe plus. Aucun chiffre n’est affiché : un tableau vide laisserait croire à une absence de données."
+        />
+      </div>
+    );
+  }
+
+  const overview = await dashboardOverview(user.id, period, shopIds);
   const kpis = overview.kpis;
+
+  // Permissions : chaque bloc vérifie la sienne, sur le périmètre affiché.
+  const access = shopIds.length === 1 ? await getShopAccess(user.id, shopIds[0]!) : null;
+  const canSeeFinance =
+    shopIds.length > 1 ? true : Boolean(access?.permissions.has("finance:read"));
+  const canSeeReports =
+    shopIds.length > 1 ? true : Boolean(access?.permissions.has("reports:read"));
+  const canSeeInventory =
+    shopIds.length > 1 ? true : Boolean(access?.permissions.has("inventory:read"));
+
+  const shopNames = overview.scope.names;
+  const scopeLabel = aggregate ? `${shopIds.length} boutiques` : (shopNames[0] ?? "Boutique");
+  const scopeDetail = `${overview.period.from} → ${overview.period.to} · ${overview.period.days} jours`;
+
+  const allHref = aggregate ? "/performances" : "/performances?boutique=toutes";
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-night">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-muted">
-            Période : {overview.period.from} → {overview.period.to} ({overview.period.days} j).
-          </p>
-        </div>
-        <form method="GET" className="flex items-center gap-2">
-          <label htmlFor="periode" className="text-xs text-muted">
-            Période
-          </label>
-          <select
-            id="periode"
-            name="days"
-            defaultValue={String(overview.period.days)}
-            className="focusable rounded-lg border border-border bg-surface px-3 py-2 text-sm text-night"
-          >
-            <option value="7">7 jours</option>
-            <option value="30">30 jours</option>
-            <option value="90">90 jours</option>
-          </select>
-          <button
-            type="submit"
-            className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-          >
-            Actualiser
-          </button>
-        </form>
+      <PageHeader
+        title="Tableau de bord"
+        description="L’état de votre espace : ce qui est vendu, ce qui doit être surveillé, ce qui a changé."
+        actions={
+          <ShopScopeSelect
+            shops={scope.allowed.map((shop) => ({ id: shop.id, name: shop.name }))}
+            value={aggregate ? "toutes" : (shopIds[0] ?? "")}
+          />
+        }
+      >
+        <ScopeBar
+          label={scopeLabel}
+          detail={scopeDetail}
+          allHref={allHref}
+          allLabel="Comparer toutes mes boutiques"
+          actions={
+            <form method="GET" className="flex items-center gap-2">
+              {values.boutique ? (
+                <input type="hidden" name="boutique" value={values.boutique} />
+              ) : null}
+              <label htmlFor="periode" className="text-xs text-muted">
+                Période
+              </label>
+              <select
+                id="periode"
+                name="days"
+                defaultValue={String(period)}
+                className="focusable rounded-lg border border-border bg-surface px-2 py-1 text-sm text-night"
+              >
+                <option value="7">7 jours</option>
+                <option value="30">30 jours</option>
+                <option value="90">90 jours</option>
+              </select>
+              <button
+                type="submit"
+                className="focusable rounded-lg border border-border bg-surface px-3 py-1 text-sm font-medium text-night hover:bg-border"
+              >
+                Actualiser
+              </button>
+            </form>
+          }
+        />
+      </PageHeader>
+
+      {/* Chiffres clés — toujours sur le périmètre affiché. */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="CA commandes"
+          value={formatMoney(kpis.revenueMinor, kpis.currency)}
+          hint={`Commandes livrées ou expédiées sur ${overview.period.days} j · ${kpis.orders} commandes${kpis.canceledOrders ? ` · ${kpis.canceledOrders} annulée(s)` : ""}`}
+          icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}
+        />
+        <Kpi
+          label="Articles vendus"
+          value={kpis.units.toLocaleString("fr-FR")}
+          hint={`Unités commandées · ${kpis.products} produits${canSeeInventory ? ` · ${kpis.variants} déclinaisons` : ""}`}
+          icon={<Package className="h-4 w-4" aria-hidden="true" />}
+        />
+        <Kpi
+          label="Stocks faibles"
+          value={canSeeInventory ? kpis.lowStock.toLocaleString("fr-FR") : "—"}
+          tone={canSeeInventory && kpis.lowStock > 0 ? "warning" : "default"}
+          hint={
+            canSeeInventory
+              ? kpis.lowStock > 0
+                ? "Déclinaisons à 5 unités ou moins : à réapprovisionner."
+                : "Aucune déclinaison sous le seuil de 5 unités."
+              : "Votre rôle ne permet pas de lire les stocks sur cette boutique."
+          }
+          icon={<Boxes className="h-4 w-4" aria-hidden="true" />}
+        />
+        <Kpi
+          label="Net à verser (Jumia)"
+          value={canSeeFinance ? formatMoney(overview.finances.netMinor, kpis.currency) : "—"}
+          tone={canSeeFinance && overview.finances.unpaid ? "warning" : "default"}
+          hint={
+            !canSeeFinance
+              ? "Votre rôle ne permet pas de lire les finances sur cette boutique."
+              : overview.finances.statements === 0
+                ? "Aucun relevé synchronisé : rien à verser d'après nos données."
+                : `${overview.finances.statements} relevé(s) · ${overview.finances.unpaid ? "au moins un non payé" : "tous payés"}`
+          }
+          icon={<Wallet className="h-4 w-4" aria-hidden="true" />}
+        />
       </div>
 
-      {/* 1. Vue d'ensemble */}
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold text-night">Vue d&apos;ensemble</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi
-            label="CA commandes"
-            value={formatMoney(kpis.revenueMinor, kpis.currency)}
-            hint={`Commandes livrées ou expédiées sur ${overview.period.days} j (${kpis.orders} au total, dont ${kpis.canceledOrders} annulée(s)).`}
-          />
-          <Kpi
-            label="Articles vendus"
-            value={kpis.units.toLocaleString("fr-FR")}
-            hint="Unités commandées sur la période."
-          />
-          <Kpi
-            label="Déclinaisons en stock"
-            value={kpis.variants.toLocaleString("fr-FR")}
-            hint={`${kpis.lowStock} à 5 unités ou moins.`}
-          />
-          <Kpi
-            label="Net à verser (Jumia)"
-            value={formatMoney(overview.finances.netMinor, kpis.currency)}
-            hint={
-              overview.finances.statements === 0
-                ? "Aucun relevé synchronisé."
-                : `${overview.finances.statements} relevé(s), ${overview.finances.unpaid ? "au moins un non payé." : "tous payés."}`
-            }
-          />
-        </div>
-        <p className="mt-4 text-xs text-muted">
-          Deux mesures distinctes, jamais mélangées : le <strong>CA commandes</strong> vient des
-          commandes livrées ou expédiées sur la période choisie ; le <strong>CA articles</strong>{" "}
-          (rubrique « Indicateurs financiers ») vient des relevés de versement publiés par Jumia et
-          couvre sa propre période. Les montants proviennent des données enregistrées ; aucun
-          n&apos;est estimé.
-        </p>
-      </section>
-
-      {/* 2. Recherche dans mon espace */}
-      <section id="recherche" className="card p-5">
-        <h2 className="text-sm font-semibold text-night">Recherche dans mon espace</h2>
-        <p className="mt-1 text-sm text-muted">
-          Boutiques et produits autorisés uniquement — les droits d&apos;accès sont appliqués côté
-          serveur.
-        </p>
-        <div className="mt-4 max-w-md">
-          <DashboardSearch />
-        </div>
-      </section>
-
-      {/* 3. Apparence */}
-      <section id="apparence" className="card p-5">
-        <h2 className="text-sm font-semibold text-night">Apparence</h2>
-        <p className="mt-1 text-sm text-muted">
-          Le réglage est propre à cet appareil, il ne change pas celui des autres utilisateurs.
-        </p>
-        <div className="mt-4 flex items-center gap-3">
-          <ThemeToggle />
-          <span className="text-sm text-muted">Clair / sombre</span>
-        </div>
-      </section>
-
-      {/* 4. Indicateurs financiers */}
-      <section id="indicateurs-financiers" className="card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-night">Indicateurs financiers</h2>
-          <Link href="/finances" className="focusable text-sm text-primary-600">
-            Voir les finances →
-          </Link>
-        </div>
-        {!canSeeFinance ? (
-          <p className="mt-3 text-sm text-muted">
-            Votre rôle n&apos;autorise pas la lecture des finances sur cette boutique.
-          </p>
-        ) : overview.finances.statements === 0 ? (
-          <p className="mt-3 text-sm text-muted">
-            Aucun relevé Jumia synchronisé : pas de chiffre financier affiché. Lancez la
-            synchronisation des paiements.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi
-              label="CA articles"
-              value={formatMoney(overview.finances.revenueMinor, kpis.currency)}
-              hint={
-                overview.finances.statementFrom && overview.finances.statementTo
-                  ? `Montant des articles sur ${overview.finances.statements} relevé(s) du ${new Date(overview.finances.statementFrom).toLocaleDateString("fr-FR")} au ${new Date(overview.finances.statementTo).toLocaleDateString("fr-FR")}.`
-                  : `sur ${overview.finances.statements} relevé(s).`
-              }
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Alertes prioritaires */}
+        <Section
+          title="Alertes prioritaires"
+          description="Ce qui demande une action — pas ce qui est simplement inhabituel."
+          action={
+            <Link
+              href="/alertes"
+              className="focusable font-medium text-primary-600 hover:underline"
+            >
+              Tout voir →
+            </Link>
+          }
+          className="lg:col-span-2"
+        >
+          {overview.alerts.length === 0 ? (
+            <EmptyState
+              title="Rien à traiter"
+              description="Aucune alerte sur les données enregistrées pour cette période. Les stocks, les versements et les synchronisations sont au vert."
             />
-            <Kpi
-              label="Commissions"
-              value={formatMoney(Math.abs(overview.finances.feesMinor), kpis.currency)}
-              hint="Frais totaux Jumia."
-            />
-            <Kpi
-              label="Remboursements"
-              value={formatMoney(overview.finances.refundsMinor, kpis.currency)}
-              hint="Sur les relevés affichés."
-            />
-            <Kpi
-              label="Net à verser"
-              value={formatMoney(overview.finances.netMinor, kpis.currency)}
-              hint={`dont ${formatMoney(overview.finances.paidMinor, kpis.currency)} déjà payé.`}
-            />
-          </div>
-        )}
-      </section>
+          ) : (
+            <ul className="space-y-2">
+              {overview.alerts.slice(0, 5).map((alert, index) => (
+                <li
+                  key={`${alert.kind}-${index}`}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                  <span className="font-medium text-night">{alert.label}</span>
+                  <span className="text-muted">{alert.detail}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
 
-      {/* 5. Performances globales */}
-      <section id="performances" className="card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-night">Performances globales</h2>
-          <Link href="/rapports" className="focusable text-sm text-primary-600">
-            Voir les rapports →
-          </Link>
-        </div>
-        {!canSeeReports ? (
-          <p className="mt-3 text-sm text-muted">
-            Votre rôle n&apos;autorise pas la lecture des rapports sur cette boutique.
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
+        {/* Accès rapides */}
+        <Section title="Accès rapides" description="Les actions du quotidien.">
+          <ul className="space-y-1">
+            <Shortcut
+              href="/commandes/a-traiter"
+              icon={<ShoppingCart className="h-4 w-4" />}
+              label="Commandes à traiter"
+            />
+            <Shortcut
+              href="/commandes/expediees"
+              icon={<Truck className="h-4 w-4" />}
+              label="Commandes expédiées"
+            />
+            <Shortcut
+              href="/stocks"
+              icon={<Boxes className="h-4 w-4" />}
+              label="Stocks à surveiller"
+            />
+            <Shortcut
+              href="/finances"
+              icon={<Wallet className="h-4 w-4" />}
+              label="Relevés et versements"
+            />
+            <Shortcut
+              href="/rapports"
+              icon={<BarChart3 className="h-4 w-4" />}
+              label="Rapports détaillés"
+            />
+            <Shortcut
+              href="/boutiques/synchronisations"
+              icon={<RefreshCw className="h-4 w-4" />}
+              label="Synchronisations"
+            />
+          </ul>
+        </Section>
+      </div>
+
+      {/* Santé des boutiques : l'écran multi-boutique. */}
+      {overview.shops.length > 0 ? (
+        <Section
+          title="État de mes boutiques"
+          description="État calculé à partir des faits : lien distant, compte vendeur, données reçues, dernière synchronisation."
+          action={
+            canSeeReports ? (
+              <Link
+                href="/performances"
+                className="focusable font-medium text-primary-600 hover:underline"
+              >
+                Comparer les performances →
+              </Link>
+            ) : null
+          }
+        >
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
                   <th className="py-2 pr-3">Boutique</th>
+                  <th className="py-2 pr-3">État</th>
                   <th className="py-2 pr-3 text-right">CA période</th>
                   <th className="py-2 pr-3 text-right">Commandes</th>
-                  <th className="py-2 pr-3 text-right">Unités en stock</th>
-                  <th className="py-2 text-right">Stocks faibles</th>
+                  <th className="py-2 text-right">Dernière synchro.</th>
                 </tr>
               </thead>
               <tbody>
                 {overview.shops.map((row) => (
                   <tr key={row.id} className="border-b border-border last:border-0">
-                    <td className="py-2.5 pr-3 text-night">{row.name}</td>
-                    <td className="py-2.5 pr-3 text-right text-night">
+                    <td className="py-2.5 pr-3">
+                      <span className="font-medium text-night">{row.name}</span>
+                      {!row.connection.operational ? (
+                        <span className="mt-0.5 block text-xs text-warning">
+                          {row.connection.detail}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span
+                        className={`badge ${
+                          row.connection.operational ? "badge-success" : "badge-warning"
+                        }`}
+                      >
+                        {row.connection.label}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-night">
                       {formatMoney(row.revenueMinor, kpis.currency)}
                     </td>
-                    <td className="py-2.5 pr-3 text-right text-muted">{row.orders}</td>
-                    <td className="py-2.5 pr-3 text-right text-muted">
-                      {canSeeInventory ? row.stockUnits.toLocaleString("fr-FR") : "—"}
-                    </td>
-                    <td
-                      className={`py-2.5 text-right ${
-                        row.lowStock > 0 ? "font-medium text-danger" : "text-muted"
-                      }`}
-                    >
-                      {canSeeInventory ? row.lowStock : "—"}
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-muted">{row.orders}</td>
+                    <td className="py-2.5 text-right text-xs text-muted">
+                      {row.lastSyncAt
+                        ? new Date(row.lastSyncAt).toLocaleString("fr-FR")
+                        : "Jamais synchronisée"}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </Section>
+      ) : null}
 
-      {/* 6. Activités récentes */}
-      <section id="activites" className="card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-night">Activités récentes</h2>
-          <Link href="/admin" className="focusable text-sm text-primary-600">
+      {/* Dernières activités : résumé, la page complète est ailleurs. */}
+      <Section
+        title="Dernières activités"
+        description="Les actions enregistrées sur cet espace."
+        action={
+          <Link
+            href="/activites"
+            className="focusable font-medium text-primary-600 hover:underline"
+          >
             Journal complet →
           </Link>
-        </div>
+        }
+      >
         {overview.activity.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Aucune action enregistrée sur vos boutiques.</p>
+          <EmptyState
+            title="Aucune action enregistrée"
+            description="Le journal se remplit dès qu'une synchronisation, une réparation ou un changement de rôle intervient."
+          />
         ) : (
-          <ul className="mt-4 space-y-2 text-sm">
-            {overview.activity.map((row, index) => (
+          <ul className="space-y-1.5 text-sm">
+            {overview.activity.slice(0, 6).map((row, index) => (
               <li
                 key={`${row.createdAt.getTime()}-${index}`}
-                className="flex flex-wrap items-center gap-3"
+                className="flex flex-wrap items-center gap-3 border-b border-border/60 py-1.5 last:border-0"
               >
+                <FileText className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
                 <span className="font-mono text-xs text-night">{row.action}</span>
                 <span
                   className={`text-xs ${
@@ -292,45 +369,36 @@ export default async function DashboardPage({
                 >
                   {row.result}
                 </span>
-                <span className="text-xs text-muted">
+                <span className="ml-auto text-xs text-muted">
                   {new Date(row.createdAt).toLocaleString("fr-FR")}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
-      {/* 7. Alertes importantes */}
-      <section id="alertes" className="card p-5">
-        <h2 className="text-sm font-semibold text-night">Alertes importantes</h2>
-        {overview.alerts.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">
-            Aucune alerte prioritaire sur les données enregistrées.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {overview.alerts.map((alert, index) => (
-              <li
-                key={`${alert.kind}-${index}`}
-                className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger"
-              >
-                <span className="font-medium">{alert.label}</span> — {alert.detail}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <p className="pb-2 text-xs leading-relaxed text-muted">
+        Deux mesures distinctes, jamais mélangées : le <strong>CA commandes</strong> vient des
+        commandes livrées ou expédiées sur la période choisie ; le <strong>CA articles</strong>{" "}
+        (rubrique Finances) vient des relevés de versement publiés par Jumia et couvre sa propre
+        période. Tous les montants proviennent des données enregistrées ; aucun n&apos;est estimé.
+      </p>
     </div>
   );
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Shortcut({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-2 text-xl font-semibold text-night">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
-    </div>
+    <li>
+      <Link
+        href={href}
+        className="focusable flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-night hover:bg-surface"
+      >
+        <span className="text-primary-ink">{icon}</span>
+        <span className="flex-1">{label}</span>
+        <ArrowRight className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+      </Link>
+    </li>
   );
 }

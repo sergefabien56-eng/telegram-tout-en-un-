@@ -65,7 +65,7 @@ test.describe.serial("Mini App — menu", () => {
     await expect(dialog).toBeVisible({ timeout: 30_000 });
 
     // Rubrique active conservée.
-    await expect(dialog.getByRole("link", { name: "Vue d'ensemble" })).toHaveAttribute(
+    await expect(dialog.getByRole("link", { name: "Tableau de bord" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -73,7 +73,8 @@ test.describe.serial("Mini App — menu", () => {
     // Tout ouvrir : les 8 modules et leurs rubriques sont visibles.
     await dialog.getByRole("button", { name: "Tout ouvrir" }).click();
     for (const label of [
-      "Vue d'ensemble",
+      "Tableau de bord",
+      "Alertes",
       "Toutes les commandes",
       "Ajouter une boutique",
       "Produits",
@@ -100,7 +101,7 @@ test.describe.serial("Mini App — menu", () => {
 
     // Tout fermer : les rubriques disparaissent (il reste « version web »).
     await dialog.getByRole("button", { name: "Tout fermer" }).click();
-    await expect(dialog.getByRole("link", { name: "Vue d'ensemble" })).toHaveCount(0);
+    await expect(dialog.getByRole("link", { name: "Tableau de bord" })).toHaveCount(0);
     await expect(dialog.getByRole("link", { name: /version web/i })).toBeVisible();
 
     // Aucun débordement horizontal dans la fenêtre Telegram.

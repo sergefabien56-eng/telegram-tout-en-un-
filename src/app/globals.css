@@ -16,7 +16,7 @@
   --card: 255 255 255;
   --border: 227 232 242; /* #E3E8F2 */
   --success: 22 101 52; /* #166534 — lisible sur fond clair (AA) */
-  --warning: 245 158 11;
+  --warning: 146 64 14; /* #92400E — ambre foncé : 6.1:1 sur le fond des pastilles (AA) */
   --danger: 185 28 28; /* #B91C1C — lisible sur fond clair (AA) */
   --ink: 15 23 42; /* #0F172A */
   --muted: 91 107 130; /* #5B6B82 — AA sur surface */

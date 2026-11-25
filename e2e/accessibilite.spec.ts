@@ -103,6 +103,33 @@ test.describe.serial("accessibilité des pages connectées", () => {
     await expectNoViolations(page, "tableau de bord sombre");
   });
 
+  test("les pages du pilotage passent l'audit WCAG 2.1 AA", async ({ page }) => {
+    await login(page, email, password);
+
+    // Une boutique : sans elle, les pages affichent leur état vide et le
+    // résultat de l'audit ne porterait pas sur les écrans réels.
+    await page.request.post("/api/shops", {
+      data: {
+        name: "A11Y PILOTAGE",
+        externalShopId: `E2E-A11Y-${Date.now()}`,
+        country: "CI",
+        currency: "XOF",
+      },
+    });
+
+    for (const chemin of [
+      "/dashboard",
+      "/performances",
+      "/alertes",
+      "/activites",
+      "/recherche",
+      "/apparence",
+    ]) {
+      await page.goto(chemin);
+      await expectNoViolations(page, `pilotage ${chemin}`);
+    }
+  });
+
   test("les actions rapides se ferment à Échap et rendent le focus", async ({ page }) => {
     await login(page, email, password);
     await page.goto("/securite");

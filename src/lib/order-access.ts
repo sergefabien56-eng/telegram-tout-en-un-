@@ -55,6 +55,8 @@ export type SearchValues = {
   du?: string;
   au?: string;
   statut?: string;
+  /** Durée de la période d'analyse (tableau de bord, performances). */
+  days?: string;
 };
 
 export function readSearchValues(
@@ -69,5 +71,6 @@ export function readSearchValues(
     du: single("du"),
     au: single("au"),
     statut: single("statut"),
+    days: single("days"),
   };
 }

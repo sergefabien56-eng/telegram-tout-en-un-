@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { basePath, navIcon } from "@/components/nav-icons";
-import { GlobalSearch } from "@/components/global-search";
+import { SpaceSearch } from "@/components/space-search";
 import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { QuickActions } from "@/components/quick-actions";
@@ -18,7 +18,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { applySidebarState, readSidebarState, type SidebarState } from "@/lib/sidebar-state";
 import { NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 export type ShellShop = { id: string; name: string; role: string };
@@ -198,13 +198,8 @@ function Sidebar({
   );
 }
 
-export function AppShell({
-  user,
-  shops,
-  permissions,
-  currentShopId,
-  children,
-}: AppShellProps) {
+export function AppShell({ user, shops, permissions, currentShopId, children }: AppShellProps) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebar, setSidebar] = useState<SidebarState>("open");
   const [userMenu, setUserMenu] = useState(false);
@@ -254,7 +249,10 @@ export function AppShell({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shopId: value }),
     });
-    window.location.reload();
+    // `refresh()` relit le cookie côté serveur et re-rend la page : le
+    // rechargement complet (avant) faisait perdre la position de scroll et
+    // rechargait toutes les ressources.
+    router.refresh();
   }
 
   const permissionSet = new Set(permissions);
@@ -309,8 +307,8 @@ export function AppShell({
 
           <QuickActions />
 
-          {/* Recherche globale (basique) */}
-          <GlobalSearch />
+          {/* Recherche globale : un seul champ, les mêmes résultats partout */}
+          <SpaceSearch variant="compact" />
 
           <NotificationsBell />
 

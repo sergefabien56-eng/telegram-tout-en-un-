@@ -31,7 +31,7 @@ export type NavItem = {
 };
 
 export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
-  { key: "A", label: "Tableau de bord" },
+  { key: "A", label: "Pilotage" },
   { key: "B", label: "Ventes et commandes" },
   { key: "C", label: "Boutiques et plateformes" },
   { key: "D", label: "Catalogue et stocks" },
@@ -42,56 +42,50 @@ export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
 ];
 
 export const NAV_ITEMS: NavItem[] = [
-  // --- A. Tableau de bord -------------------------------------------------
+  // --- A. Pilotage --------------------------------------------------------
+  // Chaque entrée pointe vers **une page** : plus de lien vers une ancre
+  // d'une page unique ( sept liens, un seul écran ).
   {
     key: "dashboard",
-    label: "Vue d'ensemble",
+    label: "Tableau de bord",
     href: "/dashboard",
     icon: "LayoutDashboard",
     section: "A",
   },
   {
-    key: "dash-search",
-    label: "Recherche dans mon espace",
-    href: "/dashboard#recherche",
-    icon: "Search",
+    key: "alerts",
+    label: "Alertes",
+    href: "/alertes",
+    icon: "Bell",
     section: "A",
   },
   {
-    key: "dash-appearance",
-    label: "Apparence",
-    href: "/dashboard#apparence",
-    icon: "Palette",
-    section: "A",
-  },
-  {
-    key: "dash-finance",
-    label: "Indicateurs financiers",
-    href: "/dashboard#indicateurs-financiers",
-    icon: "Wallet",
-    section: "A",
-    permission: "finance:read",
-  },
-  {
-    key: "dash-performance",
-    label: "Performances globales",
-    href: "/dashboard#performances",
+    key: "performances",
+    label: "Performances",
+    href: "/performances",
     icon: "BarChart3",
     section: "A",
     permission: "reports:read",
   },
   {
-    key: "dash-activity",
-    label: "Activités récentes",
-    href: "/dashboard#activites",
+    key: "activity",
+    label: "Activités",
+    href: "/activites",
     icon: "Activity",
     section: "A",
   },
   {
-    key: "dash-alerts",
-    label: "Alertes importantes",
-    href: "/dashboard#alertes",
-    icon: "Bell",
+    key: "search",
+    label: "Recherche",
+    href: "/recherche",
+    icon: "Search",
+    section: "A",
+  },
+  {
+    key: "appearance",
+    label: "Apparence",
+    href: "/apparence",
+    icon: "Palette",
     section: "A",
   },
 

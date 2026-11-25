@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { listUserShops } from "@/lib/shops";
+import { connectionStates } from "@/lib/connection-state";
 import { reportCatalog, reportSales } from "@/lib/reports";
 import { listPayoutStatements, sumStatements } from "@/lib/payments";
 
@@ -20,6 +21,8 @@ export type DashboardAlert = {
 
 export type DashboardOverview = {
   period: { days: number; from: string; to: string };
+  /** Périmètre réellement appliqué : les chiffres portent toujours sur ces boutiques. */
+  scope: { shopIds: string[]; names: string[]; aggregate: boolean };
   kpis: {
     revenueMinor: number;
     currency: string;
@@ -52,23 +55,41 @@ export type DashboardOverview = {
     orders: number;
     stockUnits: number;
     lowStock: number;
+    /** État de connexion factuel (jamais un statut stocké). */
+    connection: { label: string; detail: string; operational: boolean };
+    lastSyncAt: Date | null;
+    lastSyncStatus: string | null;
   }[];
   alerts: DashboardAlert[];
   activity: { action: string; result: string; createdAt: Date }[];
 };
 
-export async function dashboardOverview(userId: string, days = 30): Promise<DashboardOverview> {
+/**
+ * Tableau de bord — uniquement des chiffres déjà enregistrés.
+ *
+ * @param shopIds Périmètre à afficher. **Indispensable** : sans lui, le
+ *                tableau de bord agrégerait toutes les boutiques et le
+ *                sélecteur de boutique n'aurait aucun effet. La liste est
+ *                toujours recoupée avec les boutiques réellement accessibles.
+ */
+export async function dashboardOverview(
+  userId: string,
+  days = 30,
+  shopIds?: string[],
+): Promise<DashboardOverview> {
   const db = getDb();
-  const shops = await listUserShops(userId);
-  const shopIds = shops.map((shop) => shop.id);
+  const accessible = await listUserShops(userId);
+  const shops = shopIds ? accessible.filter((shop) => shopIds.includes(shop.id)) : accessible;
+  const scopeIds = shops.map((shop) => shop.id);
 
   const to = new Date();
   const from = new Date(to.getTime() - (days - 1) * DAY_MS);
   from.setUTCHours(0, 0, 0, 0);
 
-  if (shopIds.length === 0) {
+  if (scopeIds.length === 0) {
     return {
       period: { days, from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) },
+      scope: { shopIds: [], names: [], aggregate: false },
       kpis: {
         revenueMinor: 0,
         currency: "XOF",
@@ -127,6 +148,9 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
       rows: await listPayoutStatements(shop.id, 50),
     })),
   );
+
+  // État de connexion **factuel** par boutique (jamais un statut stocké).
+  const connections = await connectionStates(scopeIds);
   type FinanceAccumulator = {
     revenueMinor: number;
     feesMinor: number;
@@ -140,48 +164,49 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
     statementTo: string | null;
   };
 
-  const finances = statementsByShop.reduce<FinanceAccumulator>((acc, row) => {
-    const totals = sumStatements(row.rows);
-    const from = row.rows.reduce<Date | null>(
-      (min, item) =>
-        min === null || item.remoteCreatedAt < min ? item.remoteCreatedAt : min,
-      null,
-    );
-    const to = row.rows.reduce<Date | null>(
-      (max, item) =>
-        max === null || item.remoteCreatedAt > max ? item.remoteCreatedAt : max,
-      null,
-    );
-    return {
-      revenueMinor: acc.revenueMinor + totals.revenue,
-      feesMinor: acc.feesMinor + totals.fees,
-      shipmentFeesMinor: acc.shipmentFeesMinor + totals.shipmentFees,
-      refundsMinor: acc.refundsMinor + totals.refunds,
-      netMinor: acc.netMinor + totals.net,
-      paidMinor: acc.paidMinor + totals.paid,
-      unpaid: acc.unpaid || totals.unpaid,
-      statements: acc.statements + row.rows.length,
-      statementFrom:
-        from && (!acc.statementFrom || from < new Date(acc.statementFrom))
-          ? from.toISOString()
-          : acc.statementFrom,
-      statementTo:
-        to && (!acc.statementTo || to > new Date(acc.statementTo))
-          ? to.toISOString()
-          : acc.statementTo,
-    };
-  }, {
-    revenueMinor: 0,
-    feesMinor: 0,
-    shipmentFeesMinor: 0,
-    refundsMinor: 0,
-    netMinor: 0,
-    paidMinor: 0,
-    unpaid: false,
-    statements: 0,
-    statementFrom: null,
-    statementTo: null,
-  });
+  const finances = statementsByShop.reduce<FinanceAccumulator>(
+    (acc, row) => {
+      const totals = sumStatements(row.rows);
+      const from = row.rows.reduce<Date | null>(
+        (min, item) => (min === null || item.remoteCreatedAt < min ? item.remoteCreatedAt : min),
+        null,
+      );
+      const to = row.rows.reduce<Date | null>(
+        (max, item) => (max === null || item.remoteCreatedAt > max ? item.remoteCreatedAt : max),
+        null,
+      );
+      return {
+        revenueMinor: acc.revenueMinor + totals.revenue,
+        feesMinor: acc.feesMinor + totals.fees,
+        shipmentFeesMinor: acc.shipmentFeesMinor + totals.shipmentFees,
+        refundsMinor: acc.refundsMinor + totals.refunds,
+        netMinor: acc.netMinor + totals.net,
+        paidMinor: acc.paidMinor + totals.paid,
+        unpaid: acc.unpaid || totals.unpaid,
+        statements: acc.statements + row.rows.length,
+        statementFrom:
+          from && (!acc.statementFrom || from < new Date(acc.statementFrom))
+            ? from.toISOString()
+            : acc.statementFrom,
+        statementTo:
+          to && (!acc.statementTo || to > new Date(acc.statementTo))
+            ? to.toISOString()
+            : acc.statementTo,
+      };
+    },
+    {
+      revenueMinor: 0,
+      feesMinor: 0,
+      shipmentFeesMinor: 0,
+      refundsMinor: 0,
+      netMinor: 0,
+      paidMinor: 0,
+      unpaid: false,
+      statements: 0,
+      statementFrom: null,
+      statementTo: null,
+    },
+  );
 
   // Tâches en échec : alertes prioritaires.
   const failedJobs = await db
@@ -191,7 +216,7 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
       createdAt: schema.jobs.createdAt,
     })
     .from(schema.jobs)
-    .where(inArray(schema.jobs.shopId, shopIds))
+    .where(inArray(schema.jobs.shopId, scopeIds))
     .orderBy(desc(schema.jobs.createdAt))
     .limit(50);
 
@@ -200,7 +225,7 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
   const memberUsers = await db
     .select({ userId: schema.shopMembers.userId })
     .from(schema.shopMembers)
-    .where(inArray(schema.shopMembers.shopId, shopIds));
+    .where(inArray(schema.shopMembers.shopId, scopeIds));
   const userIds = [...new Set(memberUsers.map((row) => row.userId))];
 
   const activityRows = await db
@@ -212,7 +237,7 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
     .from(schema.auditLogs)
     .where(
       or(
-        inArray(schema.auditLogs.shopId, shopIds),
+        inArray(schema.auditLogs.shopId, scopeIds),
         userIds.length > 0 ? inArray(schema.auditLogs.userId, userIds) : undefined,
       ),
     )
@@ -273,10 +298,17 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
     },
+    scope: {
+      shopIds: scopeIds,
+      names: shops.map((shop) => shop.name),
+      aggregate: scopeIds.length > 1,
+    },
     kpis,
     finances,
     shops: salesByShop.map((row) => {
       const catalog = catalogByShop.find((item) => item.id === row.id)?.catalog;
+      const connection = connections.get(row.id);
+      const shop = shops.find((item) => item.id === row.id);
       return {
         id: row.id,
         name: row.name,
@@ -284,6 +316,13 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
         orders: row.sales.totals.orders,
         stockUnits: catalog?.stockUnits ?? 0,
         lowStock: catalog?.lowStock ?? 0,
+        connection: {
+          label: connection?.label ?? "État inconnu",
+          detail: connection?.detail ?? "État de connexion non calculé.",
+          operational: connection?.operational ?? false,
+        },
+        lastSyncAt: shop?.lastSyncAt ?? null,
+        lastSyncStatus: shop?.lastSyncStatus ?? null,
       };
     }),
     alerts,

@@ -17,6 +17,37 @@ export type ScopedShop = {
 };
 
 /**
+ * Périmètre du tableau de bord : **toutes** les boutiques dont l'utilisateur
+ * est membre, et la boutique courante (cookie).
+ *
+ * Le tableau de bord regroupe des rubriques de permissions différentes
+ * (ventes, catalogue, stocks, finances, rapports) : filtrer ici par une
+ * seule permission exclurait des rubriques légitimes. Chaque bloc de la page
+ * vérifie ensuite sa propre permission.
+ */
+export async function memberScope(
+  userId: string,
+): Promise<{ total: number; allowed: ScopedShop[]; currentShopId: string | null }> {
+  const all = await listUserShops(userId);
+  const allowed: ScopedShop[] = all.map((shop) => ({
+    id: shop.id,
+    name: shop.name,
+    platform: shop.platform,
+    country: shop.country ?? null,
+    currency: shop.currency ?? "XOF",
+    remoteShopId: shop.remoteShopId ?? null,
+    remoteShopName: shop.remoteShopName ?? null,
+    remoteLinkedAt: shop.remoteLinkedAt ?? null,
+    lastSyncAt: shop.lastSyncAt ?? null,
+    lastSyncStatus: shop.lastSyncStatus ?? null,
+  }));
+  const cookieShopId = (await cookies()).get(SHOP_COOKIE)?.value ?? null;
+  const currentShopId =
+    allowed.find((shop) => shop.id === cookieShopId)?.id ?? allowed[0]?.id ?? null;
+  return { total: all.length, allowed, currentShopId };
+}
+
+/**
  * Boutiques accessibles à l'utilisateur pour une permission donnée.
  * Le périmètre vient toujours de la base : jamais de saisie libre.
  */

@@ -17,6 +17,10 @@
 | 9   | [plan-phase-1.md](plan-phase-1.md)                 | Lots, tests, démonstration, risques, questions ouvertes           |
 | 10  | [sauvegarde.md](sauvegarde.md)                     | Sauvegarde planifiée, rétention, restauration, export R2/Drive    |
 | 11  | [audit-multiboutique.md](audit-multiboutique.md)   | Audit technique multiboutique : causes, corrections, preuves      |
+| 12  | [audit-refonte-pilotage.md](audit-refonte-pilotage.md) | Audit global de l'application (architecture, navigation, UX, responsive, Mini App, permissions, données) |
+| 13  | [proposition-architecture-fonctionnelle.md](proposition-architecture-fonctionnelle.md) | Proposition de refonte et architecture fonctionnelle cible |
+| 14  | [conception-pilotage.md](conception-pilotage.md)     | Conception de la nouvelle organisation du tableau de bord et du pilotage |
+| 15  | [matrice-etat-regressions.md](matrice-etat-regressions.md) | Matrice opérationnel / corrigé / nouveau / à venir, tests multi-support, régressions |
 
 ## Maquettes (présentation)
 
@@ -52,4 +56,5 @@
 - ✅ **Déploiement automatique** GitHub → Render (uniquement après une CI verte).
 - ✅ **CI + 24 tests E2E verts**, dont le parcours 2FA corrigé en production.
 - ✅ **Audit technique multiboutique** ([audit-multiboutique.md](audit-multiboutique.md)) : isolation garantie, états de connexion factuels, preuve de cohérence Jumia ↔ application (volumes, montants des commandes et des relevés au centime), historique quotidien et détection de dérive, diagnostic intégré `/admin/diagnostics`.
+- ✅ **Refonte globale du pilotage** ([audit-refonte-pilotage.md](audit-refonte-pilotage.md) → [proposition-architecture-fonctionnelle.md](proposition-architecture-fonctionnelle.md) → [conception-pilotage.md](conception-pilotage.md) → [matrice-etat-regressions.md](matrice-etat-regressions.md)) : le tableau de bord n'agrège plus les boutiques (périmètre explicite dans l'URL), chaque rubrique de pilotage a sa propre page, recherche transverse et thème centralisés, état « À venir » verrouillé par test, contraste WCAG AA corrigé. **243 tests + 57 E2E verts.**
 - ⬜ **Reste à faire** : comparaison des montants de relevé au centime (les volumes sont prouvés, les montants restent à prouver).

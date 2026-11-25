@@ -64,6 +64,8 @@ npm run dev                    # http://localhost:3000
 | `node scripts/telegram-bot-setup.mjs` | Commandes + bouton de menu du bot |
 | `node scripts/shops-smoke.mjs <url>` | 12 vérifications API boutiques |
 | `node scripts/render-deploy.mjs` | Déploiement Render piloté par API |
+| `node scripts/demo-account.mjs` | Prépare un compte de démonstration (captures d'écran) |
+| `node scripts/captures.mjs [dossier]` | Captures Web / mobile / Mini App de la refonte |
 
 > Les sauvegardes partent dans `backups/` (**hors git**) et ne doivent jamais être
 > commitées ni envoyées sur un dépôt public.
@@ -103,9 +105,32 @@ e2e/                   # tests Playwright
 ## 7. Tests
 
 ```bash
-npm test          # Vitest
+npm test          # Vitest (unitaires + intégration sur base réelle)
 npm run e2e       # Playwright (npx playwright install au préalable)
 ```
+
+État au 22/11/2026 : **243 tests réussis / 2 ignorés**, **57 E2E réussis**, typecheck, lint et build verts.
+
+Le périmètre multi-boutiques est couvert par un test d'intégration dédié
+(`src/lib/__tests__/dashboard-scope.integration.test.ts`) : une boutique inaccessible
+ne peut jamais élargir le périmètre, et l'agrégat doit valoir la somme des boutiques.
+
+## 7 bis. Pilotage (tableau de bord et rubriques)
+
+Le tableau de bord affiche **toujours un périmètre explicite** : la boutique courante
+par défaut, `?boutique=<id>` pour une autre, `?boutique=toutes` pour l'agrégat.
+Une boutique hors périmètre produit un **refus affiché**, jamais un tableau vide.
+
+| Rubrique | Page | Rôle |
+| --- | --- | --- |
+| Tableau de bord | `/dashboard` | État du périmètre affiché : KPI, alertes, boutiques, activités |
+| Performances | `/performances` | Comparaison des boutiques et évolution journalière |
+| Alertes | `/alertes` | Cohérence, stocks, versements, synchronisations — une seule file d'attente |
+| Activités | `/activites` | Journal des 100 dernières actions |
+| Recherche | `/recherche` | Recherche transverse (boutiques, produits, SKU) |
+| Apparence | `/apparence` | Thème clair / sombre / système |
+
+Documentation : [audit](docs/audit-refonte-pilotage.md) · [proposition](docs/proposition-architecture-fonctionnelle.md) · [conception](docs/conception-pilotage.md) · [matrice et régressions](docs/matrice-etat-regressions.md) · [captures](docs/captures/).
 
 ## 8. Base de données (Neon)
 

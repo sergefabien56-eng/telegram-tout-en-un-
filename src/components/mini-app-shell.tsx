@@ -80,7 +80,7 @@ export function MiniAppShell({
   const tabs = [
     { key: "dashboard", label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
     { key: "boutiques", label: "Boutiques", href: "/boutiques", icon: Store },
-    { key: "notifications", label: "Alertes", href: "/notifications", icon: Bell },
+    { key: "alerts", label: "Alertes", href: "/alertes", icon: Bell },
     { key: "securite", label: "Sécurité", href: "/securite", icon: ShieldCheck },
   ];
 

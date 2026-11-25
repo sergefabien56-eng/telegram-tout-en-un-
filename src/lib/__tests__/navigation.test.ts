@@ -22,13 +22,12 @@ describe("navigation.config", () => {
   it("couvre les rubriques demandées par la mission Mini App", () => {
     const labels = new Set(NAV_ITEMS.map((item) => item.label));
     for (const attendu of [
-      "Vue d'ensemble",
-      "Recherche dans mon espace",
+      "Tableau de bord",
+      "Recherche",
       "Apparence",
-      "Indicateurs financiers",
-      "Performances globales",
-      "Activités récentes",
-      "Alertes importantes",
+      "Performances",
+      "Activités",
+      "Alertes",
       "Toutes les commandes",
       "À traiter",
       "Expédiées",
