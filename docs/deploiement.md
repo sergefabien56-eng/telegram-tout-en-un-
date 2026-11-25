@@ -69,6 +69,26 @@ il se régénère dans le même écran si tu soupçonnes une fuite.
 Vérifier que ça a marché : onglet **Actions** du dépôt → workflow « Déploiement Render ».
 Échec fréquent : secret absent → le job affiche explicitement l'URL où le créer.
 
+### 2ter. Ce que « déploiement réussi » veut dire (et ne veut pas dire)
+
+Pendant un déploiement, **l'ancienne instance Render continue de répondre** : un simple
+`/api/health` qui renvoie `{"status":"ok"}` ne prouve donc *rien* — il peut s'agir de l'ancien
+code, encore en ligne, pendant que le nouveau build se compile. Constaté le 25/11/2026 : le
+workflow déclarait « succès » en 7 secondes alors que `/boutiques/ajouter` renvoyait encore 404
+sur l'ancienne instance.
+
+La vérification est donc **adossée au commit** :
+
+- `/api/health` publie le commit réellement déployé (`RENDER_GIT_COMMIT`, fourni par Render) ;
+- le workflow attend que l'instance en ligne serve **le commit attendu** (celui de la CI verte) ;
+- si un push plus récent a déjà été déployé entre-temps, le commit en ligne est accepté s'il est
+  **postérieur** à l'attendu (vérifié via l'API `compare` de GitHub) ;
+- si le commit n'est pas communiqué, le workflow retombe sur l'ancien contrôle et **le dit**
+  dans le journal.
+
+Conséquence pratique : un « Déploiement Render » vert signifie « le **nouveau** code est en
+ligne », et non plus « une instance répond ».
+
 ## 3. Variables d'environnement de production
 
 | Variable | Où la trouver |
