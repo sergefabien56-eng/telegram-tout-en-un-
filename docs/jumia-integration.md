@@ -100,7 +100,25 @@ Jumia expose **deux** API distinctes. Il faut choisir (ou combiner) selon le pay
 9. **Reprise** : tout traitement est rejouable ; `idempotency_key`.
 10. **Webhooks** : optionnels mais recommandés en complément du polling (events `onOrderCreated`, `onOrderItemsStatusChanged`, etc. [7]) ; ils **ne remplacent pas** une sync périodique de contrôle.
 
-### 3.1 Statuts boutique (rappel cahier des charges)
+### 3.1 Synchronisation automatique à l'attachement
+
+Dès qu'une boutique est rattachée (assistant « Créer et rattacher » ou
+rattachement depuis la page Boutiques), une **synchronisation complète** part
+en arrière-plan, juste après la réponse HTTP :
+
+1. catalogue + stocks (`/catalog/products`, `/catalog/stock`) ;
+2. commandes sur 90 jours (`/orders`, 5 pages × 200) ;
+3. relevés de versement (`/payout-statement`, fenêtre Jumia par défaut).
+
+Chaque étape est **isolée** : l'échec d'une étape n'annule pas les autres, le
+détail est journalisé (`jobs`, `audit_logs`). Le vendeur n'a donc jamais à
+lancer une synchronisation à la main pour voir ses données — l'écran
+**Boutiques → Synchronisations** permet de la relancer à tout moment
+(bouton « Tout synchroniser »).
+
+Module : `src/lib/full-sync.ts` · Route : `POST /api/shops/:id/sync`.
+
+### 3.2 Statuts boutique (rappel cahier des charges)
 
 `Connecté` · `Synchronisation en cours` · `Synchronisé` · `Synchronisation partielle` · `Erreur` · `Reconnexion nécessaire`.
 

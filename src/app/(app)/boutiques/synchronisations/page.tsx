@@ -1,6 +1,7 @@
 import { ScopeNotice, ShopSelect } from "@/components/shop-select";
+import { ShopFullSyncButton } from "@/components/shop-full-sync-button";
 import Link from "next/link";
-import { shopCounts } from "@/lib/insights";
+import { shopCounts, shopSyncHistory } from "@/lib/insights";
 import { readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
@@ -33,6 +34,7 @@ export default async function SynchronisationsPage({
 
   const shopIds = resolveShopIds(values.boutique, scope.allowed);
   const counts = await shopCounts(shopIds);
+  const history = await shopSyncHistory(shopIds);
   const rows = scope.allowed.filter((shop) => shopIds.includes(shop.id));
 
   return (
@@ -80,26 +82,48 @@ export default async function SynchronisationsPage({
                     <td className="py-2.5 pr-3 text-muted">{count?.orders ?? 0}</td>
                     <td className="py-2.5 pr-3 text-muted">{count?.variants ?? 0}</td>
                     <td className="py-2.5 pr-3 text-muted">{count?.statements ?? 0}</td>
+                    <td className="py-2.5 pr-3 text-xs text-muted">
+                      <ul className="space-y-0.5">
+                        {(
+                          [
+                            ["Catalogue", history.get(shop.id)?.catalog],
+                            ["Commandes", history.get(shop.id)?.orders],
+                            ["Relevés", history.get(shop.id)?.payments],
+                          ] as [string, Date | null | undefined][]
+                        ).map(([label, date]) => (
+                          <li key={label}>
+                            {label} :{" "}
+                            {date ? new Date(date).toLocaleString("fr-FR") : "jamais"}
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
                     <td className="py-2.5 text-right">
-                      <div className="flex flex-wrap justify-end gap-2 text-xs">
-                        <Link
-                          href="/commandes"
-                          className="focusable text-primary-600 hover:underline"
-                        >
-                          Commandes
-                        </Link>
-                        <Link
-                          href="/produits"
-                          className="focusable text-primary-600 hover:underline"
-                        >
-                          Catalogue
-                        </Link>
-                        <Link
-                          href="/finances"
-                          className="focusable text-primary-600 hover:underline"
-                        >
-                          Finances
-                        </Link>
+                      <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
+                        <ShopFullSyncButton
+                          shopId={shop.id}
+                          linked={Boolean(shop.remoteShopId)}
+                        />
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Link
+                            href="/commandes"
+                            className="focusable text-primary-600 hover:underline"
+                          >
+                            Commandes
+                          </Link>
+                          <Link
+                            href="/produits"
+                            className="focusable text-primary-600 hover:underline"
+                          >
+                            Catalogue
+                          </Link>
+                          <Link
+                            href="/finances"
+                            className="focusable text-primary-600 hover:underline"
+                          >
+                            Finances
+                          </Link>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -110,7 +134,8 @@ export default async function SynchronisationsPage({
         </div>
         <p className="mt-3 text-xs text-muted">
           Les volumes comptent les lignes enregistrées ; sans synchronisation, ils restent à zéro,
-          sans estimation.
+          sans estimation. « Tout synchroniser » relit le catalogue, les commandes (90 jours) et les
+          relevés de versement de la boutique.
         </p>
       </section>
     </div>

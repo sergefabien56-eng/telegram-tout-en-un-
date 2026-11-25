@@ -154,7 +154,8 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
       }
       setStatus({
         kind: "success",
-        message: "Boutique créée et rattachée. Elle apparaît dans « Toutes les boutiques ».",
+        message:
+          "Boutique créée et rattachée. Elle apparaît dans « Toutes les boutiques » ; ses données réelles (catalogue, commandes, relevés) se chargent automatiquement.",
       });
       await load();
       // La page doit immédiatement montrer la nouvelle boutique (sans rechargement).

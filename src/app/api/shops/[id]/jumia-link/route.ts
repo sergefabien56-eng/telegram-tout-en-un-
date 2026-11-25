@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
@@ -7,6 +8,7 @@ import { getShopAccess } from "@/lib/permissions";
 import { JumiaError } from "@/lib/jumia/client";
 import { isOwnedBy, resolveDefaultAccount } from "@/lib/jumia/accounts";
 import { listRemoteShops } from "@/lib/jumia/shops";
+import { syncShopFullyInBackground } from "@/lib/full-sync";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -96,6 +98,12 @@ export async function POST(request: Request, { params }: Params) {
       ip: requestIp(request),
       userAgent: requestUserAgent(request),
       metadata: { remoteShopId: remote.id, remoteShopName: remote.name },
+    });
+
+    // Boutique rattachée : on récupère tout de suite ses données réelles
+    // (catalogue, commandes, relevés) pour qu'elle ne s'affiche pas à zéro.
+    after(async () => {
+      await syncShopFullyInBackground({ userId: user.id, shopId: id, days: 90 });
     });
 
     return ok(updated[0] ?? null);

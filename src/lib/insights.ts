@@ -161,3 +161,39 @@ export async function rentability(
     currency: row.currencies === 1 && row.currency ? row.currency : "",
   }));
 }
+
+/**
+ * Dernière synchronisation réussie par boutique et par type
+ * (catalogue, commandes, relevés). Données réelles issues de la table `jobs`.
+ */
+export async function shopSyncHistory(
+  shopIds: string[],
+): Promise<Map<string, { catalog: Date | null; orders: Date | null; payments: Date | null }>> {
+  const empty = new Map<string, { catalog: Date | null; orders: Date | null; payments: Date | null }>();
+  if (shopIds.length === 0) return empty;
+  const db = getDb();
+
+  const rows = await db
+    .select({
+      shopId: schema.jobs.shopId,
+      type: schema.jobs.type,
+      createdAt: schema.jobs.createdAt,
+      status: schema.jobs.status,
+    })
+    .from(schema.jobs)
+    .where(inArray(schema.jobs.shopId, shopIds))
+    .orderBy(desc(schema.jobs.createdAt));
+
+  for (const id of shopIds) {
+    empty.set(id, { catalog: null, orders: null, payments: null });
+  }
+  for (const row of rows) {
+    if (!row.shopId || row.status !== "done") continue;
+    const entry = empty.get(row.shopId);
+    if (!entry) continue;
+    if (row.type === "catalog" && !entry.catalog) entry.catalog = row.createdAt;
+    if (row.type === "orders" && !entry.orders) entry.orders = row.createdAt;
+    if (row.type === "payments" && !entry.payments) entry.payments = row.createdAt;
+  }
+  return empty;
+}

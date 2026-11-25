@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDb, schema } from "@/db";
-import { listCategories, rentability, shopCounts } from "@/lib/insights";
+import { listCategories, rentability, shopCounts, shopSyncHistory } from "@/lib/insights";
 import { listVariants, setPurchasePrice } from "@/lib/catalog";
 
 /** Agrégats de consultation sur la base réelle (ignorés en CI). */
@@ -19,6 +19,22 @@ describe.skipIf(!hasDb)("informations de gestion (base réelle)", () => {
     // Une boutique inconnue reste à zéro.
     const vide = await shopCounts([]);
     expect(vide.size).toBe(0);
+  });
+
+  it("retombe la dernière synchronisation de chaque type par boutique", async () => {
+    const db = getDb();
+    const [shop] = await db.select({ id: schema.shops.id }).from(schema.shops).limit(1);
+    if (!shop) return;
+
+    const history = await shopSyncHistory([shop.id]);
+    const entry = history.get(shop.id);
+    expect(entry).toBeDefined();
+    // Une boutique sans synchronisation a des dates nulles, jamais de date inventée.
+    for (const value of Object.values(entry ?? {})) {
+      expect(value === null || value instanceof Date).toBe(true);
+    }
+    // Une liste vide ne renvoie rien.
+    expect((await shopSyncHistory([])).size).toBe(0);
   });
 
   it("regroupe les catégories réellement présentes", async () => {

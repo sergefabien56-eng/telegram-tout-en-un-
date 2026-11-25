@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { audit } from "@/lib/audit";
 import { fail, ok, requestIp, requestUserAgent } from "@/lib/http";
 import { getSessionUser } from "@/lib/session";
 import { attachRemoteShop, isOwnedBy } from "@/lib/jumia/accounts";
+import { syncShopFullyInBackground } from "@/lib/full-sync";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -70,6 +72,12 @@ export async function POST(
     ip: requestIp(request),
     userAgent: requestUserAgent(request),
     metadata: { accountId: id, remoteShopId },
+  });
+
+  // La boutique venant d'être rattachée récupère ses données réelles sans
+  // action du vendeur : la synchronisation part juste après la réponse.
+  after(async () => {
+    await syncShopFullyInBackground({ userId: user.id, shopId: result.shop.id, days: 90 });
   });
 
   return ok(result.shop, { status: 201 });
