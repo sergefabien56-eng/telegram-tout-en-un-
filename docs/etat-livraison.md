@@ -35,12 +35,33 @@ Migrations `0016` (suivi des publications) et `0017` (référentiel catégories)
 production. `product_publications` contient **0 ligne** : aucun produit n'a été envoyé à Jumia,
 aucun quota d'écriture n'a été consommé.
 
-## Point d'attention résolu
+## Comptes vendeurs Jumia connectés
 
-Le workflow de déploiement déclarait « succès » en quelques secondes : l'ancienne instance Render
-continuait de répondre pendant que le nouveau build se compilait (constaté : `/boutiques/ajouter`
-renvoyait 404). La vérification est désormais adossée au commit déployé — voir `docs/deploiement.md`
-§ 2ter.
+| Compte           | Boutique    | Identifiant distant                    | Clients commerciaux | État     |
+| ---------------- | ----------- | -------------------------------------- | ------------------- | -------- |
+| MaxiShopsCI      | MaxiShopsCI | `58b3b1f5-ccbb-41e8-be72-af4b843e01fc` | `jumia-ci`          | actif ✅ |
+| Compte principal | NKSF SHOP   | `eb47fa58-891c-406c-a799-1303dcbd4f1b` | `jumia-ci`          | actif ✅ |
+
+Les refresh tokens sont chiffrés (AES-256-GCM) et ne sont jamais journalisés : seul leur
+empreinte SHA-256 peut l'être. `scripts/connect-jumia-account.mjs` permet de reconnecter un
+compte, de contrôler le jeton stocké et de relire la liste des boutiques distantes.
+
+## Référentiel des catégories
+
+Chargé pour les deux boutiques : **27 147 catégories**, chacune avec son ensemble d'attributs,
+271 pages parcourues, état `complete`. C'est ce qui permet de choisir une catégorie réelle et de
+valider les attributs avant publication.
+
+## Points d'attention résolus
+
+1. Le workflow de déploiement déclarait « succès » en quelques secondes : l'ancienne instance
+   Render continuait de répondre pendant que le nouveau build se compilait (constaté :
+   `/boutiques/ajouter` renvoyait 404). La vérification est désormais adossée au commit déployé —
+   voir `docs/deploiement.md` § 2ter.
+2. `app_settings.value` est un `jsonb` : la valeur est relue **déjà décodée** (un objet), alors
+   que la lecture de l'état du chargement n'acceptait qu'une chaîne. L'état était donc perdu et
+   un chargement terminé restait affiché comme « en cours », avec un rafraîchissement de
+   l'interface toutes les 5 secondes. Corrigé par `parseCatalogSyncState` (4 tests unitaires).
 
 ## Reste à faire, le cas échéant
 
