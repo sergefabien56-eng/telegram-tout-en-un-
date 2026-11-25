@@ -169,11 +169,18 @@ reste ignoré tant que `R2_BUCKET` n'est pas défini.
 Un exemplaire est déposé dans le Drive connecté à ce compte, pour survivre
 à une perte de la base _et_ du dépôt.
 
-| Date             | Fichier                             | Taille   | SHA-256                                                            |
-| ---------------- | ----------------------------------- | -------- | ------------------------------------------------------------------ |
-| 2026-11-24 07:56 | `backup-2026-11-24-07-56-51.sql.gz` | 11 122 o | `ff4e48fc8426fc4a3f28936faf6835d981903c1984be36a253263cb240bca02b` |
+| Date             | Fichier                             | Taille    | SHA-256                                                            |
+| ---------------- | ----------------------------------- | --------- | ------------------------------------------------------------------ |
+| 2026-11-25 09:29 | `backup-2026-11-25-09-29-52.sql.gz` | 228 226 o | `3ac8ec84cd584d7ab0e9efb0da3dfc1455bb205e477b990edba17098d7c5d9eb` |
+| 2026-11-24 07:56 | `backup-2026-11-24-07-56-51.sql.gz` | 11 122 o  | `ff4e48fc8426fc4a3f28936faf6835d981903c1984be36a253263cb240bca02b` |
 
-Lien : <https://drive.google.com/file/d/1CvXVyP8itNw-nGjFhSlnjqE8lCAnHo6V/view>
+Lien (exemplaire courant) :
+<https://drive.google.com/file/d/1ryuJsua7HBtXYh4PiYXQvOwmzT3rAOEo/view>
+
+L'exemplaire du **25/11/2026 à 09:29** a été produit **après** la migration
+`0015` (index de déduplication par destinataire + canal des notifications) et
+**avant** la livraison des alertes de cohérence : c'est l'état de la base au
+moment du commit.
 
 **Après chaque dépôt d'un dump, ajoutez ici la date, le nom, la taille et le
 SHA-256**, et supprimez l'exemplaire précédent. C'est le seul endroit où la
