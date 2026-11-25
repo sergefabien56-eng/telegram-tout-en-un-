@@ -477,3 +477,26 @@ Le message de l'API était **perdu** : l'interface n'affichait que le code HTTP,
 | `scripts/probe-jumia-orders-pagination.mjs`   | les clés réellement renvoyées : `orders`, `nextToken`, `isLastPage`       |
 | `scripts/probe-jumia-orders-422.mjs`          | la règle « un seul filtre par requête », et son refus en 422              |
 | `src/lib/__tests__/order-sync-window.test.ts` | 6 tests : deux requêtes distinctes, fusion sans doublon, message de l'API |
+
+### 10.4 Vérification en production (25/11/2026, après correctif)
+
+Synchronisation réelle des deux boutiques, par la route de l'application, avec
+`followUpdates: true` — **exactement** le cas qui était refusé :
+
+| Boutique    | HTTP | Commandes lues | Insérées | Mis à jour | Pages | Tronquée | État    |
+| ----------- | ---- | -------------- | -------- | ---------- | ----- | -------- | ------- |
+| MaxiShopsCI | 200  | 64             | 2        | 62         | 2     | non      | `ok` ✅ |
+| NKSF SHOP   | 200  | 26             | 0        | 26         | 2     | non      | `ok` ✅ |
+
+Une seconde synchronisation immédiate est **idempotente** : 0 insertion, compte inchangé
+(195 commandes pour MaxiShopsCI, 124 pour NKSF SHOP).
+
+Répartition des statuts importés :
+
+| Boutique    | Livrées | Échecs | Annulées | Expédiées | Prêtes | Retours | Statuts multiples |
+| ----------- | ------- | ------ | -------- | --------- | ------ | ------- | ----------------- |
+| MaxiShopsCI | 124     | 24     | 34       | 9         | 2      | 1       | 1                 |
+| NKSF SHOP   | 84      | 16     | 15       | 6         | 1      | 2       | 0                 |
+
+« 2 pages » = une page par fenêtre (création, puis mise à jour) : c'est la trace directe de
+la double lecture.

@@ -66,6 +66,20 @@ valider les attributs avant publication.
 ## Reste à faire, le cas échéant
 
 - Envoyer un **vrai** produit à Jumia à la main (quota + secrets) : jamais fait automatiquement.
-- Synchronisation réelle des commandes sur les deux boutiques : jamais exécutée automatiquement.
 - La sauvegarde Google Drive reste bloquée par une limitation de débit de l'API ; la sauvegarde
   locale `backups/backup-2026-11-25-13-59-07.sql.gz` est disponible.
+
+## Synchronisation des commandes — corrigée et vérifiée (25/11/2026)
+
+Jumia refuse (HTTP 422) de filtrer `GET /orders` par création **et** par mise à jour dans la
+même requête, alors que la case « relire aussi les commandes plus anciennes » est proposée par
+défaut : toute synchronisation se faisait refuser. La lecture se fait désormais en deux
+requêtes, fusionnées.
+
+| Boutique    | HTTP | Commandes lues | Insérées | Mis à jour | État | Commandes en base |
+| ----------- | ---- | -------------- | -------- | ---------- | ---- | ----------------- |
+| MaxiShopsCI | 200  | 64             | 2        | 62         | `ok` | 195               |
+| NKSF SHOP   | 200  | 26             | 0        | 26         | `ok` | 124               |
+
+Une seconde synchronisation est idempotente (0 insertion). Détail : `docs/jumia-integration.md`
+§ 5 bis et `docs/matrice-etat-regressions.md` § 10.
