@@ -181,7 +181,6 @@ export const shops = pgTable(
     externalShopId: text("external_shop_id").notNull(),
     country: text("country"),
     currency: text("currency").notNull().default("XOF"),
-    status: text("status").notNull().default("pending"),
     /**
      * Rattachement à la plateforme (Phase 2) : identifiant de la boutique distante,
      * nom lu à la source et date du dernier rattachement. `null` = non rattachée.

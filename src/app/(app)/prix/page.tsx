@@ -5,7 +5,7 @@ import { ScopeNotice } from "@/components/scope-notice";
 import { getShopAccess } from "@/lib/permissions";
 import { listVariants, marginOf } from "@/lib/catalog";
 import { formatMoney, minorUnits } from "@/lib/money";
-import { readSearchValues, resolveShopIds } from "@/lib/order-access";
+import { isRefusedScope, readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -39,7 +39,19 @@ export default async function PrixPage({
       </div>
     );
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
+
+  if (isRefusedScope(values, shopIds)) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-night">Prix d&apos;achat et marge</h1>
+        <p className="text-sm text-danger" role="alert">
+          Cette boutique n&apos;est pas dans votre périmètre : aucune donnée ne peut être affichée.
+        </p>
+      </div>
+    );
+  }
+
   const singleShopId = shopIds.length === 1 ? shopIds[0] : undefined;
   const rows = singleShopId ? await listVariants(singleShopId, 200) : [];
   const access = singleShopId ? await getShopAccess(user.id, singleShopId) : null;
@@ -57,7 +69,11 @@ export default async function PrixPage({
       </div>
 
       <section className="card flex flex-wrap items-end justify-between gap-3 p-5">
-        <ShopSelect shops={scope.allowed} selected={values.boutique} />
+        <ShopSelect
+          shops={scope.allowed}
+          selected={values.boutique}
+          currentShopId={scope.currentShopId}
+        />
         {singleShopId ? (
           <ExportButton
             href={`/api/shops/${singleShopId}/produits/export`}

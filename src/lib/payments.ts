@@ -6,7 +6,15 @@ import { toMinorUnits } from "@/lib/orders";
 
 type StatementRow = typeof payoutStatements.$inferSelect;
 
-function normalizeStatement(input: {
+/**
+ * Normalise un relevé Jumia vers la ligne locale.
+ *
+ * Exportée pour le diagnostic : la preuve de cohérence financière compare
+ * **exactement** ce qu'une relecture de Jumia réécrirait aujourd'hui avec ce
+ * qui est stocké. Même conversion, mêmes règles : l'écart mesuré est donc
+ * réel, jamais un artefact de format.
+ */
+export function normalizePayoutStatement(input: {
   shopId: string;
   raw: Record<string, unknown>;
 }): Omit<StatementRow, "id" | "syncedAt"> | null {
@@ -69,7 +77,7 @@ export async function upsertPayoutStatements(
   let updated = 0;
 
   for (const raw of raws) {
-    const values = normalizeStatement({ shopId, raw });
+    const values = normalizePayoutStatement({ shopId, raw });
     if (!values) continue;
 
     const [known] = await db

@@ -7,7 +7,6 @@ export type ShopHit = {
   platform: string;
   externalShopId: string;
   country: string | null;
-  status: string;
   role: string;
 };
 
@@ -34,7 +33,6 @@ export async function searchUserShops(
       platform: schema.shops.platform,
       externalShopId: schema.shops.externalShopId,
       country: schema.shops.country,
-      status: schema.shops.status,
       role: schema.shopMembers.role,
     })
     .from(schema.shopMembers)

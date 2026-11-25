@@ -106,7 +106,14 @@ export default async function AdminPage() {
                   <tr key={row.id} className="border-b border-border last:border-0">
                     <td className="py-2.5 pr-3 text-night">{row.name}</td>
                     <td className="py-2.5 pr-3">
-                      <span className="badge badge-neutral">{row.status ?? "—"}</span>
+                      <span
+                        className={`badge ${
+                          row.connection.operational ? "badge-neutral" : "badge-neutral"
+                        }`}
+                      >
+                        {row.connection.label}
+                      </span>
+                      <p className="mt-1 text-xs text-muted">{row.connection.detail}</p>
                     </td>
                     <td className="py-2.5 pr-3 text-muted">
                       {row.remoteShopName ?? "Non rattachée"}

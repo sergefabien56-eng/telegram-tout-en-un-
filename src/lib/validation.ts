@@ -89,7 +89,9 @@ export const updateShopSchema = z.object({
   name: shopNameSchema.optional(),
   country: countrySchema,
   currency: currencySchema.optional(),
-  status: z.enum(["pending", "connected", "error", "disconnected"]).optional(),
+  // Le statut d'une boutique n'est pas une donnée saisie : il se calcule
+  // (voir `src/lib/connection-state.ts`). Il ne peut donc pas être écrit
+  // par l'API — c'était une source de vérité concurrente et trompeuse.
 });
 
 export const inviteMemberSchema = z.object({

@@ -6,7 +6,12 @@ import type { ScopedShop } from "@/lib/shop-scope";
 type Props = {
   shops: ScopedShop[];
   selected?: string;
+  /** Boutique courante : périmètre par défaut quand aucun filtre n'est posé. */
+  currentShopId?: string | null;
 };
+
+/** Valeur explicite du filtre « toutes les boutiques ». */
+const ALL_SHOPS = "toutes";
 
 /**
  * Filtre de boutique (une seule à la fois), borné au périmètre autorisé.
@@ -16,13 +21,14 @@ type Props = {
  * « Toutes les boutiques » alors que le vendeur venait d'en choisir une :
  * c'est la source principale de confusion entre boutiques.
  */
-export function ShopSelect({ shops, selected }: Props) {
+export function ShopSelect({ shops, selected, currentShopId }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   if (shops.length <= 1) return null;
 
-  const active = shops.find((shop) => shop.id === selected) ?? null;
+  const effective = selected ?? currentShopId ?? ALL_SHOPS;
+  const active = shops.find((shop) => shop.id === effective) ?? null;
 
   function apply(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -45,11 +51,11 @@ export function ShopSelect({ shops, selected }: Props) {
           Boutique
           <select
             name="boutique"
-            defaultValue={selected ?? ""}
+            defaultValue={effective}
             onChange={(event) => apply(event.target.value)}
             className="focusable rounded-lg border border-border bg-card px-3 py-2 text-sm text-night"
           >
-            <option value="">Toutes ({shops.length})</option>
+            <option value={ALL_SHOPS}>Toutes ({shops.length})</option>
             {shops.map((shop) => (
               <option key={shop.id} value={shop.id}>
                 {shop.name}
@@ -72,8 +78,9 @@ export function ShopSelect({ shops, selected }: Props) {
           </>
         ) : (
           <>
-            Filtre actif : <span className="font-medium text-night">toutes les boutiques</span> —
-            les données sont regroupées, chaque ligne indique sa boutique.
+            Filtre actif :{" "}
+            <span className="font-medium text-night">toutes les boutiques</span> — les données sont
+            regroupées, chaque ligne indique sa boutique.
           </>
         )}
       </p>

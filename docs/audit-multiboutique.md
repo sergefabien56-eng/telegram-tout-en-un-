@@ -19,6 +19,9 @@
 | Diagnostic interne | **Absent** | **Intégré** : `/admin/diagnostics` + `/api/admin/diagnostics`, actions correctives tracées |
 | Tests E2E multiboutiques | **Inexistants** | **Présents** : isolation en base réelle, diagnostic, refus d'accès |
 | Fenêtre de comparaison | **Fausse alerte** (fenêtre rolling ≠ dates Jumia) | **Alignée** sur les jours UTC utilisés par l'API Jumia |
+| Statut de boutique stocké | **Colonne `shops.status`** : source de vérité concurrente | **Supprimée** (migration `0012`) : l'état se calcule |
+| Périmètre par défaut | **Toutes les boutiques** | **La boutique courante**, agrégat sur demande explicite |
+| Preuve financière | **Aucune** (volumes seulement) | **Au centime**, relevé par relevé |
 
 **Preuve sur données réelles (25/11/2026, 2 boutiques connectées) :**
 
@@ -70,6 +73,9 @@ Interface web / Telegram / Mini App
 | B6 | Aucun comparatif source/local | Impossible de prouver que les données sont bien celles de Jumia | Absence d'outil de preuve | `src/lib/coherence.ts` |
 | B7 | Fenêtre de comparaison rolling (90 × 24 h) | Faux positif « 1 commande manquante » alors que 0 | ≠ borne `createdAfter` de l'API (dates UTC) | Fenêtre alignée sur minuit UTC |
 | B8 | `getDb()` appelé avant le garde-fou d'isolation | Le lot mixte était détecté après ouverture de la base | Ordre des opérations | Garde-fou remonté avant `getDb()` |
+| B9 | Colonne `shops.status` posée au rattachement | Source de vérité concurrante : un lecteur pouvait croire la boutique « connectée » sur un statut declaratif | Un statut **déclaré** cohabitait avec l'état réel | Colonne **supprimée** (migration `0012`), état calculé partout |
+| B10 | `resolveShopIds()` : une boutique inconnue ou absente retombait sur **toutes** les boutiques autorisées | Une URL pouvait élargir le périmètre ; l'affichage par défaut mélangeait les boutiques | Absence de périmètre par défaut | Défaut = **boutique courante** ; une boutique non autorisée donne un périmètre **vide** (refus explicite) |
+| B11 | Relevés de versement lus sur une seule page et jamais comparés aux montants stockés | Une dérive financière (ou un relevé manquant) passait inaperçue | Aucun contrôle de cohérence financière | `compareFinancials()` : comparaison au centime, relevé par relevé |
 
 ---
 
@@ -169,7 +175,39 @@ factices des tests E2E sont créées puis **supprimées** par
 | `compte_manquant` | critique | Boutique non comparable (pas de lien ou pas de compte) |
 | `lecture_impossible` | critique | Jumia a refusé la lecture (jeton, quota, réseau) |
 
-### 5.3 Fenêtre de comparaison
+### 5.3 PREUVE FINANCIÈRE (au centime)
+
+`compareFinancials()` (`src/lib/coherence.ts`) compare chaque relevé renvoyé
+par Jumia avec la ligne enregistrée, **relevé par relevé et montant par
+montant** : solde d'ouverture, CA articles, frais de livraison, commissions et
+frais, autres produits, remboursements, solde net, montant versé, plus la
+devise et le statut de paiement.
+
+La conversion passe par `normalizePayoutStatement()` — **exactement** la
+fonction utilisée à l'écriture. Un écart mesuré est donc un écart réel
+(donnée absente, périmée ou mal attribuée), jamais un artefact d'arrondi.
+
+| Mesure | Signification |
+| --- | --- |
+| `compared` | relevés présents des deux côtés |
+| `divergent` | relevés dont au moins un montant diffère |
+| `missing` | relevés chez Jumia mais absents de la base |
+| `extra` | relevés en base mais absents de la lecture Jumia |
+| `local` / `remote` | totaux comparés (CA articles, frais, remboursements, solde net) |
+
+Anomalies dédiées : `montant_divergent` (critique), `releve_manquant`
+(critique), `releve_en_trop` (information), `releve_non_attribuable`
+(avertissement : relevé Jumia sans `shopSid`, donc non attribuable),
+`releve_illisible` (avertissement).
+
+**Preuve sur données réelles (25/11/2026)** :
+
+| Boutique | Relevés comparés | Divergents | CA articles local | CA articles Jumia |
+| --- | --- | --- | --- | --- |
+| MaxiShopsCI | 13 | 0 | 512 449 XOF | 512 449 XOF |
+| NKSF SHOP | 13 | 0 | 454 168 XOF | 454 168 XOF |
+
+### 5.4 Fenêtre de comparaison
 
 L'API Jumia prend `createdAfter` / `createdBefore` sous forme de **dates**.
 La fenêtre est donc calculée en **jours UTC** :
@@ -186,9 +224,43 @@ observé puis corrigé.
 
 ---
 
-## 6. Diagnostic intégré
+## 6. Périmètre mono-boutique et suppression du statut stocké
 
-### 6.1 Accès
+### Le statut stocké a été supprimé
+
+`shops.status` (`pending` / `connected` / `disconnected`) était posé au
+moment du rattachement : c'était une **déclaration**, pas une preuve. La
+colonne est **supprimée** (migration `0012_drop_shop_status.sql`, générée par
+Drizzle, appliquée après sauvegarde `backup-2026-11-25-08-08-43.sql.gz`).
+
+| Avant | Après |
+| --- | --- |
+| `shops.status` (texte libre) | état calculé par `connectionLabelFor()` |
+| `PATCH /api/shops/:id` acceptait `status` | le statut n'est plus modifiable par l'API |
+| `POST /api/shops/:id/disconnect` posait `status = "disconnected"` | la route **débranche réellement** la boutique (lien distant + compte vendeur retirés) ; les données synchronisées sont conservées |
+| Administration : « connectées » = `remoteShopName IS NOT NULL` | Administration : « connectées » = état **opérationnel** |
+
+### Le périmètre par défaut est une seule boutique
+
+`resolveShopIds()` (testé dans `src/lib/__tests__/shop-scope.test.ts`) :
+
+| Situation | Périmètre retenu |
+| --- | --- |
+| `?boutique=<id>` autorisé | cette boutique seule |
+| `?boutique=<id>` **non autorisé** | **vide** → l'écran affiche « cette boutique n'est pas dans votre périmètre » |
+| aucun filtre | **la boutique courante** (celle choisie dans l'en-tête) |
+| `?boutique=toutes` | toutes les boutiques autorisées (agrégat **explicite**) |
+
+Avant, une boutique inconnue ou l'absence de filtre retombaient sur toutes les
+boutiques autorisées : une URL pouvait donc élargir le périmètre, et
+l'affichage par défaut mélangeait les boutiques — ce qui explique la
+confusion signalée par le vendeur.
+
+---
+
+## 7. Diagnostic intégré
+
+### 7.1 Accès
 
 - Écran : `/admin/diagnostics` (section **Administration** → « Diagnostic des
   boutiques »).
@@ -198,7 +270,7 @@ observé puis corrigé.
 - Accès : propriétaires et gestionnaires (`admin:read`). Un autre rôle reçoit
   **403**.
 
-### 6.2 Contenu du rapport
+### 7.2 Contenu du rapport
 
 Pour chaque boutique : état de connexion, volumes locaux, volumes distants,
 écarts, test réseau du compte vendeur, anomalies classées avec **preuve
@@ -206,7 +278,7 @@ chiffrée**, **origine** et **conséquence/action**.
 
 Verdicts : `operationnelle`, `partielle`, `hors_service`.
 
-### 6.3 Action corrective et sauvegardes
+### 7.3 Action corrective et sauvegardes
 
 `repairShop()` (réservé aux propriétaires/gestionnaires) :
 
@@ -225,18 +297,20 @@ autre boutique. Les fichiers de sauvegarde ne sont jamais commités
 
 ---
 
-## 7. Tests
+## 8. Tests
 
-### 7.1 Unitaires
+### 8.1 Unitaires
 
 | Fichier | Objet |
 | --- | --- |
 | `src/lib/__tests__/connection-state.test.ts` | 8 tests : chaque état factuel, y compris « pas de faux vert » |
 | `src/lib/__tests__/isolation-batch.test.ts` | 3 tests : refus des lots multi-boutiques (avant base) |
-| `src/lib/__tests__/isolation-multishop.test.ts` | 5 tests sur base réelle : deux boutiques, aucune contamination |
+| `src/lib/__tests__/isolation-multishop.test.ts` | 5 tests sur base réelle : deux boutiques, aucune contamination (la base est purgée en fin de test) |
+| `src/lib/__tests__/shop-scope.test.ts` | 8 tests : périmètre par défaut mono-boutique, refus d'élargissement |
+| `src/lib/__tests__/financial-proof.test.ts` | 10 tests : la preuve financière **détecte** un montant modifié, un relevé manquant, un relevé surnuméraire, une devise ou un statut de paiement faux |
 | `src/lib/__tests__/shop-guard.test.ts` | lecture des identifiants Jumia, rejet des données étrangères |
 
-### 7.2 E2E
+### 8.2 E2E
 
 | Fichier | Objet |
 | --- | --- |
@@ -244,38 +318,36 @@ autre boutique. Les fichiers de sauvegarde ne sont jamais commités
 | `e2e/boutique-selection.spec.ts` | sélection de boutique active |
 | `e2e/synchronisations.spec.ts` | historique et progression des synchronisations |
 | `e2e/jumia-link.spec.ts` | rattachement depuis l'interface |
+| `e2e/perimetre-boutique.spec.ts` | 1 test : périmètre mono-boutique par défaut, refus d'élargissement, agrégat explicite |
 
 Les tests E2E ne simulent **aucune donnée métier** pour valider un
 comportement de données : ils créent, vérifient, puis la base est purgée.
 
 ---
 
-## 8. Points de vigilance et suites
+## 9. Points de vigilance et suites
 
-### 8.1 Résidus assumés
+### 9.1 Résidus assumés
 
 | Point | État | Traitement |
 | --- | --- | --- |
-| `resolveShopIds()` retombe sur **toutes** les boutiques autorisées si `boutique` est absent ou invalide | hors périmètre immédiat | à revoir si une politique mono-boutique stricte est souhaitée |
 | Lecture distante tronquée par quota Jumia | signalé par `remote.truncated` | le nombre distant devient une borne basse ; seul un manque est concluant |
 | Relevés lus au niveau du compte puis filtrés par `shopSid` | filtre appliqué | si Jumia retire `shopSid`, la preuve devient indisponible (signalé, pas masqué) |
 
-### 8.2 Recommandations
+### 9.2 Recommandations
 
-1. **Supprimer `shops.status`** une fois la migration de l'interface
-   terminée : le statut stocké est une source de vérité concurrente et
-   trompeuse.
-2. **Purger l'historique** `shops.status = "connected"` pour les boutiques
-   sans données réelles (migration de correction, avec sauvegarde).
-3. **Surveiller `jobs`** : une synchronisation qui se termine en `failed`
+1. **Surveiller `jobs`** : une synchronisation qui se termine en `failed`
    doit rester visible dans le diagnostic (elle l'est : `synchronisation_echouee`).
-4. **Étendre le diagnostic aux finances** (comparaison des montants de
-   relevé, pas seulement des volumes) : les volumes sont prouvés, les
-   montants restent à prouver au centime.
+2. **Comparer les montants de commande** (au centime, commande par commande)
+   comme il a été fait pour les relevés de versement : la preuve financière
+   porte aujourd'hui sur les relevés.
+3. **Historiser les ruptures** : la table `audit_logs` conserve les
+   diagnostics et les réparations, mais pas l'état de cohérence dans le
+   temps ; un relevé quotidien permettrait de voir dériver une boutique.
 
 ---
 
-## 9. Traçabilité
+## 10. Traçabilité
 
 | Correction | Fichiers | Preuve |
 | --- | --- | --- |
@@ -284,4 +356,7 @@ comportement de données : ils créent, vérifient, puis la base est purgée.
 | État factuel | `src/lib/connection-state.ts` | `connection-state.test.ts` (8 tests) |
 | Preuve de cohérence | `src/lib/coherence.ts` | diagnostic exécuté sur 2 boutiques : 0 écart |
 | Diagnostic intégré | `src/lib/diagnostics.ts`, `src/app/api/admin/diagnostics/route.ts`, `src/app/(app)/admin/diagnostics/page.tsx` | `e2e/diagnostics.spec.ts` (2 tests) |
-| Fenêtre alignée sur les jours UTC | `src/lib/coherence.ts` | faux écart de 1 commande eliminated, 0 écart sur les 2 boutiques |
+| Fenêtre alignée sur les jours UTC | `src/lib/coherence.ts` | faux écart de 1 commande éliminé, 0 écart sur les 2 boutiques |
+| Preuve financière au centime | `src/lib/coherence.ts` (`compareFinancials`) | 13 relevés comparés par boutique, 0 divergence, CA articles identiques |
+| Suppression du statut stocké | `drizzle/0012_drop_shop_status.sql`, `src/db/schema.ts` | migration Drizzle appliquée après sauvegarde ; 2 boutiques et 316/48/26 données intactes |
+| Périmètre mono-boutique | `src/lib/order-access.ts`, `src/lib/shop-scope.ts` | 8 tests unitaires + 1 E2E (défaut, refus, agrégat explicite) |

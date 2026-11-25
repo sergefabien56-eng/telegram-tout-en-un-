@@ -30,7 +30,6 @@ export async function createShop(userId: string, input: ShopInput) {
         externalShopId: input.externalShopId,
         country: input.country ?? null,
         currency: input.currency,
-        status: "pending",
       })
       .returning();
 
@@ -53,7 +52,6 @@ export async function listUserShops(userId: string) {
       externalShopId: schema.shops.externalShopId,
       country: schema.shops.country,
       currency: schema.shops.currency,
-      status: schema.shops.status,
       remoteShopId: schema.shops.remoteShopId,
       remoteShopName: schema.shops.remoteShopName,
       remoteLinkedAt: schema.shops.remoteLinkedAt,
@@ -91,7 +89,7 @@ export async function getShopDetail(userId: string, shopId: string) {
 export async function updateShop(
   userId: string,
   shopId: string,
-  patch: { name?: string; country?: string; currency?: string; status?: string },
+  patch: { name?: string; country?: string; currency?: string },
 ) {
   const access = await getRole(userId, shopId);
   if (!access || !roleHasPermission(access, "shops:write")) {
@@ -105,7 +103,6 @@ export async function updateShop(
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.country !== undefined ? { country: patch.country } : {}),
       ...(patch.currency !== undefined ? { currency: patch.currency } : {}),
-      ...(patch.status !== undefined ? { status: patch.status } : {}),
       updatedAt: new Date(),
     })
     .where(eq(schema.shops.id, shopId))

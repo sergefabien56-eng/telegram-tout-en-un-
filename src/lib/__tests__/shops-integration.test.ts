@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { getDb, schema } from "@/db";
 import { hashPassword } from "@/lib/password";
 import { roleHasPermission } from "@/lib/permissions";
+import { shopConnection } from "@/lib/connection-state";
 import {
   changeMemberRole,
   createShop,
@@ -56,7 +57,11 @@ describe.skipIf(!hasDb)("boutiques & permissions (base réelle)", () => {
       currency: "XOF",
     });
     shopId = shop.id;
-    expect(shop.status).toBe("pending");
+    // Le statut d'une boutique n'est plus une donnée stockée : il se calcule
+    // à partir des faits (lien, compte, données, synchronisation).
+    const label = await shopConnection(shopId);
+    expect(label?.state).toBe("non_rattachee");
+    expect(label?.operational).toBe(false);
     expect((await getShopDetail(ownerId, shopId))?.role).toBe("owner");
   });
 

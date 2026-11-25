@@ -73,13 +73,19 @@
 | external_shop_id | text | NOT NULL (id Jumia) |
 | country | text | ISO 3166-1 alpha-2 |
 | currency | char(3) | NOT NULL |
-| status | text | `connected`\|`syncing`\|`synced`\|`partial`\|`error`\|`reconnect` |
 | connected_at | timestamptz | |
 | last_sync_at | timestamptz | |
 | last_sync_status | text | |
 | settings | jsonb | |
 
 `UNIQUE(platform, external_shop_id)` — une boutique réelle ne peut pas être ajoutée deux fois.
+
+> **La colonne `shops.status` a été supprimée** (migration `0012`, 25/11/2026).
+> Un statut posé au rattachement ne prouvait rien : il cohabitait avec l'état
+> réel sans le refléter. L'état de connexion est désormais **calculé** à
+> partir des faits (rattachement, compte vendeur lié, données reçues, statut
+> de la dernière synchronisation) — voir `src/lib/connection-state.ts` et
+> `docs/audit-multiboutique.md`.
 
 **`shop_members`** : `shop_id`, `user_id`, `role` (`owner`\|`manager`\|`stock`\|`accountant`\|`assistant`), `permissions jsonb`, PK `(shop_id, user_id)`.
 **`jumia_credentials`** : `id`, `shop_id UNIQUE`, `access_token_enc`, `refresh_token_enc`, `token_type`, `expires_at`, `scope`, `api_user_id`, `created_at`, `updated_at`. Chiffrement AES-256-GCM.

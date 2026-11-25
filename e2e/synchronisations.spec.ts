@@ -2,10 +2,13 @@ import { expect, test } from "@playwright/test";
 import { gotoSafely, login } from "./helpers/auth";
 
 /**
- * L'écran Synchronisations doit montrer TOUTES les boutiques de l'utilisateur
- * (pas seulement la première) et proposer une synchronisation par boutique.
+ * L'écran Synchronisations est borné à une boutique par défaut (isolation) et
+ * permet d'élargir explicitement le périmètre à toutes les boutiques du
+ * compte. Chaque boutique a son propre bouton de synchronisation.
  */
-test("Synchronisations liste chaque boutique et propose une synchronisation", async ({ page }) => {
+test("Synchronisations liste la boutique courante puis permet l'agrégat explicite", async ({
+  page,
+}) => {
   test.setTimeout(180_000);
   const email = `sync-e2e-${Date.now()}@exemple.ci`;
   await login(page, email, "MotDePasse123");
@@ -24,6 +27,19 @@ test("Synchronisations liste chaque boutique et propose une synchronisation", as
   }
 
   await gotoSafely(page, "/boutiques/synchronisations");
+  await page.waitForLoadState("networkidle");
+
+  // Par défaut, une seule boutique est affichée : c'est la boutique courante.
+  // Les autres ne sont pas mélangées dans le tableau.
+  const cellules = page.getByRole("cell", { name: /NKSF SHOP|MaxiShopsCI/, exact: true });
+  await expect(cellules).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Tout synchroniser" })).toHaveCount(1);
+
+  // L'agrégat reste accessible, mais il doit être demandé explicitement.
+  const select = page.locator("section select[name='boutique']").first();
+  await select.selectOption("toutes");
+  await page.waitForURL(/boutique=toutes/, { timeout: 30_000 });
+  await page.waitForLoadState("networkidle");
 
   for (const name of names) {
     await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();

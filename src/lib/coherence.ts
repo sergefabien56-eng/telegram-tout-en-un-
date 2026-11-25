@@ -3,8 +3,10 @@ import { getDb, schema } from "@/db";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { fetchAllProductPages } from "@/lib/jumia/catalog";
-import { fetchPayoutStatements } from "@/lib/jumia/payments";
+import { fetchAllPayoutStatements } from "@/lib/jumia/payments";
+import { normalizePayoutStatement } from "@/lib/payments";
 import { orderShopIds, productShopId, statementShopSid } from "@/lib/shop-guard";
+import { formatMoney } from "@/lib/money";
 
 /**
  * PREUVE DE COHÉRENCE : on compare ce que le Seller Center (Jumia) renvoie
@@ -49,6 +51,14 @@ export type CoherenceCheck = {
   } | null;
   /** Écarts mesurés (local − distant). */
   deltas: { products: number | null; orders: number | null; statements: number | null };
+  /**
+   * PREUVE FINANCIÈRE : comparaison au centime des relevés de versement.
+   *
+   * `compared` = relevés présents des deux côtés ; `divergent` = relevés dont
+   * au moins un montant diffère. Les totaux sont exprimés en unités mineures
+   * de la devise locale.
+   */
+  financials: FinancialProof | null;
   status: CoherenceStatus;
   /** Anomalies prouvées, avec leur cause et leur conséquence. */
   anomalies: CoherenceAnomaly[];
@@ -56,6 +66,30 @@ export type CoherenceCheck = {
 };
 
 export type AnomalySeverity = "critique" | "avertissement" | "information";
+
+/**
+ * Comparaison financière relevé par relevé entre Jumia et la copie locale.
+ */
+export type FinancialProof = {
+  /** Relevés comparés (présents des deux côtés). */
+  compared: number;
+  /** Relevés renvoyés par Jumia mais absents de la base. */
+  missing: number;
+  /** Relevés en base mais absents de la lecture Jumia. */
+  extra: number;
+  /** Relevés dont au moins un montant diverge. */
+  divergent: number;
+  /** Totaux locaux des relevés comparés (unités mineures). */
+  local: { revenue: number; fees: number; refunds: number; net: number };
+  /** Totaux Jumia des mêmes relevés (unités mineures). */
+  remote: { revenue: number; fees: number; refunds: number; net: number };
+  /** Devise des montants comparés. */
+  currency: string;
+  /** Détail des divergences (au plus 20, pour rester lisible). */
+  details: { statementNumber: string; field: string; local: number; remote: number }[];
+  /** Lecture distante tronquée : les totaux sont alors des bornes basses. */
+  truncated: boolean;
+};
 
 export type CoherenceAnomaly = {
   code:
@@ -67,7 +101,12 @@ export type CoherenceAnomaly = {
     | "donnees_perimeses"
     | "synchronisation_echouee"
     | "compte_manquant"
-    | "lecture_impossible";
+    | "lecture_impossible"
+    | "montant_divergent"
+    | "releve_manquant"
+    | "releve_en_trop"
+    | "releve_non_attribuable"
+    | "releve_illisible";
   severity: AnomalySeverity;
   title: string;
   /** Ce qui a été mesuré (chiffres). */
@@ -129,6 +168,7 @@ export async function checkShopCoherence(params: {
       local: { products: 0, variants: 0, orders: 0, statements: 0, ordersInWindow: 0, lastSyncAt: null },
       remote: null,
       deltas: { products: null, orders: null, statements: null },
+      financials: null,
       status: "indisponible",
       anomalies: [],
       notes: ["Boutique introuvable."],
@@ -292,6 +332,7 @@ export async function checkShopCoherence(params: {
       local,
       remote: null,
       deltas: { products: null, orders: null, statements: null },
+      financials: null,
       status: "indisponible",
       anomalies,
       notes,
@@ -300,6 +341,7 @@ export async function checkShopCoherence(params: {
 
   let remote: CoherenceCheck["remote"] = null;
   let deltas: CoherenceCheck["deltas"] = { products: null, orders: null, statements: null };
+  let financials: CoherenceCheck["financials"] = null;
   let status: CoherenceStatus = "indisponible";
 
   try {
@@ -313,7 +355,12 @@ export async function checkShopCoherence(params: {
         size: 200,
         maxPages: 5,
       }),
-      fetchPayoutStatements({ accountId, currency: "LOCAL", size: 100, page: 1 }),
+      fetchAllPayoutStatements({
+        accountId,
+        currency: "LOCAL",
+        size: 100,
+        maxPages: 5,
+      }),
     ]);
 
     // Les relevés sont lus au niveau du compte : on ne garde que ceux de la
@@ -321,6 +368,11 @@ export async function checkShopCoherence(params: {
     const statementsForShop = statementsPage.statements.filter(
       (statement) =>
         statementShopSid(statement as Record<string, unknown>) === shop.remoteShopId,
+    );
+    // Relevés sans `shopSid` : non attribuables à une boutique, donc non
+    // comparables — ils sont signalés, jamais silentés.
+    const unattributableStatements = statementsPage.statements.filter(
+      (statement) => statementShopSid(statement as Record<string, unknown>) === null,
     );
 
     remote = {
@@ -330,6 +382,31 @@ export async function checkShopCoherence(params: {
       truncated: catalog.truncated || orderPages.truncated,
       readAt: new Date(),
     };
+
+    // --- PREUVE FINANCIÈRE (au centime) ---
+    const financialProof = await proveFinancials({
+      shopId: shop.id,
+      remoteStatements: statementsForShop,
+      truncated: statementsPage.truncated,
+    });
+    financials = financialProof.proof;
+
+    if (unattributableStatements.length > 0) {
+      anomalies.push({
+        code: "releve_non_attribuable",
+        severity: "avertissement",
+        title: `${unattributableStatements.length} relevé(s) sans identifiant de boutique`,
+        evidence: `${unattributableStatements.length} relevé(s) renvoyé(s) par Jumia ne portent pas de « shopSid » : ils ne peuvent être attribués à aucune boutique, donc pas vérifiés.`,
+        cause: "Réponse Jumia incomplète ou changement de format de l'API relevés.",
+        recommendation:
+          "Vérifier le format des relevés chez Jumia ; aucun montant n'est attribué sans preuve d'origine.",
+      });
+    }
+
+    for (const anomaly of financialProof.anomalies) {
+      anomalies.push(anomaly);
+      status = "ecart";
+    }
 
     deltas = {
       products: local.products - (remote.products ?? 0),
@@ -418,6 +495,7 @@ export async function checkShopCoherence(params: {
     local,
     remote,
     deltas,
+    financials,
     status,
     anomalies,
     notes,
@@ -513,4 +591,275 @@ export async function shopDataVolumes(shopIds: string[]) {
   for (const id of shopIds) map.set(id, 0);
   for (const row of rows) map.set(row.shopId, row.total);
   return map;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* PREUVE FINANCIÈRE : relevé par relevé, au centime                    */
+/* ------------------------------------------------------------------ */
+
+/** Champs monétaires comparés entre le relevé Jumia et la ligne locale. */
+const MONEY_FIELDS = [
+  { key: "openingBalanceMinor", label: "solde d'ouverture" },
+  { key: "itemRevenueMinor", label: "CA articles" },
+  { key: "shipmentFeeMinor", label: "frais de livraison" },
+  { key: "feesTotalMinor", label: "commissions et frais" },
+  { key: "otherRevenueMinor", label: "autres produits" },
+  { key: "refundsMinor", label: "remboursements" },
+  { key: "closingBalanceMinor", label: "solde net" },
+  { key: "payoutAmountMinor", label: "montant versé" },
+] as const;
+
+/**
+ * Compare chaque relevé renvoyé par Jumia avec la ligne enregistrée, au
+ * centime, et mesure les totaux.
+ *
+ * La conversion passe par `normalizePayoutStatement` — exactement la même
+ * fonction que celle utilisée à l'écriture. Un écart mesuré ici est donc un
+ * écart **réel** (donnée absente, périmée ou mal attribuée), jamais un
+ * artefact de format ou d'arrondi.
+ */
+async function proveFinancials(params: {
+  shopId: string;
+  remoteStatements: { shopSid?: string; [key: string]: unknown }[];
+  truncated: boolean;
+}): Promise<{ proof: FinancialProof; anomalies: CoherenceAnomaly[] }> {
+  const db = getDb();
+  const localRows = await db
+    .select({
+      statementNumber: schema.payoutStatements.statementNumber,
+      currency: schema.payoutStatements.currency,
+      openingBalanceMinor: schema.payoutStatements.openingBalanceMinor,
+      itemRevenueMinor: schema.payoutStatements.itemRevenueMinor,
+      shipmentFeeMinor: schema.payoutStatements.shipmentFeeMinor,
+      feesTotalMinor: schema.payoutStatements.feesTotalMinor,
+      otherRevenueMinor: schema.payoutStatements.otherRevenueMinor,
+      refundsMinor: schema.payoutStatements.refundsMinor,
+      closingBalanceMinor: schema.payoutStatements.closingBalanceMinor,
+      payoutAmountMinor: schema.payoutStatements.payoutAmountMinor,
+      paid: schema.payoutStatements.paid,
+      remoteShopSid: schema.payoutStatements.remoteShopSid,
+    })
+    .from(schema.payoutStatements)
+    .where(eq(schema.payoutStatements.shopId, params.shopId));
+
+  return compareFinancials({
+    shopId: params.shopId,
+    localRows,
+    remoteStatements: params.remoteStatements,
+    truncated: params.truncated,
+  });
+}
+
+/** Ligne locale de relevé, telle que stockée en base. */
+export type LocalStatementRow = {
+  statementNumber: string;
+  currency: string;
+  openingBalanceMinor: number;
+  itemRevenueMinor: number;
+  shipmentFeeMinor: number;
+  feesTotalMinor: number;
+  otherRevenueMinor: number;
+  refundsMinor: number;
+  closingBalanceMinor: number;
+  payoutAmountMinor: number | null;
+  paid: boolean;
+  remoteShopSid: string | null;
+};
+
+/**
+ * Comparaison **pure** entre les relevés distants et les lignes locales.
+ *
+ * Isoler la comparaison de la lecture en base permet de la tester
+ * directement : une preuve qui ne détecte pas une divergence calculée n'a
+ * aucune valeur.
+ */
+export function compareFinancials(params: {
+  shopId: string;
+  localRows: LocalStatementRow[];
+  remoteStatements: { shopSid?: string; [key: string]: unknown }[];
+  truncated?: boolean;
+}): { proof: FinancialProof; anomalies: CoherenceAnomaly[] } {
+  const { shopId, localRows, remoteStatements, truncated = false } = params;
+  const anomalies: CoherenceAnomaly[] = [];
+  const localByNumber = new Map(localRows.map((row) => [row.statementNumber, row]));
+
+  const details: FinancialProof["details"] = [];
+  const totals = {
+    local: { revenue: 0, fees: 0, refunds: 0, net: 0 },
+    remote: { revenue: 0, fees: 0, refunds: 0, net: 0 },
+  };
+  let compared = 0;
+  let missing = 0;
+  let divergent = 0;
+  let currency = localRows[0]?.currency ?? "XOF";
+  const seen = new Set<string>();
+
+  for (const raw of remoteStatements) {
+    const expected = normalizePayoutStatement({
+      shopId,
+      raw: raw as Record<string, unknown>,
+    });
+    if (!expected) {
+      anomalies.push({
+        code: "releve_illisible",
+        severity: "avertissement",
+        title: "Un relevé Jumia n'a pas pu être décodé",
+        evidence: `Relevé « ${String(raw.statementNumber ?? "?")} » : champs obligatoires absents ou illisibles.`,
+        cause: "Format de relevé inhabituel renvoyé par l'API Jumia.",
+        recommendation: "Aucun montant de ce relevé n'est enregistré ni attribué.",
+      });
+      continue;
+    }
+
+    seen.add(expected.statementNumber);
+    currency = expected.currency;
+
+    const local = localByNumber.get(expected.statementNumber);
+    if (!local) {
+      missing += 1;
+      anomalies.push({
+        code: "releve_manquant",
+        severity: "critique",
+        title: `Relevé ${expected.statementNumber} absent de la base`,
+        evidence: `Jumia renvoie le relevé ${expected.statementNumber} (CA articles ${formatMoney(expected.itemRevenueMinor, expected.currency)}) alors qu'il n'est pas enregistré pour cette boutique.`,
+        cause: "Relevés jamais synchronisés, ou synchronisation interrompue.",
+        recommendation: "Resynchroniser les relevés de la boutique.",
+      });
+      continue;
+    }
+
+    compared += 1;
+    totals.local.revenue += local.itemRevenueMinor;
+    totals.local.fees += local.feesTotalMinor;
+    totals.local.refunds += local.refundsMinor;
+    totals.local.net += local.closingBalanceMinor;
+    totals.remote.revenue += expected.itemRevenueMinor;
+    totals.remote.fees += expected.feesTotalMinor;
+    totals.remote.refunds += expected.refundsMinor;
+    totals.remote.net += expected.closingBalanceMinor;
+
+    const divergences: { field: string; label: string; local: number; remote: number }[] = [];
+    for (const field of MONEY_FIELDS) {
+      const localValue = local[field.key];
+      const remoteValue = expected[field.key];
+      if (localValue === null || remoteValue === null) {
+        if (localValue !== remoteValue) {
+          divergences.push({
+            field: field.key,
+            label: field.label,
+            local: localValue ?? 0,
+            remote: remoteValue ?? 0,
+          });
+        }
+        continue;
+      }
+      if (localValue !== remoteValue) {
+        divergences.push({
+          field: field.key,
+          label: field.label,
+          local: localValue,
+          remote: remoteValue,
+        });
+      }
+    }
+    if (local.currency !== expected.currency) {
+      divergences.push({
+        field: "currency",
+        label: "devise",
+        local: 0,
+        remote: 0,
+      });
+    }
+    if (local.paid !== expected.paid) {
+      divergences.push({
+        field: "paid",
+        label: "statut de paiement",
+        local: local.paid ? 1 : 0,
+        remote: expected.paid ? 1 : 0,
+      });
+    }
+
+    if (divergences.length > 0) {
+      divergent += 1;
+      for (const divergence of divergences.slice(0, 5)) {
+        const detail = {
+          statementNumber: expected.statementNumber,
+          field: divergence.field,
+          local: divergence.local,
+          remote: divergence.remote,
+        };
+        if (details.length < 20) details.push(detail);
+        anomalies.push({
+          code: "montant_divergent",
+          severity: "critique",
+          title: `Relevé ${expected.statementNumber} : ${divergence.label} divergent`,
+          evidence:
+            divergence.field === "currency"
+              ? `Devise locale « ${local.currency} » contre « ${expected.currency} » chez Jumia.`
+              : divergence.field === "paid"
+                ? `Statut de paiement local « ${local.paid ? "versé" : "en attente"} » contre « ${expected.paid ? "versé" : "en attente"} » chez Jumia.`
+                : `${divergence.label} : ${formatMoney(divergence.local, expected.currency)} dans l'application contre ${formatMoney(divergence.remote, expected.currency)} chez Jumia (écart ${formatMoney(Math.abs(divergence.remote - divergence.local), expected.currency)}).`,
+          cause:
+            "Relevé modifié chez Jumia après la dernière synchronisation, ou donnée enregistrée pour une autre boutique.",
+          recommendation: "Resynchroniser les relevés de la boutique.",
+        });
+      }
+    }
+  }
+
+  // Relevés en base mais absents de la lecture Jumia (hors fenêtre ou
+  // lecture tronquée) : information, aucune suppression automatique.
+  const extra = localRows.filter((row) => !seen.has(row.statementNumber)).length;
+  if (extra > 0 && !truncated) {
+    anomalies.push({
+      code: "releve_en_trop",
+      severity: "information",
+      title: `${extra} relevé(s) enregistrés hors de la lecture Jumia`,
+      evidence: `${extra} relevé(s) figurent dans la base mais n'ont pas été renvoyés par Jumia sur la fenêtre lue.`,
+      cause: "Relevés antérieurs à la fenêtre, ou pagination Jumia limitée.",
+      recommendation: "Aucune suppression automatique ; vérifier la pagination si l'écart est suspect.",
+    });
+  }
+
+  // Totaux : un écart global signale une dérive, pas une simple différence.
+  const totalDeltas = {
+    revenue: totals.local.revenue - totals.remote.revenue,
+    fees: totals.local.fees - totals.remote.fees,
+    refunds: totals.local.refunds - totals.remote.refunds,
+    net: totals.local.net - totals.remote.net,
+  };
+  for (const [key, label] of [
+    ["revenue", "CA articles"],
+    ["fees", "commissions et frais"],
+    ["refunds", "remboursements"],
+    ["net", "solde net"],
+  ] as const) {
+    const delta = totalDeltas[key];
+    if (delta !== 0) {
+      anomalies.push({
+        code: "montant_divergent",
+        severity: "critique",
+        title: `Total « ${label} » divergent sur la période`,
+        evidence: `Application : ${formatMoney(totals.local[key], currency)} · Jumia : ${formatMoney(totals.remote[key], currency)} (écart ${formatMoney(Math.abs(delta), currency)}).`,
+        cause: "Relevés incomplets, périmés ou attribués à la mauvaise boutique.",
+        recommendation: "Resynchroniser les relevés de la boutique et contrôler le périmètre.",
+      });
+    }
+  }
+
+  return {
+    proof: {
+      compared,
+      missing,
+      extra,
+      divergent,
+      local: totals.local,
+      remote: totals.remote,
+      currency,
+      details,
+      truncated,
+    },
+    anomalies,
+  };
 }

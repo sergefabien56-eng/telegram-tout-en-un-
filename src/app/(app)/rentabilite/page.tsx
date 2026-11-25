@@ -2,7 +2,7 @@ import { ShopSelect } from "@/components/shop-select";
 import { ScopeNotice } from "@/components/scope-notice";
 import { rentability } from "@/lib/insights";
 import { formatMoney } from "@/lib/money";
-import { readSearchValues, resolveShopIds } from "@/lib/order-access";
+import { isRefusedScope, readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -42,7 +42,19 @@ export default async function RentabilitePage({
   const to = new Date();
   const from = new Date(to.getTime() - jours * 24 * 60 * 60 * 1000);
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
+
+  if (isRefusedScope(values, shopIds)) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-night">Rentabilité</h1>
+        <p className="text-sm text-danger" role="alert">
+          Cette boutique n&apos;est pas dans votre périmètre : aucune donnée ne peut être affichée.
+        </p>
+      </div>
+    );
+  }
+
   const rows = await rentability(shopIds, from, to);
   const noms = new Map(scope.allowed.map((shop) => [shop.id, shop.name]));
   const devises = new Set(rows.map((row) => row.currency).filter(Boolean));
@@ -71,7 +83,11 @@ export default async function RentabilitePage({
       </div>
 
       <section className="card flex flex-wrap items-end justify-between gap-3 p-5">
-        <ShopSelect shops={scope.allowed} selected={values.boutique} />
+        <ShopSelect
+          shops={scope.allowed}
+          selected={values.boutique}
+          currentShopId={scope.currentShopId}
+        />
         <form method="get" className="flex items-end gap-2">
           {values.boutique ? <input type="hidden" name="boutique" value={values.boutique} /> : null}
           <label className="flex flex-col gap-1 text-xs font-medium text-muted">

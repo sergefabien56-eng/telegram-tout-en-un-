@@ -187,7 +187,7 @@ export default function BoutiquesPage() {
                             shop.connection?.operational ? "text-success" : "text-danger"
                           }`}
                         >
-                          {shop.connection?.label ?? shop.status}
+                          {shop.connection?.label ?? "État inconnu"}
                         </span>
                         {shop.remoteShopName ? ` · Jumia : ${shop.remoteShopName}` : null}
                       </p>

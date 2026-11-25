@@ -85,6 +85,13 @@
       "when": 1795585208558,
       "tag": "0011_marvelous_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795594256031,
+      "tag": "0012_drop_shop_status",
+      "breakpoints": true
     }
   ]
 }

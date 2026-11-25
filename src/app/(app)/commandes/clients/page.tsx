@@ -42,7 +42,7 @@ export default async function ClientsPage({
     );
   }
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
   const customers = await listOrderCustomers(shopIds);
   const singleShop =
     shopIds.length === 1 ? (scope.allowed.find((s) => s.id === shopIds[0]) ?? null) : null;
@@ -65,6 +65,7 @@ export default async function ClientsPage({
         <OrderFilters
           shops={scope.allowed}
           values={{ ...values, du: undefined, au: undefined, statut: undefined }}
+          currentShopId={scope.currentShopId}
         />
       </section>
 

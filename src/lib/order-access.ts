@@ -5,7 +5,7 @@ export type { ScopedShop } from "@/lib/shop-scope";
 /** Périmètre « Ventes et commandes » : boutiques avec `orders:read`. */
 export async function orderScope(
   userId: string,
-): Promise<{ total: number; allowed: ScopedShop[] }> {
+): Promise<{ total: number; allowed: ScopedShop[]; currentShopId: string | null }> {
   return scopedShops(userId, "orders:read");
 }
 
@@ -16,10 +16,38 @@ export function parseDay(value: string | undefined, endOfDay = false): Date | un
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
-/** Boutiques retenues par le filtre « boutique », bornées au périmètre autorisé. */
-export function resolveShopIds(boutique: string | undefined, allowed: ScopedShop[]): string[] {
-  if (boutique && allowed.some((shop) => shop.id === boutique)) return [boutique];
-  return allowed.map((shop) => shop.id);
+/** Valeur explicite du filtre « toutes les boutiques ». */
+export const ALL_SHOPS = "toutes";
+
+/**
+ * Boutiques retenues par le filtre « boutique ».
+ *
+ * Règles d'isolation :
+ * 1. une boutique demandée **et autorisée** → cette boutique seule ;
+ * 2. une boutique demandée **mais non autorisée** → périmètre **vide** :
+ *    un paramètre d'URL ne doit jamais élargir le périmètre ;
+ * 3. aucun filtre → la **boutique courante** (celle choisie dans l'en-tête) ;
+ * 4. `toutes` → agrégat explicite sur les boutiques autorisées.
+ */
+export function resolveShopIds(
+  boutique: string | undefined,
+  allowed: ScopedShop[],
+  currentShopId?: string | null,
+): string[] {
+  const ids = allowed.map((shop) => shop.id);
+  if (boutique === ALL_SHOPS) return ids;
+  if (boutique) return ids.includes(boutique) ? [boutique] : [];
+  if (currentShopId && ids.includes(currentShopId)) return [currentShopId];
+  return ids;
+}
+
+/**
+ * `true` quand une boutique a été demandée mais n'est pas dans le périmètre
+ * autorisé. L'interface doit alors le dire explicitement : un tableau vide
+ * serait trompeur (il laisserait croire à « aucune donnée »).
+ */
+export function isRefusedScope(values: SearchValues, shopIds: string[]): boolean {
+  return Boolean(values.boutique) && values.boutique !== ALL_SHOPS && shopIds.length === 0;
 }
 
 export type SearchValues = {

@@ -1,7 +1,7 @@
 import { ShopSelect } from "@/components/shop-select";
 import { ScopeNotice } from "@/components/scope-notice";
 import { listCategories } from "@/lib/insights";
-import { readSearchValues, resolveShopIds } from "@/lib/order-access";
+import { isRefusedScope, readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -28,7 +28,19 @@ export default async function CategoriesPage({
       </div>
     );
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
+
+  if (isRefusedScope(values, shopIds)) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-night">Catégories</h1>
+        <p className="text-sm text-danger" role="alert">
+          Cette boutique n&apos;est pas dans votre périmètre : aucune donnée ne peut être affichée.
+        </p>
+      </div>
+    );
+  }
+
   const rows = await listCategories(shopIds);
 
   return (
@@ -41,7 +53,11 @@ export default async function CategoriesPage({
       </div>
 
       <section className="card flex items-end justify-between gap-3 p-5">
-        <ShopSelect shops={scope.allowed} selected={values.boutique} />
+        <ShopSelect
+          shops={scope.allowed}
+          selected={values.boutique}
+          currentShopId={scope.currentShopId}
+        />
         <p className="text-xs text-muted">
           {rows.length} catégorie{rows.length > 1 ? "s" : ""}
         </p>

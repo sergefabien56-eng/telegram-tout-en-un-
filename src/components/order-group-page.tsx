@@ -2,7 +2,13 @@ import { OrderFilters } from "@/components/order-filters";
 import { OrderTable, type OrderTableRow } from "@/components/order-table";
 import { listOrdersForShops, orderStatusGroup, ORDER_STATUS_GROUPS } from "@/lib/orders";
 import type { OrderGroup } from "@/lib/orders";
-import { orderScope, parseDay, readSearchValues, resolveShopIds } from "@/lib/order-access";
+import {
+  isRefusedScope,
+  orderScope,
+  parseDay,
+  readSearchValues,
+  resolveShopIds,
+} from "@/lib/order-access";
 import { formatMoney } from "@/lib/money";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -49,7 +55,19 @@ export async function OrderGroupPage({ group, title, description, empty, searchP
     );
   }
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
+
+  if (isRefusedScope(values, shopIds)) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-night">{title}</h1>
+        <p className="text-sm text-danger" role="alert">
+          Cette boutique n&apos;est pas dans votre périmètre : aucune donnée ne peut être affichée.
+        </p>
+      </div>
+    );
+  }
+
   const fetched = await listOrdersForShops(shopIds, {
     status: values.statut,
     from: parseDay(values.du),
@@ -75,7 +93,11 @@ export async function OrderGroupPage({ group, title, description, empty, searchP
 
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-night">Période affichée</h2>
-        <OrderFilters shops={scope.allowed} values={values} />
+        <OrderFilters
+          shops={scope.allowed}
+          values={values}
+          currentShopId={scope.currentShopId}
+        />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">

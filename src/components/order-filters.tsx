@@ -8,7 +8,12 @@ type ShopOption = { id: string; name: string };
 type Props = {
   shops: ShopOption[];
   values: { boutique?: string; du?: string; au?: string; statut?: string };
+  /** Boutique courante : périmètre par défaut quand aucun filtre n'est posé. */
+  currentShopId?: string | null;
 };
+
+/** Valeur explicite du filtre « toutes les boutiques ». */
+const ALL_SHOPS = "toutes";
 
 const STATUTS = ["CREATED", "PENDING", "SHIPPED", "DELIVERED", "CANCELED", "RETURNED", "REFUNDED"];
 
@@ -16,7 +21,7 @@ const STATUTS = ["CREATED", "PENDING", "SHIPPED", "DELIVERED", "CANCELED", "RETU
  * Filtres de consultation : boutique, période, statut. Formulaire GET, donc
  * l'état reste dans l'URL (partageable, retour navigateur fonctionnel).
  */
-export function OrderFilters({ shops, values }: Props) {
+export function OrderFilters({ shops, values, currentShopId }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
@@ -47,11 +52,11 @@ export function OrderFilters({ shops, values }: Props) {
         Boutique
         <select
           name="boutique"
-          defaultValue={values.boutique ?? ""}
+          defaultValue={values.boutique ?? currentShopId ?? ALL_SHOPS}
           onChange={(event) => applyShop(event.target.value)}
           className="focusable rounded-lg border border-border bg-card px-3 py-2 text-sm text-night"
         >
-          <option value="">Toutes les boutiques ({shops.length})</option>
+          <option value={ALL_SHOPS}>Toutes les boutiques ({shops.length})</option>
           {shops.map((shop) => (
             <option key={shop.id} value={shop.id}>
               {shop.name}

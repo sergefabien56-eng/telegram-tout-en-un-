@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { hashPassword } from "@/lib/password";
 import { upsertOrders } from "@/lib/orders";
@@ -46,7 +46,6 @@ describe.skipIf(!hasDb)("isolation multiboutique (base réelle)", () => {
         country: "CI",
         currency: "XOF",
         ownerUserId: userId,
-        status: "pending",
       })
       .returning({ id: schema.shops.id });
     shopA = a?.id ?? "";
@@ -60,7 +59,6 @@ describe.skipIf(!hasDb)("isolation multiboutique (base réelle)", () => {
         country: "CI",
         currency: "XOF",
         ownerUserId: userId,
-        status: "pending",
       })
       .returning({ id: schema.shops.id });
     shopB = b?.id ?? "";
@@ -156,6 +154,22 @@ describe.skipIf(!hasDb)("isolation multiboutique (base réelle)", () => {
     // Aucune des deux n'est « opérationnelle » sans rattachement ni compte.
     expect(states.get(shopA)?.operational).toBe(false);
     expect(states.get(shopB)?.operational).toBe(false);
+  });
+
+  /**
+   * Nettoyage : ce test écrit dans la base **réelle**. Sans purge, il laisserait
+   * derrière lui un utilisateur et des boutiques de démonstration en
+   * production — ce que la règle R1 interdit.
+   */
+  afterAll(async () => {
+    if (!userId) return;
+    const db = getDb();
+    const shopIds = [shopA, shopB].filter(Boolean);
+    if (shopIds.length > 0) {
+      // `shops` supprime en cascade ses membres, commandes, produits, relevés.
+      await db.delete(schema.shops).where(inArray(schema.shops.id, shopIds));
+    }
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   });
 
   it("conserve les commandes de chaque boutique dans sa propre volumétrie", async () => {

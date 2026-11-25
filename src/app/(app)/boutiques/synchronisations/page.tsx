@@ -34,7 +34,7 @@ export default async function SynchronisationsPage({
       </div>
     );
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
   const counts = await shopCounts(shopIds);
   const history = await shopSyncHistory(shopIds);
   const states = await connectionStates(shopIds);
@@ -50,7 +50,11 @@ export default async function SynchronisationsPage({
       </div>
 
       <section className="card flex items-end justify-between gap-3 p-5">
-        <ShopSelect shops={scope.allowed} selected={values.boutique} />
+        <ShopSelect
+          shops={scope.allowed}
+          selected={values.boutique}
+          currentShopId={scope.currentShopId}
+        />
       </section>
 
       <section className="card p-5">

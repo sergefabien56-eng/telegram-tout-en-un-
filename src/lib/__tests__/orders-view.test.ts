@@ -65,9 +65,16 @@ describe("périmètre des rubriques", () => {
     },
   ];
 
-  it("ignore une boutique hors du périmètre autorisé", () => {
-    expect(resolveShopIds("autre", shops)).toEqual(["s1", "s2"]);
+  it("refuse une boutique hors du périmètre autorisé (pas d'élargissement)", () => {
+    // Avant : une boutique inconnue tombait sur « toutes les boutiques », donc
+    // une URL pouvait élargir le périmètre. C'est corrigé : le périmètre
+    // demandé est vide, et l'interface l'annonce.
+    expect(resolveShopIds("autre", shops)).toEqual([]);
     expect(resolveShopIds("s2", shops)).toEqual(["s2"]);
+    // Sans boutique courante, on retombe sur les boutiques autorisées.
+    expect(resolveShopIds(undefined, shops)).toEqual(["s1", "s2"]);
+    // Avec une boutique courante, une seule boutique est retenue.
+    expect(resolveShopIds(undefined, shops, "s2")).toEqual(["s2"]);
   });
 
   it("convertit les dates en UTC et refuse les valeurs invalides", () => {

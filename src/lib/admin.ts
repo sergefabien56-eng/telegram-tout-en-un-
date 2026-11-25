@@ -1,6 +1,7 @@
 import { desc, eq, inArray, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { listUserShops } from "@/lib/shops";
+import { connectionStates } from "@/lib/connection-state";
 
 /**
  * Vue d'administration — agrégats réels, **limités aux boutiques que
@@ -10,8 +11,15 @@ import { listUserShops } from "@/lib/shops";
 export type AdminOverview = {
   shops: {
     total: number;
+    /** Boutiques réellement opérationnelles (état factuel, pas un statut stocké). */
     connected: number;
-    rows: { id: string; name: string; status: string | null; remoteShopName: string | null }[];
+    rows: {
+      id: string;
+      name: string;
+      /** État factuel de la boutique (libellé prêt à afficher). */
+      connection: { state: string; label: string; detail: string; operational: boolean };
+      remoteShopName: string | null;
+    }[];
   };
   members: { role: string; count: number }[];
   jobs: {
@@ -61,12 +69,15 @@ export async function adminOverview(userId: string): Promise<AdminOverview> {
     .select({
       id: schema.shops.id,
       name: schema.shops.name,
-      status: schema.shops.status,
       remoteShopName: schema.shops.remoteShopName,
     })
     .from(schema.shops)
     .where(inArray(schema.shops.id, shopIds))
     .orderBy(desc(schema.shops.createdAt));
+
+  // État factuel : une boutique n'est « connectée » que si le lien, le
+  // compte vendeur, les données et la dernière synchronisation le prouvent.
+  const states = await connectionStates(shopIds);
 
   const memberRoles = await db
     .select({ role: schema.shopMembers.role, count: dbCount() })
@@ -144,8 +155,16 @@ export async function adminOverview(userId: string): Promise<AdminOverview> {
   return {
     shops: {
       total: shopRows.length,
-      connected: shopRows.filter((row) => row.remoteShopName !== null).length,
-      rows: shopRows,
+      connected: shopRows.filter((row) => states.get(row.id)?.operational).length,
+      rows: shopRows.map((row) => ({
+        ...row,
+        connection: states.get(row.id) ?? {
+          state: "non_rattachee",
+          label: "Non rattachée",
+          detail: "Boutique inconnue.",
+          operational: false,
+        },
+      })),
     },
     members: memberRoles.map((row) => ({ role: row.role, count: Number(row.count) })),
     jobs: {

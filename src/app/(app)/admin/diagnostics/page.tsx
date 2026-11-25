@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, CircleAlert, Info } from "lucide-react";
 import { DiagnosticActions } from "@/components/diagnostic-actions";
 import { diagnosticReport } from "@/lib/diagnostics";
+import { formatMoney } from "@/lib/money";
 import { getSessionUser } from "@/lib/session";
 import { hasAdminAccess } from "@/lib/admin";
 import { redirect } from "next/navigation";
@@ -209,6 +210,102 @@ export default async function DiagnosticsPage() {
                 Aucune anomalie : les données de cette boutique correspondent à son Seller Center.
               </p>
             )}
+
+            {shop.coherence?.financials ? (
+              <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Preuve financière (relevés de versement)
+                </p>
+                <p className="mt-1 text-sm text-night">
+                  {shop.coherence.financials.compared} relevé(s) comparé(s) au centime ·{" "}
+                  {shop.coherence.financials.divergent} divergent(s) ·{" "}
+                  {shop.coherence.financials.missing} manquant(s)
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                        <th className="py-2 pr-3">Montant</th>
+                        <th className="py-2 pr-3 text-right">Dans Tout en Un</th>
+                        <th className="py-2 text-right">Chez Jumia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border">
+                        <td className="py-2.5 pr-3 text-night">CA articles</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.local.revenue,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.remote.revenue,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-border">
+                        <td className="py-2.5 pr-3 text-night">Commissions et frais</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.local.fees,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.remote.fees,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-border">
+                        <td className="py-2.5 pr-3 text-night">Remboursements</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.local.refunds,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.remote.refunds,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-border last:border-0">
+                        <td className="py-2.5 pr-3 text-night">Solde net</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.local.net,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.financials.remote.net,
+                            shop.coherence.financials.currency,
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {shop.coherence.financials.details.length > 0 ? (
+                  <ul className="mt-3 list-disc pl-5 text-xs text-muted">
+                    {shop.coherence.financials.details.map((detail) => (
+                      <li key={`${detail.statementNumber}-${detail.field}`}>
+                        Relevé {detail.statementNumber} · {detail.field} :{" "}
+                        {detail.local} chez nous contre {detail.remote} chez Jumia.
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
 
             {shop.coherence && shop.coherence.notes.length > 0 ? (
               <ul className="mt-3 list-disc pl-5 text-xs text-muted">

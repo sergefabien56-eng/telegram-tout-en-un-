@@ -83,7 +83,6 @@ export async function POST(request: Request, { params }: Params) {
         remoteLinkedAt: new Date(),
         country: country ?? undefined,
         jumiaAccountId: scope?.accountId ?? undefined,
-        status: "connected",
         updatedAt: new Date(),
       })
       .where(eq(schema.shops.id, id))
@@ -141,7 +140,6 @@ export async function DELETE(request: Request, { params }: Params) {
       remoteShopName: null,
       remoteLinkedAt: null,
       jumiaAccountId: null,
-      status: "pending",
       updatedAt: new Date(),
     })
     .where(eq(schema.shops.id, id))

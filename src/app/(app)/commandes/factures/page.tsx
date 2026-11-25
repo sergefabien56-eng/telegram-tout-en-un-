@@ -32,7 +32,7 @@ export default async function FacturesPage({
     );
   }
 
-  const shopIds = resolveShopIds(values.boutique, scope.allowed);
+  const shopIds = resolveShopIds(values.boutique, scope.allowed, scope.currentShopId);
   const rows = await listOrdersForShops(shopIds, {
     from: parseDay(values.du),
     to: parseDay(values.au, true),

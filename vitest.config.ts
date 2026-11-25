@@ -37,5 +37,13 @@ export default defineConfig({
     exclude: ["node_modules", ".next", "e2e"],
     globals: false,
     reporters: "default",
+    // Les tests d'intégration s'appuient sur la **base réelle** : ils doivent
+    // être sérialisés, sinon un fichier qui écrit pendant qu'un autre lit
+    // produit des totaux incohérents (et des faux échecs).
+    fileParallelism: false,
+    // Les tests unitaires sont instantanés ; ceux qui lisent la base réelle
+    // ont besoin de quelques secondes. 20 s les couvre sans ralentir la
+    // détection d'un blocage (en CI, ils sont ignorés : pas de base).
+    testTimeout: 20_000,
   },
 });
