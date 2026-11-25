@@ -82,6 +82,7 @@ Phases : **P1** fondations/interface · **P2** Jumia Connect · **P3** gestion c
 
 - ✅ **Finitions — 2FA TOTP** (double authentification activable : secret chiffré AES-256-GCM, QR + clé manuelle, codes de secours à usage unique, défi de connexion signé 5 min, page `/securite`) · smoke 15/15 local **et** production · détails `docs/securite-2fa.md`
 - ✅ **Maquette interactive** : `docs/mockups/interactive.html` (bureau + mobile, bascule de version)
+- ✅ **Refonte globale du pilotage** (commits `12b6cc7`, `72056d7`, `84ccc5b`) — le tableau de bord **n'agrège plus** les boutiques : périmètre explicite dans l'URL (`?boutique=`), affiché en permanence, refus explicite hors périmètre ; 6 pages dédiées (`/performances`, `/alertes`, `/activites`, `/recherche`, `/apparence`) ; recherche transverse et thème centralisés ; **évolution journalière** du CA commandes ; contraste WCAG AA corrigé. **245 tests + 58 E2E verts**, vérifié **en production** (MaxiShopsCI 181 877 F / NKSF SHOP 116 514 F / agrégat 298 391 F). Audit, proposition, conception, matrice et captures : `docs/audit-refonte-pilotage.md`, `docs/proposition-architecture-fonctionnelle.md`, `docs/conception-pilotage.md`, `docs/matrice-etat-regressions.md`, `docs/captures/`.
 
 **Déploiement réel** : Render `srv-dc1m8rqfngtc7381n0rg` (Free, frankfurt) · Neon `production` (14 tables) · bot @tout_en_un_business_bot · **0 FCFA**.
 

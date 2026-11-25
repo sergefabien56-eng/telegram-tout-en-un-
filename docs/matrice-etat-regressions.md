@@ -156,7 +156,31 @@ Mouvements · Entrepôts · Inventaires · Dépenses · Achats · Rapprochements
 
 ---
 
-## 5. Emplacements des preuves
+## 5. Vérification en production (25/11/2026)
+
+Déploiement : CI verte → workflow « Déploiement Render » → `https://tout-en-un-business-manager.onrender.com`.
+
+| Contrôle | Résultat |
+|---|---|
+| `/api/health` | `200` · `status: ok` |
+| Webhook Telegram sans secret | `401` (protégé) |
+| Pages du pilotage | `/dashboard`, `/performances`, `/alertes`, `/activites`, `/recherche`, `/apparence` → `307` (session requise, donc pages présentes) |
+| `/api/dashboard`, `/api/search` sans session | `401` |
+| **MaxiShopsCI** | **181 877 F** · 43 articles · net à verser 327 944 F |
+| **NKSF SHOP** | **116 514 F** · 25 articles · net à verser 289 657 F |
+| **Agrégat** | **298 391 F** (= somme exacte des deux) |
+| Boutique hors périmètre | refus affiché : « Cette boutique n'est pas dans votre périmètre » |
+
+Le reproche d'origine est donc **corrigé et vérifié en production** : les deux boutiques
+renvoient des chiffres différents, et l'agrégat vaut leur somme.
+
+Script reproductible : `node scripts/verif-perimetre.mjs [url]`.
+Sauvegarde de la base au moment du déploiement : `backups/backup-2026-11-25-11-22-51.sql.gz`
+(copie Drive : `1P37HJKiJTZ5VgSG2fLQAw2ZgetKCFwnt`).
+
+---
+
+## 6. Emplacements des preuves
 
 | Preuve | Chemin |
 |---|---|
@@ -166,6 +190,8 @@ Mouvements · Entrepôts · Inventaires · Dépenses · Achats · Rapprochements
 | Matrice, tests, régressions | `docs/matrice-etat-regressions.md` (ce document) |
 | Captures | `docs/captures/01-…` à `docs/captures/15-…` |
 | Script de captures | `scripts/captures.mjs` |
+| Script de vérification du périmètre (local ou production) | `scripts/verif-perimetre.mjs` |
+| Préparation du compte de démonstration | `scripts/demo-account.mjs` |
 | Test d'intégration du périmètre | `src/lib/__tests__/dashboard-scope.integration.test.ts` |
 | Test E2E du pilotage | `e2e/pilotage.spec.ts` |
 | Test E2E du tableau de bord | `e2e/dashboard.spec.ts` |
