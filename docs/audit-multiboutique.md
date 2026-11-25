@@ -402,7 +402,25 @@ comportement de données : ils créent, vérifient, puis la base est purgée.
 | Lecture distante tronquée par quota Jumia | signalé par `remote.truncated` | le nombre distant devient une borne basse ; seul un manque est concluant |
 | Relevés lus au niveau du compte puis filtrés par `shopSid` | filtre appliqué | si Jumia retire `shopSid`, la preuve devient indisponible (signalé, pas masqué) |
 
-### 9.2 Recommandations
+### 9.2 Action manuelle restante : brancher le cron
+
+Le contrôle planifié est écrit, testé et **déployé** ; il ne se déclenche
+encore que manuellement, car GitHub a besoin de deux secrets :
+
+| Secret GitHub | Valeur | Où la trouver |
+| --- | --- | --- |
+| `APP_URL` | `https://tout-en-un-business-manager.onrender.com` | l'URL publique de l'application |
+| `CRON_SECRET` | **la même valeur** que celle définie sur Render (`render.yaml` → `CRON_SECRET`) | dashboard Render → Environment |
+
+À faire une seule fois :
+**Settings → Secrets and variables → Actions → New repository secret**.
+
+Vérification : *Actions → Contrôle de cohérence quotidien → Run workflow*
+(lancement manuel). Le journal doit afficher
+`Contrôle de cohérence terminé`. Sans les secrets, le job se termine
+proprement avec un message explicite — il n'échoue jamais bruyamment.
+
+### 9.3 Recommandations
 
 1. **Surveiller `jobs`** : une synchronisation qui se termine en `failed`
    doit rester visible dans le diagnostic (elle l'est : `synchronisation_echouee`).
