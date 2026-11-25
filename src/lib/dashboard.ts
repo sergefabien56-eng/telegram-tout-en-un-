@@ -62,6 +62,12 @@ export type DashboardOverview = {
   }[];
   alerts: DashboardAlert[];
   activity: { action: string; result: string; createdAt: Date }[];
+  /**
+   * Évolution journalière du CA commandes, sur le périmètre affiché.
+   * Un jour sans commande vaut zéro (ce n'est pas une absence de donnée) :
+   * la courbe est donc complète et ne comble jamais un trou.
+   */
+  series: { period: string; revenueMinor: number; orders: number }[];
 };
 
 /**
@@ -117,6 +123,7 @@ export async function dashboardOverview(
       shops: [],
       alerts: [],
       activity: [],
+      series: [],
     };
   }
 
@@ -140,6 +147,24 @@ export async function dashboardOverview(
   const catalogByShop = await Promise.all(
     shops.map(async (shop) => ({ id: shop.id, catalog: await reportCatalog(shop.id) })),
   );
+
+  // Évolution journalière : somme des séries par boutique du périmètre.
+  // Les jours sans commande restent à zéro : la courbe est continue et
+  // n'invente aucune valeur manquante.
+  const dayMap = new Map<string, { period: string; revenueMinor: number; orders: number }>();
+  for (const row of salesByShop) {
+    for (const point of row.sales.series) {
+      const entry = dayMap.get(point.period) ?? {
+        period: point.period,
+        revenueMinor: 0,
+        orders: 0,
+      };
+      entry.revenueMinor += point.revenueMinor;
+      entry.orders += point.orders;
+      dayMap.set(point.period, entry);
+    }
+  }
+  const series = [...dayMap.values()].sort((a, b) => a.period.localeCompare(b.period));
 
   // Relevés Jumia par boutique.
   const statementsByShop = await Promise.all(
@@ -327,6 +352,7 @@ export async function dashboardOverview(
     }),
     alerts,
     activity: activityRows,
+    series,
   };
 }
 

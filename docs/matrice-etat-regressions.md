@@ -14,7 +14,7 @@ Légende : ✅ opérationnel · 🔧 corrigé · ✚ nouveau · ⏳ à venir (no
 
 | Rubrique | Page | État | Avant | Après | Preuve |
 |---|---|---|---|---|---|
-| Tableau de bord | `/dashboard` | 🔧 | Agrégat toutes boutiques, 7 ancres | KPI scopés, 4 blocs, contexte affiché | `01`, `02` |
+| Tableau de bord | `/dashboard` | 🔧 | Agrégat toutes boutiques, 7 ancres | KPI scopés, 4 blocs, contexte affiché, évolution journalière | `01`, `02` |
 | Performances | `/performances` | ✚ | (ancre `#performances`) | Comparaison + évolution journalière | `03` |
 | Alertes | `/alertes` | ✚ | (ancre `#alertes`) | 4 familles unifiées, tri par gravité | `04` |
 | Activités | `/activites` | ✚ | (ancre `#activites`) | Journal des 100 dernières actions | `05` |
@@ -33,6 +33,7 @@ Légende : ✅ opérationnel · 🔧 corrigé · ✚ nouveau · ⏳ à venir (no
 | Ligne de provenance sous chaque KPI | ✚ | Absente | Composant `Kpi` |
 | Distinction absence / refus / zéro | 🔧 | Confondus | `EmptyState` à trois tons |
 | Panier moyen, part du CA, meilleure boutique | ✚ | Absents | `/performances` |
+| Évolution journalière du CA commandes | ✚ | Absente | Graphique de barres, sommaire vérifié contre les KPI par test |
 | Net à verser (Jumia) issu des relevés | ✅ | Présent | Inchangé, désormais étiqueté |
 | CA commandes (livrées + expédiées) | ✅ | Présent | Inchangé, désormais étiqueté |
 | État de connexion par boutique | ✚ | Global | Calculé par boutique, depuis des faits |
@@ -43,7 +44,7 @@ Légende : ✅ opérationnel · 🔧 corrigé · ✚ nouveau · ⏳ à venir (no
 | Élément | État | Preuve |
 |---|---|---|
 | 48 rubriques de navigation, 8 sections | ✅ | `navigation.test.ts`, `e2e/pilotage.spec.ts` |
-| 34 pages métier et leurs filtres/exports | ✅ | 243 tests + 58 E2E |
+| 34 pages métier et leurs filtres/exports | ✅ | 245 tests + 58 E2E |
 | 56 routes API et leurs contrôles d'accès | ✅ | Suite complète |
 | « Tout ouvrir » / « Tout fermer » (Mini App) | ✅ | `e2e/mini-menu.spec.ts` |
 | Bot Telegram, Mini App, cron de cohérence | ✅ | `e2e/mini-menu.spec.ts`, smoke |
@@ -107,7 +108,7 @@ Mouvements · Entrepôts · Inventaires · Dépenses · Achats · Rapprochements
 
 | Niveau | Volume | Résultat |
 |---|---|---|
-| Vitest (unitaires + intégration, base réelle) | 41 fichiers / 245 tests | **243 réussis / 2 ignorés** |
+| Vitest (unitaires + intégration, base réelle) | 41 fichiers / 247 tests | **245 réussis / 2 ignorés** |
 | Playwright (E2E) | 58 tests | **58/58 réussis** |
 | `tsc --noEmit` | — | **0 erreur** |
 | ESLint | — | **0 erreur** |

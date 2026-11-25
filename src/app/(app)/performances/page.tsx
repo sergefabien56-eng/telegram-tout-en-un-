@@ -8,6 +8,7 @@ import { reportSales } from "@/lib/reports";
 import { formatMoney } from "@/lib/money";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
+import { DailyChart } from "@/components/ui/daily-chart";
 import { Kpi } from "@/components/ui/kpi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScopeBar } from "@/components/ui/scope-bar";
@@ -125,7 +126,6 @@ export default async function PerformancesPage({
   const aggregatedSeries = [...dayMap.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([period, value]) => ({ period, ...value }));
-  const maxDay = Math.max(...aggregatedSeries.map((point) => point.revenueMinor), 0);
 
   return (
     <div className="space-y-6">
@@ -292,29 +292,11 @@ export default async function PerformancesPage({
                 description="Aucun graphique n'est inventé : la courbe n'apparaît que si des commandes existent."
               />
             ) : (
-              <div>
-                <div
-                  className="flex h-40 items-end gap-[2px]"
-                  role="img"
-                  aria-label={`CA quotidien sur ${days} jours`}
-                >
-                  {aggregatedSeries.map((point) => {
-                    const height = maxDay > 0 ? Math.round((point.revenueMinor / maxDay) * 100) : 0;
-                    return (
-                      <div
-                        key={point.period}
-                        className="flex-1 rounded-t bg-primary/70"
-                        style={{ height: `${Math.max(height, 2)}%` }}
-                        title={`${point.period} — ${formatMoney(point.revenueMinor, visible[0]?.currency ?? "XOF")} · ${point.orders} commande(s)`}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex justify-between text-xs text-muted">
-                  <span>{aggregatedSeries[0]?.period}</span>
-                  <span>{aggregatedSeries[aggregatedSeries.length - 1]?.period}</span>
-                </div>
-              </div>
+              <DailyChart
+                series={aggregatedSeries}
+                currency={visible[0]?.currency ?? "XOF"}
+                label={`CA quotidien sur ${days} jours`}
+              />
             )}
           </Section>
 

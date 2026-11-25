@@ -25,6 +25,7 @@ import { Kpi } from "@/components/ui/kpi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScopeBar } from "@/components/ui/scope-bar";
 import { ShopScopeSelect } from "@/components/shop-scope-select";
+import { DailyChart } from "@/components/ui/daily-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -266,6 +267,33 @@ export default async function DashboardPage({
           </ul>
         </Section>
       </div>
+
+      {/* Évolution journalière : la même mesure que le CA commandes, jour par jour. */}
+      <Section
+        title="Évolution du CA commandes"
+        description="Commandes livrées ou expédiées, jour par jour, sur le périmètre affiché."
+        action={
+          <Link
+            href="/performances"
+            className="focusable font-medium text-primary-600 hover:underline"
+          >
+            Comparer les boutiques →
+          </Link>
+        }
+      >
+        {overview.series.length === 0 ? (
+          <EmptyState
+            title="Aucune commande sur la période"
+            description="Aucun graphique n'est inventé : la courbe n'apparaît que si des commandes existent. Un jour sans commande vaut zéro, pas une absence de donnée."
+          />
+        ) : (
+          <DailyChart
+            series={overview.series}
+            currency={kpis.currency}
+            label={`CA commandes quotidien sur ${overview.period.days} jours`}
+          />
+        )}
+      </Section>
 
       {/* Santé des boutiques : l'écran multi-boutique. */}
       {overview.shops.length > 0 ? (

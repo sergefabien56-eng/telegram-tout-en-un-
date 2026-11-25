@@ -153,7 +153,7 @@ Les trois dernières lignes illustrent la règle : **la valeur ne suffit pas, la
 | Ne pas confondre les boutiques | Filtre `shopIds` obligatoire dans toutes les agrégations |
 | Conserver « Tout ouvrir » / « Tout fermer » | Conservés dans la Mini App, testés par `e2e/mini-menu.spec.ts` |
 | Cohérence Web / mobile / Telegram | Une seule `navigation.config.ts`, une seule Mini App, un seul design system |
-| Pas de régression de stabilité | Typecheck, lint, 243 tests, 56 E2E, build : tout vert avant livraison |
+| Pas de régression de stabilité | Typecheck, lint, 245 tests, 58 E2E, build : tout vert avant livraison |
 | Performance | Filtrage en base (jamais en mémoire) ; pagination côté serveur ; pas de requête par ligne |
 
 ---

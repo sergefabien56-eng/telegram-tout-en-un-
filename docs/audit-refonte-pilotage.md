@@ -9,7 +9,7 @@
 
 ## 1. Synthèse
 
-L'application est **fonctionnellement riche et saine sur le fond** : 48 rubriques de navigation, 56 routes API, permissions serveur effectives, journal d'audit, sauvegardes, Mini App Telegram fonctionnelle, suite de tests verte (243 tests / 56 E2E).
+L'application est **fonctionnellement riche et saine sur le fond** : 48 rubriques de navigation, 56 routes API, permissions serveur effectives, journal d'audit, sauvegardes, Mini App Telegram fonctionnelle, suite de tests verte (245 tests / 58 E2E).
 
 Le reproche formulé — « MaxiShops et NKSF renvoient les mêmes résultats » — est **fondé et grave** : avant correction, le tableau de bord agrégeait **toutes** les boutiques du compte, quel que soit le sélecteur affiché. Le chiffre ne changeait donc pas quand on changeait de boutique. Ce n'était pas un défaut d'affichage : c'était un défaut de **périmètre de données**, capable de faire croire à une corruption chez l'utilisateur comme chez le comptable.
 
@@ -169,8 +169,8 @@ Six pages dédiées ont été créées, chacune avec un **rôle distinct**, un *
 
 | Niveau | Volume | Résultat |
 |---|---|---|
-| Unitaires / intégration (Vitest) | 41 fichiers, 245 tests | **243 réussis / 2 ignorés** (les 2 ignorés requièrent une base non disponible) |
-| E2E navigateur (Playwright) | 56 tests | **56/56 réussis** |
+| Unitaires / intégration (Vitest) | 41 fichiers, 247 tests | **245 réussis / 2 ignorés** (les 2 ignorés requièrent une base non disponible) |
+| E2E navigateur (Playwright) | 58 tests | **58/58 réussis** |
 | Typecheck (`tsc --noEmit`) | — | **0 erreur** |
 | Lint (ESLint) | — | **0 erreur** |
 | Build (`next build`) | — | **succès** |

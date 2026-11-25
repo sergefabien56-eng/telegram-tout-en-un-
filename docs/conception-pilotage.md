@@ -33,6 +33,10 @@
 │  └────────────────────────────────┘ └──────────────────┘                │
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ Évolution du CA commandes                         [Comparer →] │  │
+│  │ ▁▂▅█▃▁▂▆█▄▂▁▃▇▄▂▁▃▅▂▄▆▃▁▂▅▇▄▂▁▃▅▂▄▆▄▂▃  (30 jours)          │  │  ← DailyChart
+│  └──────────────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ État de mes boutiques                              [Comparer →] │  │
 │  │ Boutique │ État │ CA période │ Commandes │ Dernière synchro.     │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
@@ -96,9 +100,13 @@ Blocs :
 2. **4 KPI** — CA commandes, articles vendus, stocks faibles, net à verser. Chacun porte sa provenance.
 3. **Alertes prioritaires** (5 max) + lien « Tout voir → » vers `/alertes`.
 4. **Accès rapides** — 6 raccourcis vers les tâches du quotidien.
-5. **État de mes boutiques** — tableau : boutique, état factuel, CA période, commandes, dernière synchronisation.
-6. **Dernières activités** (6 max) + lien « Journal complet → » vers `/activites`.
-7. **Note de méthode** — rappel que CA commandes et net à verser sont deux mesures distinctes, non estimées.
+5. **Évolution du CA commandes** — graphique de barres journalier, sur le périmètre
+   affiché ; le sommaire chiffré est vérifié contre les KPI par test d'intégration.
+   Un jour sans commande vaut zéro (jamais une absence de donnée) ; sans commande
+   sur la période, le graphique n'est pas affiché.
+6. **État de mes boutiques** — tableau : boutique, état factuel, CA période, commandes, dernière synchronisation.
+7. **Dernières activités** (6 max) + lien « Journal complet → » vers `/activites`.
+8. **Note de méthode** — rappel que CA commandes et net à verser sont deux mesures distinctes, non estimées.
 
 ### 2.2 `/performances` — Comparaison multi-boutiques
 
@@ -233,7 +241,7 @@ Le libellé du refus explique **pourquoi** l'écran est vide — c'est ce qui é
 | Gestion centrale multi-boutiques | « État de mes boutiques » + `/performances` | E2E |
 | État « À venir » explicite | `navigation.config.ts` + badge | `navigation.test.ts` |
 | Design professionnel, accessible, cohérent Web/mobile/TG | `globals.css`, gabarits factorisés, Mini App alignée | axe-core, E2E Mini App |
-| Conservation des fonctionnalités existantes | 48 rubriques, 34 pages, 56 API inchangées | 243 tests + 56 E2E |
+| Conservation des fonctionnalités existantes | 48 rubriques, 34 pages, 56 API inchangées | 245 tests + 58 E2E |
 | « Tout ouvrir » / « Tout fermer » | Mini App conservés | `e2e/mini-menu.spec.ts` |
 | Règles serveur d'autorisation | `resolveShopIds`, `getShopAccess` | tests d'isolation |
 | Aucune donnée inventée | agrégations pures, états distincts | revue de code + E2E |

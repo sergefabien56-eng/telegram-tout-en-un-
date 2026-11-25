@@ -179,4 +179,34 @@ describe.skipIf(!hasDb)("tableau de bord (base réelle)", () => {
       expect(shop.connection.operational).toBe(false);
     }
   });
+
+  it("produit une évolution journalière cohérente avec les totaux", async () => {
+    const overview = await dashboardOverview(userId, 30, [shopA, shopB]);
+
+    // Un point par jour de la période : la courbe ne comble aucun trou.
+    expect(overview.series).toHaveLength(30);
+    expect(overview.series[0]?.period).toBe(overview.period.from);
+    expect(overview.series[29]?.period).toBe(overview.period.to);
+
+    // La somme des points vaut exactement le total affiché.
+    const somme = overview.series.reduce((acc, point) => acc + point.revenueMinor, 0);
+    expect(somme).toBe(overview.kpis.revenueMinor);
+    const commandes = overview.series.reduce((acc, point) => acc + point.orders, 0);
+    expect(commandes).toBe(overview.kpis.orders);
+
+    // Un jour sans commande vaut zéro (ce n'est pas une absence de donnée).
+    const jourVide = overview.series.find((point) => point.orders === 0);
+    expect(jourVide?.revenueMinor).toBe(0);
+  });
+
+  it("n'affiche que les jours de la boutique demandée", async () => {
+    const onlyA = await dashboardOverview(userId, 30, [shopA]);
+    const sommeA = onlyA.series.reduce((acc, point) => acc + point.revenueMinor, 0);
+    expect(sommeA).toBe(onlyA.kpis.revenueMinor);
+
+    // La boutique B n'apparaît dans aucun point de la série.
+    const all = await dashboardOverview(userId, 30, [shopA, shopB]);
+    const sommeAll = all.series.reduce((acc, point) => acc + point.revenueMinor, 0);
+    expect(sommeAll).toBeGreaterThan(sommeA);
+  });
 });
