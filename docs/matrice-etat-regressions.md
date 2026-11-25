@@ -340,3 +340,89 @@ refus hors périmètre affiché. **Les deux boutiques renvoient toujours des chi
 | Synchronisation réelle Jumia sur les deux boutiques (bouton « Synchroniser cette période ») | quota + secrets : jamais exécuté automatiquement ; à faire une fois après déploiement          |
 | Lecture du comportement au-delà de 5 pages de 200                                           | dépend du quota réel du compte vendeur                                                         |
 | Rendu sur un téléphone Telegram réel                                                        | l'anti-rebond du client n'est pas reproductible en test ; captures mobile (390 × 844) fournies |
+
+---
+
+## 9. Lot « Boutiques & Plateformes » et publication de produits Jumia (25/11/2026)
+
+### 9.1 Section C — quatre rubriques exactement
+
+| Rubrique                       | Adresse                       | Permission       | État                                        |
+| ------------------------------ | ----------------------------- | ---------------- | ------------------------------------------- |
+| **Toutes les boutiques**       | `/boutiques`                  | `shops:read`     | ✅ une carte par boutique autorisée         |
+| **Ajouter une boutique Jumia** | `/boutiques/ajouter`          | `shops:write`    | ✅ Self Authorization, choix de la boutique |
+| **Ajouter un produit**         | `/boutiques/produits/nouveau` | `products:write` | ✅ boutique obligatoire                     |
+| **Réseaux sociaux**            | —                             | —                | ⏳ « bientôt », aucun lien, aucune fonction |
+
+Les anciennes rubriques distinctes « Connexions Jumia », « Synchronisations » et « Réglages
+boutiques » **ne sont plus des entrées de menu**. Les opérations correspondantes restent
+atteignables **depuis** « Toutes les boutiques » et « Ajouter une boutique Jumia » : aucune
+fonction n'est perdue, seule la hiérarchie change.
+
+Preuve : `src/lib/__tests__/navigation-boutiques.test.ts` · `src/lib/__tests__/navigation.test.ts` ·
+`e2e/boutiques-platesformes.spec.ts`.
+
+### 9.2 Ce qui est refusé, et où
+
+| Refus                                        | Où                         | Preuve                                   |
+| -------------------------------------------- | -------------------------- | ---------------------------------------- |
+| `client_secret` demandé                      | jamais demandé (interface) | parcours Self Authorization              |
+| Période absente ou inversée                  | **serveur**                | `order-sync-window` + panneau de sync    |
+| Boutique absente / inconnue                  | **serveur** (404)          | `getShopAccess` dans les routes produit  |
+| Permission `products:write` absente          | **serveur** (403)          | route publications + audit `blocked`     |
+| Boutique non rattachée à Jumia               | **serveur** (409)          | route publications                       |
+| SKU déjà envoyé / déjà au catalogue          | **serveur** (409)          | `findExistingSku` + `skuExistsInCatalog` |
+| Catégorie inconnue du référentiel            | **serveur** (409)          | table `jumia_catalog_categories`         |
+| Attribut obligatoire manquant                | **serveur** (422)          | `validateAgainstAttributeSet`            |
+| Produit « publié » annoncé sans vérification | interface + suivi serveur  | `publiée` exige produit actif + QC       |
+
+Aucun jeton Jumia n'est renvoyé, journalisé ni exporté : les jetons sont chiffrés (AES-256-GCM)
+et la rotation est immédiate.
+
+### 9.3 États d'une publication
+
+| État            | Signification                                                                     |
+| --------------- | --------------------------------------------------------------------------------- |
+| `envoyee`       | la demande a été transmise à Jumia — **le produit n'est pas encore publié**       |
+| `en_traitement` | le flux est traité par Jumia                                                      |
+| `acceptee`      | Jumia a accepté la fiche, le contrôle qualité n'est pas encore terminé            |
+| `rejetee`       | Jumia a refusé la fiche (motifs affichés)                                         |
+| `publiee`       | **uniquement** si le produit est retrouvé au catalogue, actif, visible, QC validé |
+
+« Publiée » n'est **jamais** affichée au clic : elle suppose la relecture du flux **et** du
+catalogue.
+
+### 9.4 Ce que MIMI ne fait pas
+
+| Règle                           | Mise en œuvre                                                 |
+| ------------------------------- | ------------------------------------------------------------- |
+| Aucune caractéristique inventée | valeur inconnue = `null`, jamais une estimation               |
+| Poids et matériau               | `null` sans preuve explicite → vérification humaine           |
+| Catégories                      | uniquement des codes présents dans le référentiel Jumia local |
+| Images                          | images **existantes** (Openverse), jamais générées            |
+| Droits d'usage                  | licence, source et attribution vérifiées avant choix          |
+
+### 9.5 Tests exécutés
+
+| Suite                      | Commande                                                                                       | Résultat                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Unitaires + intégration    | `npm test`                                                                                     | **329 réussis / 2 ignorés** (49 fichiers) |
+| End-to-end                 | `npx playwright test e2e/boutiques-platesformes.spec.ts e2e/publication-produit-jumia.spec.ts` | **5/5**                                   |
+| End-to-end (suite entière) | `npx playwright test`                                                                          | **76 réussis / 0 échec**                  |
+| Qualité statique           | `npm run typecheck` · `npm run lint` · `npm run build`                                         | verts                                     |
+
+Nouveaux fichiers de test :
+`src/lib/__tests__/navigation-boutiques.test.ts` (8) ·
+`src/lib/__tests__/jumia-product-creation.test.ts` (16) ·
+`src/lib/__tests__/product-assistant.test.ts` (16) ·
+`e2e/boutiques-platesformes.spec.ts` (2) ·
+`e2e/publication-produit-jumia.spec.ts` (3).
+
+### 9.6 Non testé automatiquement (à dire tel quel)
+
+| Élément                                   | Pourquoi                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Envoi réel d'un produit à Jumia           | quota d'écriture + secrets : **aucun flux n'a été envoyé** ; l'état de la table `product_publications` est vide |
+| Synchronisation réelle des commandes      | quota + secrets : la couche HTTP est simulée                                                                    |
+| Relecture du QC Jumia sur un vrai produit | dépend d'un flux réellement accepté par la plateforme                                                           |
+| Rendu sur un téléphone Telegram réel      | l'anti-rebond du client n'est pas reproductible en test                                                         |

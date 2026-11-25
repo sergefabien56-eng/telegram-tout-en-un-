@@ -1,10 +1,9 @@
 "use client";
 
-import { ShopCreateForm } from "@/components/shop-create-form";
-import { JumiaAccounts } from "@/components/jumia-accounts";
-import { JumiaShopLink } from "@/components/jumia-shop-link";
-import { roleHasPermission } from "@/lib/roles";
+import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Package, RefreshCw, Store, Unlink, UserPlus } from "lucide-react";
+import { roleHasPermission } from "@/lib/roles";
 
 type ConnectionState = {
   state: string;
@@ -25,6 +24,8 @@ type ShopRow = {
   remoteShopName?: string | null;
   createdAt: string;
   role: string;
+  lastSyncAt?: string | null;
+  lastSyncStatus?: string | null;
   /** État factuel (lien, compte vendeur, données reçues). */
   connection?: ConnectionState | null;
 };
@@ -38,6 +39,14 @@ type MemberRow = {
 
 const ROLES = ["manager", "stock", "accountant", "assistant"] as const;
 
+/**
+ * « Toutes les boutiques ».
+ *
+ * Une carte par boutique autorisée, avec les actions adaptées à son état :
+ * rattacher un produit, relire ses commandes, consulter l'historique des
+ * synchronisations, ou la déconnecter (action réversible : les données déjà
+ * synchronisées sont conservées).
+ */
 export default function BoutiquesPage() {
   const [shops, setShops] = useState<ShopRow[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -45,6 +54,7 @@ export default function BoutiquesPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<(typeof ROLES)[number]>("assistant");
@@ -90,10 +100,6 @@ export default function BoutiquesPage() {
     if (selected) void loadMembers(selected);
   }, [selected]);
 
-  async function reloadAfterCreate() {
-    await loadShops();
-  }
-
   async function onInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
@@ -136,154 +142,242 @@ export default function BoutiquesPage() {
     await loadMembers(selected);
   }
 
+  /**
+   * Déconnexion : la boutique cesse de lire son compte Jumia, mais **les
+   * données déjà synchronisées sont conservées** (elles lui appartiennent).
+   * C'est l'action inverse de l'ajout, et elle est réversible.
+   */
+  async function onDisconnect(shop: ShopRow) {
+    const confirme = window.confirm(
+      `Déconnecter « ${shop.name} » de Jumia ?\n\n` +
+        "La boutique ne lira plus ses commandes, produits et relevés.\n" +
+        "Les données déjà synchronisées sont conservées et restent visibles.",
+    );
+    if (!confirme) return;
+    setBusy(shop.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/shops/${shop.id}/disconnect`, { method: "POST" });
+      const payload = (await response.json()) as { ok: boolean; error?: string };
+      if (!response.ok || !payload.ok) {
+        setError(payload.error ?? "Déconnexion impossible.");
+        return;
+      }
+      setNotice(`« ${shop.name} » est déconnectée de Jumia. Ses données restent disponibles.`);
+      await loadShops();
+    } catch {
+      setError("Erreur réseau pendant la déconnexion.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const boutiqueSelectionnee = shops.find((shop) => shop.id === selected);
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-night">Boutiques</h1>
-        <p className="mt-1 text-sm text-muted">
-          Boutiques connectées et équipes. Les permissions sont appliquées côté serveur.
+        <h1 className="text-2xl font-semibold text-night">Toutes les boutiques</h1>
+        <p className="mt-1 max-w-3xl text-sm text-muted">
+          Chaque boutique à laquelle vous avez accès, avec son état réel et les actions disponibles.
+          Les permissions sont appliquées côté serveur.
         </p>
 
         {error ? (
-          <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+          <p role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            {error}
+          </p>
         ) : null}
         {notice ? (
-          <p className="mt-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
-        ) : null}
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <section className="card p-5 lg:col-span-2">
-            <h2 className="text-sm font-semibold text-night">Mes boutiques</h2>
-            {loading ? (
-              <p className="mt-3 text-sm text-muted">Chargement…</p>
-            ) : shops.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">
-                Aucune boutique pour le moment. Crée la première ci-contre.
-              </p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {shops.map((shop) => (
-                  <li
-                    key={shop.id}
-                    className={`rounded-lg border p-4 ${selected === shop.id ? "border-primary-ink" : "border-border"}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelected(shop.id)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-night">{shop.name}</span>
-                        <span className="badge bg-primary-50 text-primary-700">{shop.role}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-muted">
-                        {shop.platform} · ID {shop.externalShopId} · {shop.country ?? "—"} ·{" "}
-                        {shop.currency}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        Connexion :{" "}
-                        <span
-                          className={`font-medium ${
-                            shop.connection?.operational ? "text-success" : "text-danger"
-                          }`}
-                        >
-                          {shop.connection?.label ?? "État inconnu"}
-                        </span>
-                        {shop.remoteShopName ? ` · Jumia : ${shop.remoteShopName}` : null}
-                      </p>
-                      {shop.connection && !shop.connection.operational ? (
-                        <p className="mt-1 text-xs text-muted">{shop.connection.detail}</p>
-                      ) : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section id="ajouter" className="card p-5">
-            <h2 className="text-sm font-semibold text-night">Nouvelle boutique</h2>
-            <div className="mt-4">
-              <ShopCreateForm idPrefix="page-shop" onCreated={reloadAfterCreate} />
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-6">
-          <JumiaAccounts onChanged={loadShops} />
-        </div>
-
-        {selected && shops.find((shop) => shop.id === selected)?.role ? (
-          <div id="connexions" className="mt-6">
-            <JumiaShopLink
-              shopId={selected}
-              remoteShopId={shops.find((shop) => shop.id === selected)?.remoteShopId ?? null}
-              remoteShopName={shops.find((shop) => shop.id === selected)?.remoteShopName ?? null}
-              canWrite={roleHasPermission(
-                shops.find((shop) => shop.id === selected)?.role as never,
-                "shops:write",
-              )}
-              onChanged={loadShops}
-            />
-          </div>
-        ) : null}
-
-        {selected ? (
-          <section className="card mt-6 p-5">
-            <h2 className="text-sm font-semibold text-night">Équipe de la boutique</h2>
-            <ul className="mt-4 divide-y divide-border">
-              {members.map((member) => (
-                <li key={member.userId} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-night">{member.fullName}</p>
-                    <p className="text-xs text-muted">{member.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="badge badge-neutral">{member.role}</span>
-                    {member.role !== "owner" ? (
-                      <button
-                        type="button"
-                        onClick={() => onRemove(member.userId)}
-                        className="text-xs text-danger hover:underline"
-                      >
-                        Retirer
-                      </button>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={onInvite}>
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                placeholder="membre@exemple.ci"
-                className="flex-1 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
-              />
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as (typeof ROLES)[number])}
-                className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-              >
-                Inviter
-              </button>
-            </form>
-          </section>
+          <p role="status" className="mt-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+            {notice}
+          </p>
         ) : null}
       </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/boutiques/ajouter"
+          className="focusable inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
+        >
+          <Store className="h-4 w-4" aria-hidden="true" />
+          Ajouter une boutique Jumia
+        </Link>
+        <Link
+          href="/boutiques/synchronisations"
+          className="focusable inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-night hover:bg-surface"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Historique des synchronisations
+        </Link>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted">Chargement des boutiques…</p>
+      ) : shops.length === 0 ? (
+        <div className="card p-5">
+          <p className="text-sm text-muted">
+            Aucune boutique pour le moment. Ajoutez votre compte vendeur Jumia pour en rattacher
+            une.
+          </p>
+          <Link
+            href="/boutiques/ajouter"
+            className="focusable mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
+          >
+            Ajouter une boutique Jumia
+          </Link>
+        </div>
+      ) : (
+        <ul className="grid gap-4 md:grid-cols-2">
+          {shops.map((shop) => {
+            const peutEcrire = roleHasPermission(shop.role as never, "shops:write");
+            const peutVendre = roleHasPermission(shop.role as never, "products:write");
+            return (
+              <li
+                key={shop.id}
+                className={`card p-5 ${selected === shop.id ? "ring-2 ring-primary-ink" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-night">{shop.name}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      {shop.platform} · ID {shop.externalShopId} · {shop.country ?? "—"} ·{" "}
+                      {shop.currency}
+                    </p>
+                    {shop.remoteShopId ? (
+                      <p className="mt-1 text-xs text-muted">
+                        Jumia : {shop.remoteShopName ?? "—"} · identifiant distant{" "}
+                        {shop.remoteShopId}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted">Non rattachée à une boutique Jumia.</p>
+                    )}
+                  </div>
+                  <span className="badge badge-neutral shrink-0">{shop.role}</span>
+                </div>
+
+                <p className="mt-3 text-xs">
+                  Connexion :{" "}
+                  <span
+                    className={`font-medium ${
+                      shop.connection?.operational ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    {shop.connection?.label ?? "État inconnu"}
+                  </span>
+                </p>
+                {shop.connection && !shop.connection.operational ? (
+                  <p className="mt-1 text-xs text-muted">{shop.connection.detail}</p>
+                ) : null}
+                <p className="mt-1 text-xs text-muted">
+                  Dernière synchronisation :{" "}
+                  {shop.lastSyncAt ? new Date(shop.lastSyncAt).toLocaleString("fr-FR") : "—"}
+                  {shop.lastSyncStatus && shop.lastSyncStatus !== "ok"
+                    ? ` · état : ${shop.lastSyncStatus}`
+                    : ""}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {peutVendre ? (
+                    <Link
+                      href={`/boutiques/produits/nouveau?boutique=${shop.id}`}
+                      className="focusable inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-hover"
+                    >
+                      <Package className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ajouter un produit
+                    </Link>
+                  ) : null}
+                  <Link
+                    href={`/commandes?boutique=${shop.id}`}
+                    className="focusable inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-night hover:bg-surface"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    Synchroniser cette période
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(shop.id)}
+                    className="focusable inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-night hover:bg-surface"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Équipe
+                  </button>
+                  {peutEcrire && shop.remoteShopId ? (
+                    <button
+                      type="button"
+                      onClick={() => void onDisconnect(shop)}
+                      disabled={busy === shop.id}
+                      className="focusable inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted hover:border-danger hover:text-danger disabled:opacity-60"
+                    >
+                      <Unlink className="h-3.5 w-3.5" aria-hidden="true" />
+                      {busy === shop.id ? "Déconnexion…" : "Déconnecter"}
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {boutiqueSelectionnee ? (
+        <section className="card p-5">
+          <h2 className="text-sm font-semibold text-night">
+            Équipe de « {boutiqueSelectionnee.name} »
+          </h2>
+          <ul className="mt-4 divide-y divide-border">
+            {members.map((member) => (
+              <li key={member.userId} className="flex items-center justify-between py-3">
+                <div>
+                  <p className="text-sm font-medium text-night">{member.fullName}</p>
+                  <p className="text-xs text-muted">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="badge badge-neutral">{member.role}</span>
+                  {member.role !== "owner" ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(member.userId)}
+                      className="text-xs text-danger hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={onInvite}>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+              placeholder="membre@exemple.ci"
+              className="focusable flex-1 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
+            />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as (typeof ROLES)[number])}
+              className="focusable rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary-ink"
+            >
+              {ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              Inviter
+            </button>
+          </form>
+        </section>
+      ) : null}
     </div>
   );
 }

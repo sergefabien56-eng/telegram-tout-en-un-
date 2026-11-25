@@ -16,6 +16,8 @@ type Props = {
   lastSyncAt?: string | null;
   /** État de la dernière synchronisation ("ok", "partial", "error"…). */
   lastStatus?: string | null;
+  /** Rappelé à la fin d'une synchronisation (réussie, partielle ou en erreur). */
+  onFinished?: () => void;
 };
 
 function isoDay(date: Date): string {
@@ -37,7 +39,14 @@ function jourDeSemaine(date: Date): string {
  * erreur, partielle. Aucune synchronisation partielle n'est annoncée comme
  * réussie.
  */
-export function OrderSyncPanel({ shopId, options, lastSuccessAt, lastSyncAt, lastStatus }: Props) {
+export function OrderSyncPanel({
+  shopId,
+  options,
+  lastSuccessAt,
+  lastSyncAt,
+  lastStatus,
+  onFinished,
+}: Props) {
   const today = new Date();
   const [targetId, setTargetId] = useState(shopId);
   const [from, setFrom] = useState(isoDay(new Date(today.getTime() - 29 * 86400000)));
@@ -118,6 +127,7 @@ export function OrderSyncPanel({ shopId, options, lastSuccessAt, lastSyncAt, las
       setError("Erreur réseau pendant la synchronisation.");
     } finally {
       setBusy(false);
+      onFinished?.();
     }
   }
 

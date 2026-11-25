@@ -152,7 +152,11 @@ function Sidebar({
                         return (
                           <li key={item.key}>
                             {item.soon ? (
-                              <span className="teu-rail-center flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted">
+                              <span
+                                className="teu-rail-center flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted"
+                                title={`${item.label} · bientôt`}
+                                aria-label={`${item.label} · bientôt`}
+                              >
                                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="flex-1">{item.label}</span>
                                 <span className="badge badge-neutral">Bientôt</span>

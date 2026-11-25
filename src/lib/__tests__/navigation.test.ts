@@ -37,12 +37,15 @@ describe("navigation.config", () => {
       // sont devenues des sous-rubriques de « Expédiées » et « À traiter ».
       "Clients",
       "Exports de commandes",
+      // La section « Boutiques et plateformes » compte exactement quatre
+      // rubriques : les opérations qui étaient des entrées distinctes
+      // (Comptes Jumia, Connexions Jumia, Synchronisations, Réglages
+      // boutiques) sont désormais portées par ces rubriques et par les
+      // pages qu'elles ouvrent.
       "Toutes les boutiques",
-      "Ajouter une boutique",
-      "Comptes Jumia",
-      "Connexions Jumia",
-      "Synchronisations",
-      "Réglages boutiques",
+      "Ajouter une boutique Jumia",
+      "Ajouter un produit",
+      "Réseaux sociaux",
       "Produits",
       "Catégories",
       "Prix",
@@ -80,7 +83,7 @@ describe("navigation.config", () => {
     const soon = NAV_ITEMS.filter((item) => item.soon).map((item) => item.label);
     expect(new Set(soon)).toEqual(
       new Set([
-        "Réglages boutiques",
+        "Réseaux sociaux",
         "Mouvements",
         "Entrepôts",
         "Inventaires",

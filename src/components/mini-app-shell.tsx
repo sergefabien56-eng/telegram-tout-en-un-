@@ -236,7 +236,8 @@ export function MiniAppShell({
                           {item.soon ? (
                             <span
                               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted"
-                              title="Fonction pas encore disponible"
+                              title={`${item.label} · bientôt`}
+                              aria-label={`${item.label} · bientôt`}
                             >
                               <NavIcon name={item.icon} />
                               <span className="min-w-0 flex-1 truncate">{item.label}</span>

@@ -12,7 +12,10 @@ test("L'écran Comptes Jumia permet d'ajouter un compte sans passer par la base"
   const email = `jumia-comptes-e2e-${Date.now()}@exemple.ci`;
   await login(page, email, "MotDePasse123");
 
-  await gotoSafely(page, "/boutiques#comptes-jumia");
+  // La gestion des comptes vendeur est portée par la rubrique
+  // « Ajouter une boutique Jumia » (la page « Toutes les boutiques » affiche
+  // désormais les boutiques et leurs actions).
+  await gotoSafely(page, "/boutiques/ajouter");
 
   await expect(page.getByRole("heading", { name: "Comptes Jumia connectés" })).toBeVisible();
   await expect(page.getByText("Ajouter un compte vendeur")).toBeVisible();
@@ -54,10 +57,13 @@ test("Toutes les boutiques rattachées apparaissent dans l'écran", async ({ pag
   }
 
   await gotoSafely(page, "/boutiques");
-  // Les deux cartes de la liste « Mes boutiques » (le <select> masqué donne
-  // aussi le nom : on vise la carte).
-  await expect(page.getByRole("button", { name: /^NKSF SHOP\b/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^MaxiShopsCI\b/ })).toBeVisible();
+  // Les deux cartes de « Toutes les boutiques » : une carte par boutique
+  // autorisée, avec le nom affiché.
+  // On cible la zone de contenu : le sélecteur de boutique de l'en-tête
+  // reprend aussi ces noms.
+  const contenu = page.getByRole("main");
+  await expect(contenu.getByText("NKSF SHOP", { exact: true })).toBeVisible();
+  await expect(contenu.getByText("MaxiShopsCI", { exact: true })).toBeVisible();
 });
 
 /** Le bouton « Tester » répond sur une route qui existe, et protège les comptes. */
@@ -97,4 +103,3 @@ test("Une boutique se crée avec un simple nom", async ({ page }) => {
   expect(payload.ok).toBe(true);
   expect(payload.data?.id).toBeTruthy();
 });
-

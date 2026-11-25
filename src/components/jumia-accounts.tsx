@@ -36,7 +36,22 @@ const EMPTY_FORM = { label: "", email: "", clientId: "", refreshToken: "" };
  * Les refresh tokens ne quittent jamais le navigateur et ne sont jamais renvoyés
  * par le serveur (ils sont stockés chiffrés AES-256-GCM).
  */
-export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
+export function JumiaAccounts({
+  onChanged,
+  onShopAttached,
+  heading = "Comptes Jumia connectés",
+}: {
+  onChanged?: () => void;
+  /**
+   * Rappelé après le rattachement réussi d'une boutique distante : la page
+   * d'accueil du parcours peut alors proposer l'étape suivante (synchronisation
+   * initiale). Le callback ne reçoit que l'identifiant et le nom — jamais de
+   * jeton.
+   */
+  onShopAttached?: (shop: { id: string; name: string }) => void;
+  /** Titre de la section (le parcours « Ajouter une boutique » le reformule). */
+  heading?: string;
+} = {}) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -67,7 +82,9 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
       const entries = await Promise.all(
         loaded.map(async (account) => {
           try {
-            const response = await fetch(`/api/jumia/shops?compte=${encodeURIComponent(account.id)}`);
+            const response = await fetch(
+              `/api/jumia/shops?compte=${encodeURIComponent(account.id)}`,
+            );
             const body = (await response.json()) as {
               ok?: boolean;
               data?: { shops: RemoteShop[] };
@@ -147,11 +164,17 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remoteShopId }),
       });
-      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        data?: { id?: string; name?: string };
+      };
       if (!response.ok || !payload.ok) {
         setAttachError(payload.error ?? "Rattachement impossible.");
         return;
       }
+      const creee = (payload.data ?? null) as { id?: string; name?: string } | null;
+      if (creee?.id && creee.name) onShopAttached?.({ id: creee.id, name: creee.name });
       setStatus({
         kind: "success",
         message:
@@ -194,16 +217,16 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
     <section id="comptes-jumia" className="card p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-night">
         <KeyRound className="h-4 w-4" aria-hidden="true" />
-        Comptes Jumia connectés
+        {heading}
       </h2>
       <p className="mt-2 text-sm text-muted">
-        Pour chaque boutique listée ci-dessous, « Créer et rattacher » enregistre la boutique
-        dans l&apos;application et la connecte automatiquement.
+        Pour chaque boutique listée ci-dessous, « Créer et rattacher » enregistre la boutique dans
+        l&apos;application et la connecte automatiquement.
       </p>
       <p className="mt-2 text-sm text-muted">
-        Un compte vendeur Jumia regroupe une ou plusieurs boutiques. Ajoutez ici
-        chaque adresse e-mail qui gère vos boutiques : chacune aura ses propres
-        commandes, stocks et finances. Aucun identifiant n&apos;est affiché.
+        Un compte vendeur Jumia regroupe une ou plusieurs boutiques. Ajoutez ici chaque adresse
+        e-mail qui gère vos boutiques : chacune aura ses propres commandes, stocks et finances.
+        Aucun identifiant n&apos;est affiché.
       </p>
 
       {loading ? (
@@ -211,9 +234,7 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
       ) : (
         <ul className="mt-4 divide-y divide-border">
           {accounts.length === 0 ? (
-            <li className="py-3 text-sm text-muted">
-              Aucun compte enregistré pour le moment.
-            </li>
+            <li className="py-3 text-sm text-muted">Aucun compte enregistré pour le moment.</li>
           ) : (
             accounts.map((account) => (
               <li key={account.id} className="py-3">
@@ -242,8 +263,11 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
                               {shop.name}
                               <span className="text-muted">
                                 {" "}
-                                · {shop.countries.map((c) => c.code).join(", ") || "pays non précisé"}
-                                {taken && shop.linkedTo ? ` · rattachée à ${shop.linkedTo.name}` : ""}
+                                ·{" "}
+                                {shop.countries.map((c) => c.code).join(", ") || "pays non précisé"}
+                                {taken && shop.linkedTo
+                                  ? ` · rattachée à ${shop.linkedTo.name}`
+                                  : ""}
                               </span>
                             </span>
                             {taken ? (
@@ -343,7 +367,7 @@ export function JumiaAccounts({ onChanged }: { onChanged?: () => void } = {}) {
           </label>
         </div>
         <p className="mt-2 text-xs text-muted">
-         Ces deux valeurs se trouvent dans Vendor Center → Paramètres → Applications → votre
+          Ces deux valeurs se trouvent dans Vendor Center → Paramètres → Applications → votre
           application « Self Authorization ». Elles sont stockées chiffrées sur le serveur.
         </p>
         <button

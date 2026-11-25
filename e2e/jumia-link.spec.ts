@@ -60,7 +60,9 @@ test("rattacher une boutique Jumia depuis la page Boutiques", async ({ page }) =
     });
   });
 
-  await page.goto("/boutiques");
+  // Le rattachement est porté par « Rattacher une boutique déjà créée », sur
+  // la page « Ajouter une boutique Jumia ».
+  await page.goto("/boutiques/ajouter");
 
   await expect(page.getByRole("heading", { name: /Boutique Jumia rattachée/i })).toBeVisible();
 

@@ -150,41 +150,47 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   // --- C. Boutiques et plateformes ----------------------------------------
-  { key: "shops", label: "Toutes les boutiques", href: "/boutiques", icon: "Store", section: "C" },
+  // **Quatre rubriques exactement**, conformément au cahier des charges.
+  //
+  // Les opérations qui étaient des entrées de menu (Comptes Jumia, Connexions
+  // Jumia, Synchronisations, Réglages boutiques) ne sont **pas supprimées** :
+  // elles sont désormais portées par les rubriques ci-dessous.
+  //   - Comptes Jumia et rattachement d'une boutique distante : rubriques
+  //     « Ajouter une boutique Jumia » ;
+  //   - Synchronisations : liens depuis « Toutes les boutiques » et depuis
+  //     l'écran « Ajouter une boutique Jumia » (page conservée) ;
+  //   - Réglages boutiques : fonction jamais développée — elle n'apparaît
+  //     plus comme une rubrique principale.
   {
-    key: "shops-add",
-    label: "Ajouter une boutique",
-    href: "/boutiques#ajouter",
-    icon: "Plus",
-    section: "C",
-  },
-  {
-    key: "shops-accounts",
-    label: "Comptes Jumia",
-    href: "/boutiques#comptes-jumia",
-    icon: "KeyRound",
-    section: "C",
-  },
-  {
-    key: "shops-jumia",
-    label: "Connexions Jumia",
-    href: "/boutiques#connexions",
-    icon: "Link2",
-    section: "C",
-  },
-  {
-    key: "shops-sync",
-    label: "Synchronisations",
-    href: "/boutiques/synchronisations",
-    icon: "RefreshCw",
+    key: "shops",
+    label: "Toutes les boutiques",
+    href: "/boutiques",
+    icon: "Store",
     section: "C",
     permission: "shops:read",
   },
   {
-    key: "shops-settings",
-    label: "Réglages boutiques",
-    href: "/boutiques/reglages",
-    icon: "Settings",
+    key: "shops-add",
+    label: "Ajouter une boutique Jumia",
+    href: "/boutiques/ajouter",
+    icon: "Plus",
+    section: "C",
+    permission: "shops:write",
+  },
+  {
+    key: "shops-product-add",
+    label: "Ajouter un produit",
+    href: "/boutiques/produits/nouveau",
+    icon: "Package",
+    section: "C",
+    permission: "products:write",
+    pathPrefixes: ["/boutiques/produits/"],
+  },
+  {
+    key: "shops-social",
+    label: "Réseaux sociaux",
+    href: "/boutiques/reseaux-sociaux",
+    icon: "Share2",
     section: "C",
     soon: true,
   },
@@ -485,9 +491,16 @@ export function activeNavItem(items: NavItem[], pathname: string): NavItem | und
   return best?.item;
 }
 
-/** Retourne les éléments d'une section, filtrés par permissions. */
+/**
+ * Retourne les éléments d'une section, filtrés par permissions.
+ *
+ * La permission « * » (propriétaire d'au moins une boutique) ouvre toutes
+ * les entrées, comme le fait l'affichage du menu.
+ */
 export function getNavItems(section: NavSection, permissions: ReadonlySet<string>): NavItem[] {
   return NAV_ITEMS.filter(
-    (item) => item.section === section && (!item.permission || permissions.has(item.permission)),
+    (item) =>
+      item.section === section &&
+      (!item.permission || permissions.has(item.permission) || permissions.has("*")),
   );
 }

@@ -80,7 +80,8 @@ test.describe.serial("Mini App", () => {
       .getByRole("link", { name: "Boutiques" })
       .click();
     await expect(page).toHaveURL(/\/boutiques$/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: /^boutiques$/i })).toBeVisible();
+    // La page porte désormais le titre « Toutes les boutiques ».
+    await expect(page.getByRole("heading", { name: /^toutes les boutiques$/i })).toBeVisible();
     await expect(page.locator('nav[aria-label="Navigation principale"]')).toBeVisible();
   });
 

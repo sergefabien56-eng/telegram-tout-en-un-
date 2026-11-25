@@ -76,7 +76,9 @@ test.describe.serial("Mini App — menu", () => {
       "Tableau de bord",
       "Alertes",
       "Toutes les commandes",
-      "Ajouter une boutique",
+      "Toutes les boutiques",
+      "Ajouter une boutique Jumia",
+      "Ajouter un produit",
       "Produits",
       "Stocks",
       "Vue financière",
@@ -96,8 +98,9 @@ test.describe.serial("Mini App — menu", () => {
     await expect(dialog.getByRole("link", { name: "Mouvements" })).toHaveCount(0);
     await expect(dialog.locator("text=À venir").first()).toBeVisible();
 
-    // Rubrique nouvellement livrée : c'est bien un lien.
-    await expect(dialog.getByRole("link", { name: "Synchronisations" })).toBeVisible();
+    // Les rubriques « à venir » n'ont pas de lien mort.
+    await expect(dialog.getByRole("link", { name: "Réseaux sociaux" })).toHaveCount(0);
+    await expect(dialog.getByText("Réseaux sociaux")).toBeVisible();
 
     // Tout fermer : les rubriques disparaissent (il reste « version web »).
     await dialog.getByRole("button", { name: "Tout fermer" }).click();
