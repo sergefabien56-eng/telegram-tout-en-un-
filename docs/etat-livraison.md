@@ -2,12 +2,13 @@
 
 ## Ce qui est livré et en production
 
-| Lot                           | Commit    | CI    | Déploiement |
-| ----------------------------- | --------- | ----- | ----------- |
-| Publication de produits Jumia | `9f00e56` | verte | ✅          |
-| Boutiques & Plateformes       | `4256bc2` | verte | ✅          |
-| Déploiement adossé au commit  | `c0fdb04` | verte | ✅          |
-| Documentation du déploiement  | `be50093` | verte | ✅          |
+| Lot                                     | Commit    | CI    | Déploiement |
+| --------------------------------------- | --------- | ----- | ----------- |
+| Publication de produits Jumia           | `9f00e56` | verte | ✅          |
+| Boutiques & Plateformes                 | `4256bc2` | verte | ✅          |
+| Déploiement adossé au commit            | `c0fdb04` | verte | ✅          |
+| Documentation du déploiement            | `be50093` | verte | ✅          |
+| Déploiement sans dépendance API externe | `ab458d4` | verte | ✅          |
 
 Production : `https://tout-en-un-business-manager.onrender.com` — `/api/health` répond
 `{"status":"ok"}` et publie le commit réellement déployé (`commit`).
