@@ -36,12 +36,21 @@ jobs:
           fi
 
       - name: Déclencher le déploiement Render
+        id: deploy
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           API_KEY: ${{ secrets.RENDER_API_KEY }}
           SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          URL: https://tout-en-un-business-manager.onrender.com
         run: |
           set -euo pipefail
+          # Commit actuellement en ligne : on le retient pour distinguer
+          # « le nouveau build est arrivé » de « l'ancienne instance répond
+          # encore ».
+          avant="$(curl -fsS --max-time 20 "$URL/api/health" 2>/dev/null \
+            | grep -o '"commit":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+          echo "commit_avant=${avant}" >> "$GITHUB_OUTPUT"
+          echo "Commit en ligne avant le déploiement : ${avant:-inconnu}"
           if [ -n "$HOOK" ]; then
             echo "Déclenchement via le Deploy Hook (permission minimale)."
             curl -sSf -X POST "$HOOK"
@@ -58,13 +67,17 @@ jobs:
         env:
           URL: https://tout-en-un-business-manager.onrender.com
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_AVANT: ${{ steps.deploy.outputs.commit_avant }}
         run: |
           set -euo pipefail
           # Pendant un déploiement, l'ancienne instance répond encore : un
           # simple « status ok » ne prouve donc **rien**. On exige que
-          # l'instance en ligne serve le commit attendu (ou un commit plus
-          # récent, si un autre push a eu lieu entre-temps).
+          # l'instance en ligne serve le commit attendu — ou, si un push
+          # plus récent a eu lieu entre-temps, qu'elle serve un build
+          # **différent** de celui qui était en ligne avant le
+          # déploiement. Aucune comparaison n'est faite via l'API GitHub :
+          # elle dépendrait du quota de l'API et ferait échouer le
+          # déploiement pour une raison étrangère au code.
           for attempt in $(seq 1 40); do
             body="$(curl -fsS --max-time 20 "$URL/api/health" || true)"
             if echo "$body" | grep -q '"status":"ok"'; then
@@ -80,14 +93,8 @@ jobs:
                 echo "✅ En ligne sur le commit ${commit} après ${attempt} tentative(s)"
                 exit 0
               fi
-              # L'inline tourne sur un autre commit : soit le nouveau build
-              # est encore en cours, soit un push plus récent a déjà été
-              # déployé (son propre run s'en chargera).
-              ahead="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/repos/${{ github.repository }}/compare/${EXPECTED_SHA}...${commit}" \
-                2>/dev/null | grep -o '"status":"[a-z]*"' | head -1 | cut -d'"' -f4 || true)"
-              if [ "$ahead" = "ahead" ] || [ "$ahead" = "identical" ]; then
-                echo "✅ L'instance en ligne (${commit}) est postérieure au commit attendu."
+              if [ -n "$COMMIT_AVANT" ] && [ "$commit" != "$COMMIT_AVANT" ]; then
+                echo "✅ Un nouveau build est en ligne (${commit}), postérieur au commit ${COMMIT_AVANT}."
                 exit 0
               fi
               echo "  [${attempt}] en ligne mais sur le commit ${commit} — nouveau build en cours"

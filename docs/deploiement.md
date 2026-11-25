@@ -80,9 +80,12 @@ sur l'ancienne instance.
 La vérification est donc **adossée au commit** :
 
 - `/api/health` publie le commit réellement déployé (`RENDER_GIT_COMMIT`, fourni par Render) ;
-- le workflow attend que l'instance en ligne serve **le commit attendu** (celui de la CI verte) ;
-- si un push plus récent a déjà été déployé entre-temps, le commit en ligne est accepté s'il est
-  **postérieur** à l'attendu (vérifié via l'API `compare` de GitHub) ;
+- le workflow retient le commit en ligne **avant** de déclencher le déploiement ;
+- il attend ensuite que l'instance serve **le commit attendu** (celui de la CI verte) ;
+- si un push plus récent a déjà été déployé entre-temps, un commit en ligne **différent** de celui
+  d'avant est accepté : un nouveau build est bien arrivé ;
+- aucune comparaison n'est faite via l'API GitHub : elle dépendrait du quota de l'API et ferait
+  échouer le déploiement pour une raison étrangère au code ;
 - si le commit n'est pas communiqué, le workflow retombe sur l'ancien contrôle et **le dit**
   dans le journal.
 
