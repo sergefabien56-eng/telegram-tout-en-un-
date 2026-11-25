@@ -51,6 +51,16 @@ async function session(context) {
     ["06-recherche", "/recherche"],
     ["07-apparence", "/apparence"],
     ["08-refus-perimetre", "/dashboard?boutique=00000000-0000-0000-0000-000000000000"],
+    // Module « Ventes & commandes » : les quatre rubriques et leurs sous-vues.
+    ["16-ventes-a-historique", "/commandes?boutique=toutes"],
+    ["17-ventes-b-a-traiter", "/commandes/a-traiter?boutique=toutes"],
+    ["18-ventes-b-en-attente", "/commandes/a-traiter/en-attente?boutique=toutes"],
+    ["19-ventes-b-pretes-a-expedier", "/commandes/a-traiter/pretes-a-expedier?boutique=toutes"],
+    ["20-ventes-b-factures", "/commandes/a-traiter/factures?boutique=toutes"],
+    ["21-ventes-c-expediees", "/commandes/expediees?boutique=toutes"],
+    ["22-ventes-c-retours", "/commandes/retours?boutique=toutes"],
+    ["23-ventes-d-villes", "/commandes/villes?boutique=toutes"],
+    ["24-ventes-a-annulees", "/commandes/annulees?boutique=toutes"],
   ];
 
   for (const [nom, chemin] of ecrans) {
@@ -67,6 +77,10 @@ async function session(context) {
   await page.waitForTimeout(400);
   await page.goto(`${BASE}/dashboard?boutique=toutes`, { waitUntil: "domcontentloaded" });
   await shoot(page, "09-tableau-de-bord-sombre");
+
+  // Les ventes en thème sombre : le contraste doit rester lisible.
+  await page.goto(`${BASE}/commandes?boutique=toutes`, { waitUntil: "domcontentloaded" });
+  await shoot(page, "25-ventes-sombre");
 
   await context.close();
 }
@@ -86,6 +100,8 @@ async function session(context) {
     ["10-mobile-tableau-de-bord", "/dashboard?boutique=toutes"],
     ["11-mobile-performances", "/performances?boutique=toutes"],
     ["12-mobile-recherche", "/recherche"],
+    ["26-mobile-ventes-a-traiter", "/commandes/a-traiter?boutique=toutes"],
+    ["27-mobile-ventes-villes", "/commandes/villes?boutique=toutes"],
   ]) {
     await page.goto(`${BASE}${chemin}`, { waitUntil: "domcontentloaded" });
     await shoot(page, nom);
@@ -116,6 +132,10 @@ async function session(context) {
 
   await page.goto(`${BASE}/dashboard?boutique=toutes`, { waitUntil: "domcontentloaded" });
   await shoot(page, "14-mini-app-accueil");
+
+  // Mini App : les quatre rubriques de « Ventes et commandes ».
+  await page.goto(`${BASE}/commandes?boutique=toutes`, { waitUntil: "domcontentloaded" });
+  await shoot(page, "28-mini-app-ventes");
 
   await page
     .getByRole("button", { name: /^plus$/i })

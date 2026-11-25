@@ -1,6 +1,29 @@
-import { and, count, desc, eq, gte, inArray, isNotNull, lte, max, sum } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  lte,
+  max,
+  sql,
+  sum,
+  type SQL,
+} from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { minorUnits } from "@/lib/money";
+import {
+  orderFamily,
+  STATUS_ANNULEES,
+  STATUS_ECHEC_LIVRAISON,
+  STATUS_EXPEDIEES,
+  STATUS_HORS_ATTENTE,
+  STATUS_LIVREES,
+  STATUS_RETOURS,
+  type OrderFamily,
+} from "@/lib/order-status";
 
 export type OrderInsert = typeof schema.orders.$inferInsert;
 export type OrderRow = typeof schema.orders.$inferSelect;
@@ -227,6 +250,11 @@ export function orderStatusGroup(status: string): OrderGroup | null {
 }
 
 export type OrderFilters = {
+  /**
+   * Famille de commandes retenue (filtre appliqué **en base**, avant la
+   * limite de lignes).
+   */
+  family?: OrderFamily;
   /** Statut exact Jumia (ex. `SHIPPED`). */
   status?: string;
   /** Boutiques autorisées ; jamais de requête hors de cette liste. */
@@ -241,24 +269,101 @@ export type OrderFilters = {
  * La liste `shopIds` vient toujours de `listUserShops` : on ne sort jamais du
  * périmètre autorisé.
  */
+/**
+ * Condition SQL correspondant à une famille de commandes.
+ *
+ * Elle reprend exactement les définitions de `order-status.ts` : le filtrage
+ * se fait **en base**, avant la limite de lignes, afin que la liste affichée
+ * et les compteurs décrivent le même ensemble.
+ *
+ * Les fragments SQL sont construits **à l'appel** et non au chargement du
+ * module : certains tests simulent la base (`schema` vide), et le module doit
+ * rester importable sans elle.
+ */
+export function orderFamilyCondition(famille: OrderFamily): SQL {
+  // Statut Jumia normalisé : minuscules, sans espace, sans tiret ni
+  // soubassement — même normalisation que `normalizeOrderStatus` en JS.
+  const statut = sql`lower(regexp_replace(regexp_replace(regexp_replace(trim(${schema.orders.status}), '[\\s_-]+', '', 'g'), ' ', '', 'g'), '_', '', 'g'))`;
+
+  // Préparation confirmée : tous les articles sont emballés
+  // (`packed >= total > 0`), ou — quand le total d'articles est inconnu —
+  // le statut dit « prêt à expédier ».
+  const preparation = sql`(
+    (coalesce(${schema.orders.totalItems}, 0) > 0 AND coalesce(${schema.orders.packedItems}, 0) >= ${schema.orders.totalItems})
+    OR (coalesce(${schema.orders.totalItems}, 0) = 0 AND ${statut} = 'readytoship')
+  )`;
+
+  const horsAttente = sql`${statut} NOT IN (${sql.join(
+    STATUS_HORS_ATTENTE.map((value) => sql`${value}`),
+    sql`, `,
+  )})`;
+
+  switch (famille) {
+    case "annulees":
+      return sql`${statut} IN (${sql.join(
+        STATUS_ANNULEES.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "hors-annulees":
+      // Historique : tout sauf les annulées, qui ont leur propre sous-vue.
+      return sql`${statut} NOT IN (${sql.join(
+        STATUS_ANNULEES.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "echec-livraison":
+      return sql`${statut} IN (${sql.join(
+        STATUS_ECHEC_LIVRAISON.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "retours":
+      return sql`${statut} IN (${sql.join(
+        STATUS_RETOURS.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "livrees":
+      return sql`${statut} IN (${sql.join(
+        STATUS_LIVREES.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "expediees":
+      return sql`${statut} IN (${sql.join(
+        STATUS_EXPEDIEES.map((value) => sql`${value}`),
+        sql`, `,
+      )})`;
+    case "pretes-a-expedier":
+      return sql`${horsAttente} AND ${preparation}`;
+    case "en-attente":
+      return sql`${horsAttente} AND NOT ${preparation}`;
+    default:
+      return sql`true`;
+  }
+}
+
 export async function listOrdersForShops(
   shopIds: string[],
   filters: OrderFilters = {},
 ): Promise<{ order: OrderRow; shopName: string }[]> {
-  if (shopIds.length === 0) return [];
+  const ids = shopIds.filter((id) => id.trim().length > 0);
+  if (ids.length === 0) return [];
   const db = getDb();
-  const conditions = [inArray(schema.orders.shopId, shopIds)];
+  const conditions = [inArray(schema.orders.shopId, ids)];
   if (filters.status) conditions.push(eq(schema.orders.status, filters.status));
   if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
   if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
+  if (filters.family) conditions.push(orderFamilyCondition(filters.family));
 
-  return db
-    .select({ order: schema.orders, shopName: schema.shops.name })
-    .from(schema.orders)
-    .innerJoin(schema.shops, eq(schema.orders.shopId, schema.shops.id))
-    .where(and(...conditions))
-    .orderBy(desc(schema.orders.remoteCreatedAt))
-    .limit(Math.min(Math.max(filters.limit ?? 100, 1), 500));
+  return (
+    db
+      .select({ order: schema.orders, shopName: schema.shops.name })
+      .from(schema.orders)
+      .innerJoin(schema.shops, eq(schema.orders.shopId, schema.shops.id))
+      .where(and(...conditions))
+      .orderBy(desc(schema.orders.remoteCreatedAt))
+      // Plafond haut : les exports doivent couvrir toute la sélection, pas
+      // une page tronquée. Les vues d'écran demandent une limite beaucoup
+      // plus basse.
+      .limit(Math.min(Math.max(filters.limit ?? 100, 1), 5000))
+  );
 }
 
 /**
@@ -279,7 +384,8 @@ export async function listOrderCustomers(
     totalMinor: number;
   }[]
 > {
-  if (shopIds.length === 0) return [];
+  const ids = shopIds.filter((id) => id.trim().length > 0);
+  if (ids.length === 0) return [];
   const db = getDb();
   const rows = await db
     .select({
@@ -291,7 +397,7 @@ export async function listOrderCustomers(
       totalMinor: sum(schema.orders.totalAmountMinor),
     })
     .from(schema.orders)
-    .where(and(inArray(schema.orders.shopId, shopIds), isNotNull(schema.orders.customerFirstName)))
+    .where(and(inArray(schema.orders.shopId, ids), isNotNull(schema.orders.customerFirstName)))
     .groupBy(
       schema.orders.customerFirstName,
       schema.orders.customerLastName,
@@ -308,4 +414,192 @@ export async function listOrderCustomers(
     lastAt: row.lastAt,
     totalMinor: row.totalMinor === null ? 0 : Number(row.totalMinor),
   }));
+}
+
+/**
+ * Compteurs d'une sélection de commandes, **sans** limite de lignes.
+ *
+ * Le nombre affiché doit correspondre aux filtres posés, pas au nombre de
+ * lignes effectivement renvoyées par une requête tronquée.
+ */
+/**
+ * Compteurs d'une sélection de commandes, **sans** limite de lignes.
+ *
+ * Le nombre affiché doit correspondre aux filtres posés, pas au nombre de
+ * lignes effectivement renvoyées par une requête tronquée.
+ *
+ * `include` permet de restreindre le périmètre à une famille de commandes
+ * (par exemple « annulée ») : les compteurs décrivent alors exactement ce
+ * que la page affiche, et le total affiché correspond bien aux commandes
+ * listées.
+ */
+export async function countOrdersForShops(
+  shopIds: string[],
+  filters: OrderFilters = {},
+  include?: (order: {
+    status: string;
+    packedItems: number | null;
+    totalItems: number | null;
+  }) => boolean,
+): Promise<{ orders: number; totalMinor: number; currencies: string[] }> {
+  const ids = shopIds.filter((id) => id.trim().length > 0);
+  if (ids.length === 0) return { orders: 0, totalMinor: 0, currencies: [] };
+  const db = getDb();
+  const conditions = [inArray(schema.orders.shopId, ids)];
+  if (filters.status) conditions.push(eq(schema.orders.status, filters.status));
+  if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
+  if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
+  if (filters.family) conditions.push(orderFamilyCondition(filters.family));
+
+  // Le regroupement par statut et par état de préparation permet d'appliquer
+  // la famille **après** la requête : le total affiché reste ainsi le
+  // montant exact des commandes listées.
+  const rows = await db
+    .select({
+      orders: count(),
+      totalMinor: sum(schema.orders.totalAmountMinor),
+      currency: schema.orders.currency,
+      status: schema.orders.status,
+      packedItems: schema.orders.packedItems,
+      totalItems: schema.orders.totalItems,
+    })
+    .from(schema.orders)
+    .where(and(...conditions))
+    .groupBy(
+      schema.orders.currency,
+      schema.orders.status,
+      schema.orders.packedItems,
+      schema.orders.totalItems,
+    );
+
+  let orders = 0;
+  let totalMinor = 0;
+  const currencies = new Set<string>();
+  for (const row of rows) {
+    const nombre = Number(row.orders ?? 0);
+    if (
+      include &&
+      !include({
+        status: row.status ?? "",
+        packedItems: row.packedItems,
+        totalItems: row.totalItems,
+      })
+    ) {
+      continue;
+    }
+    orders += nombre;
+    totalMinor += Number(row.totalMinor ?? 0);
+    if (row.currency) currencies.add(row.currency);
+  }
+
+  return { orders, totalMinor, currencies: [...currencies] };
+}
+
+/**
+ * Agrégat par ville (ou localité) — **sans donnée personnelle**.
+ *
+ * On ne restitue que des volumes, des montants et des taux d'échec, avec
+ * l'effectif correspondant : un pourcentage seul serait trompeur sur un
+ * échantillon minuscule. Aucun nom, téléphone ou adresse n'est exposé.
+ */
+export async function listOrderCities(
+  shopIds: string[],
+  filters: OrderFilters = {},
+): Promise<
+  {
+    city: string;
+    orders: number;
+    delivered: number;
+    shipped: number;
+    canceled: number;
+    failed: number;
+    returned: number;
+    totalMinor: number;
+    currency: string;
+  }[]
+> {
+  const ids = shopIds.filter((id) => id.trim().length > 0);
+  if (ids.length === 0) return [];
+  const db = getDb();
+  const conditions = [inArray(schema.orders.shopId, ids), isNotNull(schema.orders.customerCity)];
+  if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
+  if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
+
+  const rows = await db
+    .select({
+      city: schema.orders.customerCity,
+      currency: schema.orders.currency,
+      status: schema.orders.status,
+      totalMinor: sum(schema.orders.totalAmountMinor),
+      n: count(),
+    })
+    .from(schema.orders)
+    .where(and(...conditions))
+    .groupBy(schema.orders.customerCity, schema.orders.currency, schema.orders.status);
+
+  const parVille = new Map<
+    string,
+    {
+      city: string;
+      orders: number;
+      delivered: number;
+      shipped: number;
+      canceled: number;
+      failed: number;
+      returned: number;
+      totalMinor: number;
+      currency: string;
+    }
+  >();
+
+  for (const row of rows) {
+    const city = (row.city ?? "").trim();
+    if (!city) continue;
+    const entry = parVille.get(city) ?? {
+      city,
+      orders: 0,
+      delivered: 0,
+      shipped: 0,
+      canceled: 0,
+      failed: 0,
+      returned: 0,
+      totalMinor: 0,
+      currency: row.currency,
+    };
+    const nombre = Number(row.n ?? 0);
+    entry.orders += nombre;
+    entry.totalMinor += Number(row.totalMinor ?? 0);
+    const famille = orderFamily({ status: row.status ?? "" });
+    if (famille === "livrees") entry.delivered += nombre;
+    else if (famille === "expediees") entry.shipped += nombre;
+    else if (famille === "annulees") entry.canceled += nombre;
+    else if (famille === "echec-livraison") entry.failed += nombre;
+    else if (famille === "retours") entry.returned += nombre;
+    parVille.set(city, entry);
+  }
+
+  return [...parVille.values()].sort((a, b) => b.orders - a.orders);
+}
+
+/**
+ * Une commande, avec sa boutique, pour la page de détail.
+ *
+ * Le périmètre est vérifié **côté serveur** : une commande qui n'appartient
+ * pas à une boutique autorisée n'est jamais renvoyée.
+ */
+export async function getOrderForUser(
+  orderId: string,
+  allowedShopIds: string[],
+): Promise<(OrderRow & { shopName: string }) | null> {
+  if (allowedShopIds.length === 0) return null;
+  const db = getDb();
+  const rows = await db
+    .select({ order: schema.orders, shopName: schema.shops.name })
+    .from(schema.orders)
+    .innerJoin(schema.shops, eq(schema.orders.shopId, schema.shops.id))
+    .where(and(eq(schema.orders.id, orderId), inArray(schema.orders.shopId, allowedShopIds)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row.order, shopName: row.shopName };
 }

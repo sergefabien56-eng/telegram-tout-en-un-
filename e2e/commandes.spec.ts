@@ -21,9 +21,11 @@ test("l'écran Commandes affiche un état vide explicite", async ({ page }) => {
 
   await page.goto("/commandes");
   await expect(page.getByRole("heading", { name: "Toutes les commandes", level: 1 })).toBeVisible();
-  await expect(page.getByText(/Aucune commande enregistrée/)).toBeVisible();
-  // Le bouton est présent mais désactivé tant que la boutique n'est pas rattachée.
-  await expect(page.getByRole("button", { name: /Synchroniser les commandes/ })).toBeDisabled();
+  // État vide honnête : aucun chiffre fabriqué, aucun « 0 » trompeur.
+  await expect(page.getByText(/Aucune commande ne correspond aux filtres/)).toBeVisible();
+  // Le bouton de synchronisation est présent mais désactivé tant que la
+  // boutique n'est pas rattachée à une boutique Jumia.
+  await expect(page.getByRole("button", { name: /Synchroniser cette période/ })).toBeDisabled();
 
   // L'entrée de navigation est-elle marquée « Bientôt disponible » ?
   // (Vérifié côté configuration par navigation.test.ts.)

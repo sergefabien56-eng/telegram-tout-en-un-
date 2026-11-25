@@ -16,10 +16,11 @@ test("Export CSV des commandes vide puis rempli", async ({ page }) => {
     },
   });
 
-  // Sans donnée : le bouton n'apparaît pas (pas d'export trompeur).
+  // Sans donnée : aucun lien d'export n'est proposé (pas d'export trompeur).
   await gotoSafely(page, "/commandes");
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("link", { name: /Exporter en CSV/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Exporter la sélection/ })).toHaveCount(0);
+  await expect(page.getByText(/Rien à exporter/)).toBeVisible();
 
   // L'API répond quand même un CSV d'en-têtes, avec la permission adéquate.
   const response = await page.request.get(

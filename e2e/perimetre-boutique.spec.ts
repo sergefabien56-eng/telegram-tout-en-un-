@@ -39,7 +39,10 @@ test("le périmètre par défaut est une seule boutique et ne s'élargit jamais"
   const valeurParDefaut = await filtre.inputValue();
   expect(valeurParDefaut).not.toBe("toutes");
   await expect(
-    page.getByRole("status").filter({ hasText: "Filtre actif" }).filter({ hasText: /PERIMETRE/ }),
+    page
+      .getByRole("status")
+      .filter({ hasText: "Filtre actif" })
+      .filter({ hasText: /PERIMETRE/ }),
   ).toBeVisible();
 
   // 2. Une boutique étrangère au périmètre ne fait pas retomber sur toutes.
@@ -47,7 +50,7 @@ test("le périmètre par défaut est une seule boutique et ne s'élargit jamais"
   await gotoSafely(page, `/commandes?boutique=${intruse}`);
   await page.waitForLoadState("networkidle");
   await expect(
-    page.getByRole("alert").filter({ hasText: "n'est pas dans votre périmètre" }),
+    page.getByRole("alert").filter({ hasText: /n['’]est pas dans votre périmètre/ }),
   ).toBeVisible();
   // Aucune donnée ne doit être affichée pour ce périmètre refusé.
   await expect(page.getByRole("cell", { name: /PERIMETRE/ })).toHaveCount(0);

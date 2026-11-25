@@ -130,6 +130,40 @@ test.describe.serial("accessibilité des pages connectées", () => {
     }
   });
 
+  test("les pages des ventes et commandes passent l'audit WCAG 2.1 AA", async ({ page }) => {
+    await login(page, email, password);
+
+    await page.request.post("/api/shops", {
+      data: {
+        name: "A11Y VENTES",
+        externalShopId: `E2E-A11Y-V-${Date.now()}`,
+        country: "CI",
+        currency: "XOF",
+      },
+    });
+
+    // Les quatre rubriques et leurs sous-vues : chacune a son propre écran.
+    for (const chemin of [
+      "/commandes",
+      "/commandes/annulees",
+      "/commandes/a-traiter",
+      "/commandes/a-traiter/en-attente",
+      "/commandes/a-traiter/pretes-a-expedier",
+      "/commandes/a-traiter/factures",
+      "/commandes/expediees",
+      "/commandes/retours",
+      "/commandes/villes",
+    ]) {
+      await page.goto(chemin);
+      await expectNoViolations(page, `ventes ${chemin}`);
+    }
+
+    // Et dans le thème sombre, où le contraste doit rester lisible.
+    await page.goto("/commandes");
+    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await expectNoViolations(page, "ventes /commandes sombre");
+  });
+
   test("les actions rapides se ferment à Échap et rendent le focus", async ({ page }) => {
     await login(page, email, password);
     await page.goto("/securite");

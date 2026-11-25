@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { formatMoney } from "@/lib/money";
+import { OrderStatusBadge } from "@/components/order-status-badge";
+import { hasMultipleStatuses } from "@/lib/order-status";
 
 export type OrderTableRow = {
   id: string;
@@ -51,8 +54,13 @@ export function OrderTable({ rows, showShop, empty }: Props) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} className="border-b border-border last:border-0">
-              <td className="py-2.5 pr-3 font-mono text-xs text-night">
-                {row.orderNumber ?? row.externalOrderId}
+              <td className="py-2.5 pr-3 font-mono text-xs">
+                <Link
+                  href={`/commandes/${row.id}`}
+                  className="focusable text-night underline decoration-border underline-offset-2 hover:decoration-primary"
+                >
+                  {row.orderNumber ?? row.externalOrderId}
+                </Link>
               </td>
               {showShop ? <td className="py-2.5 pr-3 text-night">{row.shopName ?? "—"}</td> : null}
               <td className="py-2.5 pr-3 text-muted">
@@ -61,7 +69,14 @@ export function OrderTable({ rows, showShop, empty }: Props) {
                   : "—"}
               </td>
               <td className="py-2.5 pr-3">
-                <span className="badge badge-neutral">{row.status}</span>
+                <OrderStatusBadge
+                  status={row.status}
+                  partial={hasMultipleStatuses({
+                    status: row.status,
+                    packedItems: row.packedItems,
+                    totalItems: row.totalItems,
+                  })}
+                />
               </td>
               <td className="py-2.5 pr-3 text-muted">
                 {row.packedItems ?? 0}/{row.totalItems ?? 0}

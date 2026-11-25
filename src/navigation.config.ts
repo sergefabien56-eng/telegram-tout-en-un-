@@ -28,6 +28,18 @@ export type NavItem = {
   permission?: string;
   /** Fonction non développée : affichée avec la mention « À venir ». */
   soon?: boolean;
+  /**
+   * Chemins supplémentaires qui rattachent la page à cette entrée.
+   *
+   * Les sous-rubriques (Historique, Annulées, En attente…) ont chacune leur
+   * propre page : le menu doit savoir laquelle de ses rubriques est active.
+   */
+  paths?: string[];
+  /**
+   * Préfixes de chemins rattachés à cette entrée (pages de détail par
+   * exemple). L'entrée la **plus spécifique** l'emporte.
+   */
+  pathPrefixes?: string[];
 };
 
 export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
@@ -90,6 +102,11 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   // --- B. Ventes et commandes ---------------------------------------------
+  // **Quatre rubriques exactement**, conformément au cahier des charges.
+  // Les fonctions qui étaient des entrées de menu (Retours, Factures,
+  // Clients, Exports) sont **conservées** : elles sont désormais atteintes
+  // par les sous-rubriques de A, B et C (voir le plan de migration
+  // `docs/plan-refonte-ventes-commandes.md`).
   {
     key: "orders",
     label: "Toutes les commandes",
@@ -97,6 +114,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "ShoppingCart",
     section: "B",
     permission: "orders:read",
+    paths: ["/commandes/annulees"],
+    pathPrefixes: ["/commandes/"],
   },
   {
     key: "orders-action",
@@ -105,6 +124,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "ClipboardList",
     section: "B",
     permission: "orders:read",
+    paths: [
+      "/commandes/a-traiter/en-attente",
+      "/commandes/a-traiter/pretes-a-expedier",
+      "/commandes/a-traiter/factures",
+    ],
+    pathPrefixes: ["/commandes/a-traiter/"],
   },
   {
     key: "orders-shipped",
@@ -113,36 +138,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "Truck",
     section: "B",
     permission: "orders:read",
+    paths: ["/commandes/expediees", "/commandes/retours"],
   },
   {
-    key: "orders-returns",
-    label: "Retours",
-    href: "/commandes/retours",
-    icon: "RotateCcw",
-    section: "B",
-    permission: "orders:read",
-  },
-  {
-    key: "orders-invoices",
-    label: "Factures originales",
-    href: "/commandes/factures",
-    icon: "FileText",
-    section: "B",
-    permission: "orders:read",
-  },
-  {
-    key: "orders-customers",
-    label: "Clients",
-    href: "/commandes/clients",
-    icon: "Users",
-    section: "B",
-    permission: "orders:read",
-  },
-  {
-    key: "orders-export",
-    label: "Exports",
-    href: "/commandes/exports",
-    icon: "Download",
+    key: "orders-cities",
+    label: "Villes & localités",
+    href: "/commandes/villes",
+    icon: "MapPin",
     section: "B",
     permission: "orders:read",
   },
@@ -341,6 +343,22 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "Download",
     section: "F",
   },
+  {
+    key: "orders-export",
+    label: "Exports de commandes",
+    href: "/commandes/exports",
+    icon: "Download",
+    section: "F",
+    permission: "orders:read",
+  },
+  {
+    key: "orders-customers",
+    label: "Clients",
+    href: "/commandes/clients",
+    icon: "Users",
+    section: "F",
+    permission: "orders:read",
+  },
 
   // --- G. Automatisation et IA -------------------------------------------
   {
@@ -439,6 +457,33 @@ export const NAV_ITEMS: NavItem[] = [
     permission: "admin:read",
   },
 ];
+
+/**
+ * Entrée de menu correspondant à un chemin.
+ *
+ * Le chemin exact l'emporte toujours ; à défaut, on retient le préfixe le
+ * plus long. Une sous-rubrique (ex. `/commandes/villes`) active donc sa
+ * propre rubrique et non la rubrique parente.
+ */
+export function activeNavItem(items: NavItem[], pathname: string): NavItem | undefined {
+  let best: { item: NavItem; score: number } | undefined;
+  for (const item of items) {
+    const href = item.href.split("#")[0]!;
+    const candidates: { path: string; score: number }[] = [];
+    if (href === pathname) candidates.push({ path: href, score: 1000 + href.length });
+    for (const path of item.paths ?? []) {
+      if (path === pathname) candidates.push({ path, score: 600 + path.length });
+    }
+    for (const prefix of item.pathPrefixes ?? []) {
+      if (pathname.startsWith(prefix))
+        candidates.push({ path: prefix, score: 500 + prefix.length });
+    }
+    for (const candidate of candidates) {
+      if (!best || candidate.score > best.score) best = { item, score: candidate.score };
+    }
+  }
+  return best?.item;
+}
 
 /** Retourne les éléments d'une section, filtrés par permissions. */
 export function getNavItems(section: NavSection, permissions: ReadonlySet<string>): NavItem[] {

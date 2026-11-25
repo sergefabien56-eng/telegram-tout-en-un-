@@ -31,10 +31,12 @@ describe("navigation.config", () => {
       "Toutes les commandes",
       "À traiter",
       "Expédiées",
-      "Retours",
-      "Factures originales",
+      "Villes & localités",
+      // Les fonctions déplacées restent dans le menu, hors de la section
+      // « Ventes et commandes » : « Retours » et « Factures à imprimer »
+      // sont devenues des sous-rubriques de « Expédiées » et « À traiter ».
       "Clients",
-      "Exports",
+      "Exports de commandes",
       "Toutes les boutiques",
       "Ajouter une boutique",
       "Comptes Jumia",

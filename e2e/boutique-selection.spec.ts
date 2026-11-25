@@ -92,9 +92,7 @@ test("le filtre boutique s'applique immédiatement et affiche la boutique active
   await filtre.selectOption(alphaId);
   await page.waitForURL(new RegExp(`boutique=${alphaId}`), { timeout: 30_000 });
   await expect(page.getByRole("status").filter({ hasText: "Filtre actif" })).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: "FILTRE ALPHA" }),
-  ).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "FILTRE ALPHA" })).toBeVisible();
 });
 
 /**
@@ -120,7 +118,9 @@ test("la synchronisation des commandes annonce la boutique cible", async ({ page
 
   await gotoSafely(page, "/commandes");
   await page.waitForLoadState("networkidle");
-  // Le bouton nomme la boutique qui sera synchronisée.
-  await expect(page.getByRole("button", { name: /Synchroniser les commandes de / })).toBeVisible();
+  // Le panneau de synchronisation annonce la boutique cible : il ne vise
+  // jamais « la première » boutique par défaut.
+  await expect(page.getByRole("button", { name: /Synchroniser cette période/ })).toBeVisible();
   await expect(page.getByText(/La synchronisation porte sur la boutique choisie/)).toBeVisible();
+  await expect(page.locator('select[name="boutique"]')).toBeVisible();
 });

@@ -15,7 +15,21 @@ type Props = {
 /** Valeur explicite du filtre « toutes les boutiques ». */
 const ALL_SHOPS = "toutes";
 
-const STATUTS = ["CREATED", "PENDING", "SHIPPED", "DELIVERED", "CANCELED", "RETURNED", "REFUNDED"];
+/**
+ * Statuts proposés dans le filtre — uniquement des statuts **réellement
+ * observés** dans les données Jumia du projet, avec un libellé lisible.
+ */
+const STATUTS = [
+  { value: "PENDING", label: "En attente" },
+  { value: "READY_TO_SHIP", label: "Prête à expédier" },
+  { value: "SHIPPED", label: "Expédiée" },
+  { value: "DELIVERED", label: "Livrée" },
+  { value: "CANCELED", label: "Annulée" },
+  { value: "FAILED", label: "Échec de livraison" },
+  { value: "RETURNED", label: "Retournée" },
+  { value: "REFUNDED", label: "Remboursée" },
+  { value: "Multiple Status", label: "Statuts multiples" },
+];
 
 /**
  * Filtres de consultation : boutique, période, statut. Formulaire GET, donc
@@ -94,8 +108,8 @@ export function OrderFilters({ shops, values, currentShopId }: Props) {
         >
           <option value="">Tous les statuts</option>
           {STATUTS.map((statut) => (
-            <option key={statut} value={statut}>
-              {statut}
+            <option key={statut.value} value={statut.value}>
+              {statut.label} ({statut.value})
             </option>
           ))}
         </select>
@@ -103,7 +117,7 @@ export function OrderFilters({ shops, values, currentShopId }: Props) {
 
       <button
         type="submit"
-        className="focusable rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
+        className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
       >
         Filtrer
       </button>

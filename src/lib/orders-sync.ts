@@ -5,6 +5,7 @@ import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { normalizeOrder, upsertOrders } from "@/lib/orders";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, orderShopIds } from "@/lib/shop-guard";
+import { MAX_SYNC_WINDOW_DAYS, ORDERS_MAX_PAGES, ORDERS_PAGE_SIZE } from "@/lib/order-sync-policy";
 
 export type SyncResult = {
   ok: boolean;
@@ -16,6 +17,18 @@ export type SyncResult = {
   truncated?: boolean;
   /** Commandes lues mais écartées : elles appartenaient à une autre boutique. */
   skipped?: number;
+  /**
+   * Période réellement relue (bornes en UTC). Les commandes plus anciennes
+   * dont le statut a changé sont également relues : voir `followedUpdates`.
+   */
+  window?: { from: string; to: string };
+  /** Des commandes antérieures à la fenêtre ont été relues (changement de statut). */
+  followedUpdates?: boolean;
+  /**
+   * La synchronisation a été **partielle** (limite de pages atteinte) : elle
+   * ne doit jamais être présentée comme réussie.
+   */
+  partial?: boolean;
 };
 
 /** Formate une date en `YYYY-MM-DD` (UTC), format attendu par Jumia. */
@@ -23,9 +36,12 @@ function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-const MAX_DAYS = 90; // la plage Jumia est limitée à 3 mois
+const MAX_DAYS = MAX_SYNC_WINDOW_DAYS; // la plage Jumia est limitée à 3 mois
+
+/** Plage maximale lisible par l'API Jumia (documentée dans le projet). */
+export const MAX_SYNC_DAYS = MAX_SYNC_WINDOW_DAYS;
 const DEFAULT_DAYS = 30;
-const MAX_PAGES = 5;
+const MAX_PAGES = ORDERS_MAX_PAGES;
 
 /**
  * Synchronise les commandes d'une boutique rattachée sur les `days` derniers jours.
@@ -36,11 +52,45 @@ const MAX_PAGES = 5;
 export async function syncShopOrders(params: {
   userId: string;
   shopId: string;
+  /** Fenêtre glissante en jours (usage historique). */
   days?: number;
+  /** Bornes explicites de la période demandée (usage « synchroniser cette période »). */
+  from?: Date;
+  to?: Date;
+  /**
+   * Relire aussi les commandes **plus anciennes** dont le statut a changé
+   * (`updatedAfter` de l'API Jumia). Sans cela, une synchronisation limitée
+   * aux nouvelles dates de création manquerait les changements de statut
+   * ultérieurs.
+   */
+  followUpdates?: boolean;
   requestMeta?: { ip?: string; userAgent?: string | null };
 }): Promise<SyncResult> {
   const db = getDb();
   const days = Math.min(Math.max(Math.round(params.days ?? DEFAULT_DAYS), 1), MAX_DAYS);
+
+  // Bornes de la période : dates explicites si fournies, sinon fenêtre
+  // glissante de `days` jours. La plage Jumia est limitée à 90 jours.
+  const fin = params.to ? new Date(params.to) : new Date();
+  const debut = params.from
+    ? new Date(params.from)
+    : new Date(fin.getTime() - days * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(debut.getTime()) || Number.isNaN(fin.getTime())) {
+    return { ok: false, reason: "Période invalide." };
+  }
+  if (debut > fin) {
+    return {
+      ok: false,
+      reason: "Période invalide : la date de début est postérieure à la date de fin.",
+    };
+  }
+  const spanDays = Math.ceil((fin.getTime() - debut.getTime()) / (24 * 60 * 60 * 1000));
+  if (spanDays > MAX_DAYS) {
+    return {
+      ok: false,
+      reason: `Période trop large : l'API Jumia ne permet de relire que ${MAX_DAYS} jours à la fois.`,
+    };
+  }
 
   let lockReleased = false;
   async function releaseLock() {
@@ -91,16 +141,22 @@ export async function syncShopOrders(params: {
     };
   }
 
-  const before = new Date();
-  const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  // Fenêtre de mise à jour : on relit aussi les commandes plus anciennes
+  // dont le statut a changé depuis la dernière synchronisation réussie.
+  const followUpdates = params.followUpdates === true;
+  const dernierSync = shop.lastSyncAt ? new Date(shop.lastSyncAt) : null;
+  const updateAfter = followUpdates
+    ? isoDate(dernierSync ?? new Date(fin.getTime() - MAX_DAYS * 24 * 60 * 60 * 1000))
+    : undefined;
 
   try {
     const { orders, pages, truncated } = await fetchAllOrderPages({
       shopId: remoteShopId,
       accountId: accountId ?? undefined,
-      createdAfter: isoDate(after),
-      createdBefore: isoDate(before),
-      size: 200,
+      createdAfter: isoDate(debut),
+      createdBefore: isoDate(fin),
+      ...(updateAfter ? { updatedAfter: updateAfter, updatedBefore: isoDate(fin) } : {}),
+      size: ORDERS_PAGE_SIZE,
       sort: "DESC",
       maxPages: MAX_PAGES,
     });
@@ -123,8 +179,8 @@ export async function syncShopOrders(params: {
         metadata: { reason: "autre_boutique", ecartees: foreign.length },
       });
     }
-    const kept = orders.filter(
-      (raw) => belongsToShop(orderShopIds(raw as Record<string, unknown>), remoteShopId),
+    const kept = orders.filter((raw) =>
+      belongsToShop(orderShopIds(raw as Record<string, unknown>), remoteShopId),
     );
     const normalized = kept.flatMap((raw) => {
       const row = normalizeOrder(params.shopId, raw);
@@ -132,11 +188,15 @@ export async function syncShopOrders(params: {
     });
     const { inserted, updated } = await upsertOrders(normalized);
 
+    // Une synchronisation **partielle** (limite de pages atteinte) n'est pas
+    // une réussite : la boutique est marquée « partial » pour que l'interface
+    // ne présente jamais une lecture incomplète comme un succès.
+    const partial = truncated;
     await db
       .update(schema.shops)
       .set({
         lastSyncAt: new Date(),
-        lastSyncStatus: "ok",
+        lastSyncStatus: partial ? "partial" : "ok",
         syncInProgress: false,
         updatedAt: new Date(),
       })
@@ -152,11 +212,15 @@ export async function syncShopOrders(params: {
       userAgent: params.requestMeta?.userAgent,
       metadata: {
         days,
+        from: isoDate(debut),
+        to: isoDate(fin),
+        followedUpdates: followUpdates,
         fetched: orders.length,
         inserted,
         updated,
         pages,
         truncated,
+        partial,
       },
     });
 
@@ -169,6 +233,9 @@ export async function syncShopOrders(params: {
       pages,
       truncated,
       skipped: foreign.length,
+      partial,
+      followedUpdates: followUpdates,
+      window: { from: isoDate(debut), to: isoDate(fin) },
     };
   } catch (error) {
     await db
@@ -186,7 +253,12 @@ export async function syncShopOrders(params: {
       entityId: params.shopId,
       ip: params.requestMeta?.ip,
       userAgent: params.requestMeta?.userAgent,
-      metadata: { days, error: message.slice(0, 300) },
+      metadata: {
+        days,
+        from: isoDate(debut),
+        to: isoDate(fin),
+        error: message.slice(0, 300),
+      },
     });
 
     return { ok: false, reason: message };

@@ -1,3 +1,12 @@
+/**
+ * COMPOSANT CONSERVÉ — non utilisé par la nouvelle arborescence.
+ *
+ * Ce bouton déclenchait une synchronisation « par nombre de jours ». Il est
+ * remplacé par `OrderSyncPanel`, qui synchronise une **période choisie**
+ * (Du/Au), confirme les opérations volumineuses et affiche l'état du job.
+ * Le fichier n'est **pas supprimé** : la consigne du projet est de ne rien
+ * retirer sans consultation.
+ */
 "use client";
 
 import { useState } from "react";
@@ -93,9 +102,7 @@ export function OrderSyncButton({ shopId, linked, days = 30, options }: Props) {
         type="button"
         onClick={run}
         disabled={busy || !targetLinked}
-        title={
-          targetLinked ? undefined : "Rattachez d'abord la boutique à une boutique Jumia"
-        }
+        title={targetLinked ? undefined : "Rattachez d'abord la boutique à une boutique Jumia"}
         className="focusable inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} aria-hidden="true" />

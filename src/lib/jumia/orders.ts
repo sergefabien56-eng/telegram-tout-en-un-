@@ -13,24 +13,58 @@ export type OrdersPage = {
  * `shopId` filtre sur la boutique distante (usage mastershop) : on ne récupère
  * ainsi que les commandes de la boutique rattachée.
  */
+/**
+ * Paramètres de la requête `GET /orders` — fonction **pure**.
+ *
+ * Les filtres de création (`createdAfter`/`createdBefore`) et de mise à jour
+ * (`updatedAfter`/`updatedBefore`) sont exposés séparément : une
+ * synchronisation limitée à la création ne verrait jamais les changements de
+ * statut des commandes plus anciennes.
+ */
+export function buildOrderQuery(params: {
+  shopId?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
+  size?: number;
+  sort?: "ASC" | "DESC";
+  token?: string | null;
+}): Record<string, string | number | boolean | undefined> {
+  return {
+    shopId: params.shopId,
+    createdAfter: params.createdAfter,
+    createdBefore: params.createdBefore,
+    updatedAfter: params.updatedAfter,
+    updatedBefore: params.updatedBefore,
+    size: params.size ?? 200,
+    sort: params.sort ?? "DESC",
+    token: params.token ?? undefined,
+  };
+}
+
 export async function fetchOrdersPage(params: {
   shopId?: string;
   /** Compte vendeur Jumia à utiliser (multi-comptes). */
   accountId?: string;
-  createdAfter: string;
-  createdBefore: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  /**
+   * Fenêtre de **mise à jour** : c'est elle qui permet de relire les
+   * commandes plus anciennes dont le statut a changé (une synchronisation
+   * limitée à `createdAfter` ne verrait jamais ces changements).
+   */
+  updatedAfter?: string;
+  updatedBefore?: string;
   size?: number;
   sort?: "ASC" | "DESC";
   token?: string | null;
 }): Promise<OrdersPage> {
-  const response = await jumiaGet("/orders", {
-    shopId: params.shopId,
-    createdAfter: params.createdAfter,
-    createdBefore: params.createdBefore,
-    size: params.size ?? 200,
-    sort: params.sort ?? "DESC",
-    token: params.token ?? undefined,
-  }, params.accountId ? { accountId: params.accountId } : undefined);
+  const response = await jumiaGet(
+    "/orders",
+    buildOrderQuery(params),
+    params.accountId ? { accountId: params.accountId } : undefined,
+  );
 
   if (!response.ok) {
     return Promise.reject(
@@ -58,8 +92,10 @@ export async function fetchOrdersPage(params: {
 export async function fetchAllOrderPages(params: {
   shopId?: string;
   accountId?: string;
-  createdAfter: string;
-  createdBefore: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
   size?: number;
   sort?: "ASC" | "DESC";
   maxPages?: number;

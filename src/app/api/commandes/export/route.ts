@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   const from = parseDay(url.searchParams.get("from") ?? undefined);
   const to = parseDay(url.searchParams.get("to") ?? undefined, true);
   const status = url.searchParams.get("status") ?? undefined;
-  const rows = await listOrdersForShops(shopIds, { status, from, to, limit: 500 });
+  const rows = await listOrdersForShops(shopIds, { status, from, to, limit: 5000 });
 
   const csv = toCsv(
     COLUMNS,

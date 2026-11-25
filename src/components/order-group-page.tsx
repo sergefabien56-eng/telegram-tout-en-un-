@@ -1,3 +1,12 @@
+/**
+ * COMPOSANT CONSERVÉ — non utilisé par la nouvelle arborescence.
+ *
+ * La refonte « Ventes & Commandes » a remplacé les anciennes pages de
+ * groupes par des sous-vues dédiées (`OrderWorkspace`). Ce fichier n'est
+ * **pas supprimé** : la consigne du projet est de ne rien retirer sans
+ * consultation. Il est conservé comme référence historique du rendu
+ * « groupes de statuts » et pourrait être réutilisé tel quel.
+ */
 import { OrderFilters } from "@/components/order-filters";
 import { OrderTable, type OrderTableRow } from "@/components/order-table";
 import { listOrdersForShops, orderStatusGroup, ORDER_STATUS_GROUPS } from "@/lib/orders";
@@ -93,11 +102,7 @@ export async function OrderGroupPage({ group, title, description, empty, searchP
 
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-night">Période affichée</h2>
-        <OrderFilters
-          shops={scope.allowed}
-          values={values}
-          currentShopId={scope.currentShopId}
-        />
+        <OrderFilters shops={scope.allowed} values={values} currentShopId={scope.currentShopId} />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">

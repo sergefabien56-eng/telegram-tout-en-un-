@@ -65,7 +65,7 @@ export function ShopSelect({ shops, selected, currentShopId }: Props) {
         </label>
         <button
           type="submit"
-          className="focusable rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
+          className="focusable rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
         >
           Filtrer
         </button>
@@ -78,9 +78,8 @@ export function ShopSelect({ shops, selected, currentShopId }: Props) {
           </>
         ) : (
           <>
-            Filtre actif :{" "}
-            <span className="font-medium text-night">toutes les boutiques</span> — les données sont
-            regroupées, chaque ligne indique sa boutique.
+            Filtre actif : <span className="font-medium text-night">toutes les boutiques</span> —
+            les données sont regroupées, chaque ligne indique sa boutique.
           </>
         )}
       </p>

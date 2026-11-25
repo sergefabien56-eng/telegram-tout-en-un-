@@ -1,10 +1,22 @@
+import Link from "next/link";
 import { orderScope, readSearchValues } from "@/lib/order-access";
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const STATUTS = ["CREATED", "PENDING", "SHIPPED", "DELIVERED", "CANCELED", "RETURNED", "REFUNDED"];
+/** Statuts réellement observés — cf. `src/lib/order-status.ts`. */
+const STATUTS = [
+  { value: "PENDING", label: "En attente" },
+  { value: "READY_TO_SHIP", label: "Prête à expédier" },
+  { value: "SHIPPED", label: "Expédiée" },
+  { value: "DELIVERED", label: "Livrée" },
+  { value: "CANCELED", label: "Annulée" },
+  { value: "FAILED", label: "Échec de livraison" },
+  { value: "RETURNED", label: "Retournée" },
+  { value: "REFUNDED", label: "Remboursée" },
+  { value: "Multiple Status", label: "Statuts multiples" },
+];
 
 /**
  * Exports : télécharger les commandes autorisées selon un périmètre (boutiques,
@@ -29,6 +41,16 @@ export default async function ExportsPage({
         <p className="mt-1 text-sm text-muted">
           Téléchargez les commandes autorisées, pour le périmètre choisi. Les boutiques sans droit «
           commandes:lecture » ne sont pas proposées et l&apos;API les écarterait de toute façon.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          L&apos;export est aussi disponible directement depuis{" "}
+          <Link
+            href="/commandes"
+            className="font-medium text-primary-600 underline underline-offset-2"
+          >
+            Toutes les commandes
+          </Link>
+          , où il reprend exactement les filtres affichés (boutique, période, statut).
         </p>
       </div>
 
@@ -94,8 +116,8 @@ export default async function ExportsPage({
               >
                 <option value="">Tous</option>
                 {STATUTS.map((statut) => (
-                  <option key={statut} value={statut}>
-                    {statut}
+                  <option key={statut.value} value={statut.value}>
+                    {statut.label} ({statut.value})
                   </option>
                 ))}
               </select>
@@ -104,7 +126,7 @@ export default async function ExportsPage({
 
           <button
             type="submit"
-            className="focusable inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-500"
+            className="focusable inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Télécharger le CSV
           </button>

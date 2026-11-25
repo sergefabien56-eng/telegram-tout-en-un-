@@ -9,14 +9,14 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
-import { basePath, navIcon } from "@/components/nav-icons";
+import { navIcon } from "@/components/nav-icons";
 import { SpaceSearch } from "@/components/space-search";
 import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { QuickActions } from "@/components/quick-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { applySidebarState, readSidebarState, type SidebarState } from "@/lib/sidebar-state";
-import { NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
+import { activeNavItem, NAV_ITEMS, NAV_SECTIONS, type NavItem } from "@/navigation.config";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -50,8 +50,9 @@ function Sidebar({
 }) {
   const pathname = usePathname();
 
-  // La section de la page courante est dépliée au premier affichage.
-  const initialSection = NAV_ITEMS.find((item) => basePath(item.href) === pathname)?.section;
+  // La section de la page courante est dépliée au premier affichage. Les
+  // sous-rubriques rattachent la page à leur rubrique parente.
+  const initialSection = activeNavItem(NAV_ITEMS, pathname)?.section;
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     initialSection ? { [initialSection]: true } : {},
   );
@@ -127,7 +128,7 @@ function Sidebar({
               );
               if (items.length === 0) return null;
               const isOpen = Boolean(expanded[section.key]);
-              const sectionActive = items.some((item) => basePath(item.href) === pathname);
+              const sectionActive = items.some((item) => activeNavItem(items, pathname) === item);
               return (
                 <li key={section.key}>
                   <button
@@ -147,7 +148,7 @@ function Sidebar({
                     <ul className="mt-1 space-y-0.5">
                       {items.map((item) => {
                         const Icon = navIcon(item.icon);
-                        const active = basePath(item.href) === pathname;
+                        const active = activeNavItem(items, pathname) === item;
                         return (
                           <li key={item.key}>
                             {item.soon ? (

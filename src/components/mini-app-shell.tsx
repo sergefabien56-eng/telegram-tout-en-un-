@@ -13,9 +13,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
-import { basePath, navIcon } from "@/components/nav-icons";
+import { navIcon } from "@/components/nav-icons";
 import { Modal } from "@/components/modal";
-import { NAV_ITEMS, NAV_SECTIONS } from "@/navigation.config";
+import { activeNavItem, NAV_ITEMS, NAV_SECTIONS } from "@/navigation.config";
 
 type MiniAppShellProps = {
   user: { fullName: string; email: string };
@@ -69,12 +69,10 @@ export function MiniAppShell({
     router.refresh();
   }
 
-  // Titre de la page courante (la rubrique exacte si elle est dans la config).
+  // Titre de la page courante : la rubrique la plus spécifique (les
+  // sous-rubriques portent leur propre intitulé).
   const title =
-    NAV_ITEMS.find((item) => item.href === pathname)?.label ??
-    NAV_ITEMS.filter((item) => basePath(item.href) === pathname).sort(
-      (a, b) => b.href.length - a.href.length,
-    )[0]?.label ??
+    activeNavItem(NAV_ITEMS, pathname)?.label ??
     (pathname.startsWith("/boutiques") ? "Boutiques" : "TOUT EN UN");
 
   const tabs = [
@@ -104,7 +102,7 @@ export function MiniAppShell({
   const [openModules, setOpenModules] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const entry of modules) {
-      if (entry.items.some((item) => basePath(item.href) === pathname)) {
+      if (entry.items.some((item) => activeNavItem(entry.items, pathname) === item)) {
         initial[entry.key] = true;
       }
     }
@@ -248,9 +246,11 @@ export function MiniAppShell({
                             <Link
                               href={item.href}
                               onClick={() => setMoreOpen(false)}
-                              aria-current={basePath(item.href) === pathname ? "page" : undefined}
+                              aria-current={
+                                activeNavItem(module.items, pathname) === item ? "page" : undefined
+                              }
                               className={`focusable flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
-                                basePath(item.href) === pathname
+                                activeNavItem(module.items, pathname) === item
                                   ? "bg-primary-50 font-medium text-primary-600"
                                   : "text-night hover:bg-surface"
                               }`}

@@ -80,6 +80,10 @@
   .badge-warning {
     @apply border border-warning/30 bg-warning/10 text-warning;
   }
+  /* Danger : refus ou annulation (jamais utilisé pour un simple état neutre). */
+  .badge-danger {
+    @apply border border-danger/30 bg-danger/10 text-danger;
+  }
   /* Lien et bouton de base (accessible au clavier). */
   .focusable {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-primary-ink focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
