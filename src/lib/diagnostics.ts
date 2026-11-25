@@ -11,6 +11,7 @@ import {
   type CoherenceDrift,
   type CoherenceSnapshot,
 } from "@/lib/coherence-history";
+import { alertCoherenceIssues } from "@/lib/coherence-alerts";
 import { testJumiaAccount } from "@/lib/jumia/accounts";
 
 /**
@@ -28,6 +29,25 @@ import { testJumiaAccount } from "@/lib/jumia/accounts";
  */
 
 export type DiagnosticSeverity = "critique" | "avertissement" | "information";
+
+/**
+ * Faut-il alerter le vendeur ?
+ *
+ * Réponse : s'il y a une anomalie **actionnable** (critique ou
+ * avertissement) **ou** une dérive actionnable. Une boutique parfaitement
+ * cohérente ne produit aucune alerte ; une boutique qui **dérive** doit
+ * être prévenue même si le contrôle du jour ne remonte aucune anomalie.
+ */
+export function shouldAlert(
+  anomalies: CoherenceAnomaly[],
+  drift: CoherenceDrift | null,
+): boolean {
+  const actionable = anomalies.some(
+    (anomaly) => anomaly.severity === "critique" || anomaly.severity === "avertissement",
+  );
+  const drifting = drift !== null && drift.severity !== "information";
+  return actionable || drifting;
+}
 
 export type ShopDiagnostic = {
   shopId: string;
@@ -174,14 +194,17 @@ export async function diagnosticReport(params: {
   // précédent.
   const history = await coherenceHistory(
     selected.map((shop) => shop.id),
-    30,
+    180,
   );
   for (const diagnostic of diagnostics) {
     const shopHistory = history.get(diagnostic.shopId) ?? [];
     const drift = detectDrift(shopHistory);
     if (drift) {
+      // La dérive est présentée comme une anomalie dans le rapport, mais
+      // avec le **même code** que l'alerte dédiée : une seule notification
+      // est envoyée, pas deux.
       diagnostic.anomalies.push({
-        code: "synchronisation_echouee",
+        code: `derive_${drift.code}`,
         severity: drift.severity,
         title: drift.title,
         evidence: drift.evidence,
@@ -194,6 +217,27 @@ export async function diagnosticReport(params: {
       }
     }
     diagnostic.history = shopHistory;
+
+    // Alerte : le vendeur est prévenu, il ne doit pas découvrir la dérive
+    // en ouvrant le diagnostic. La déduplication évite le doublon avec le
+    // contrôle planifié.
+    //
+    // Une **dérive seule** doit aussi déclencher l'alerte : la dérive est
+    // déjà injectée dans les anomalies ci-dessus, mais on ne veut pas
+    // dépendre de cette transformation pour décider d'alerter.
+    const shop = selected.find((row) => row.id === diagnostic.shopId);
+    if (shop && shouldAlert(diagnostic.anomalies, diagnostic.drift)) {
+      try {
+        await alertCoherenceIssues({
+          shopId: shop.id,
+          shopName: shop.name,
+          anomalies: diagnostic.anomalies,
+          drift: diagnostic.drift,
+        });
+      } catch (error) {
+        console.error("[diagnostic] alerte non envoyée", error);
+      }
+    }
   }
 
   const summary = {

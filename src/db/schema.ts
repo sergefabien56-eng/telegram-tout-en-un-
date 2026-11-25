@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -351,9 +352,31 @@ export const notifications = pgTable(
     status: text("status").notNull().default("pending"), // pending | sent | failed | grouped
     sentAt: timestamp("sent_at", { withTimezone: true }),
     error: text("error"),
+    /**
+     * Clé de déduplication : un même problème ne doit pas être signalé
+     * plusieurs fois (le contrôle planifié passe chaque jour, le diagnostic
+     * peut être ouvert à la main). `null` = notification sans déduplication.
+     *
+     * La clé décrit le **problème** (`coherence:<boutique>:<jour>:<code>`) ;
+     * c'est l'unicité qui est **par utilisateur** (index composite), car
+     * deux gestionnaires d'une même boutique doivent tous les deux être
+     * prévenu.
+     */
+    dedupeKey: text("dedupe_key"),
+    /**
+     * Canal d'émission : `web` (historique dans l'application) ou
+     * `telegram` (message direct). La trace existe pour les deux : on doit
+     * pouvoir prouver ce qui a été envoyé, et sur quel canal.
+     */
+    channel: text("channel").notNull().default("web"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("notifications_user_status_idx").on(t.userId, t.status)],
+  (t) => [
+    index("notifications_user_status_idx").on(t.userId, t.status),
+    uniqueIndex("notifications_user_dedupe_key_idx")
+      .on(t.userId, t.dedupeKey)
+      .where(sql`${t.dedupeKey} IS NOT NULL`),
+  ],
 );
 
 export const appSettings = pgTable("app_settings", {

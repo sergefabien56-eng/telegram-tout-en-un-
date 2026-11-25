@@ -209,3 +209,23 @@ l'opération.
   `POST /api/cron/coherence`, protégé par `CRON_SECRET`. Chaque passage
   compare les **montants** des commandes et des relevés au centime et écrit
   l'instantané du jour : une dérive se voit alors dans le temps.
+
+### 14 bis. Alertes de cohérence
+
+Quand un contrôle détecte une anomalie **critique**, un **avertissement**
+actionnable ou une **dérive**, le vendeur est prévenu — sans qu'il ait à
+ouvrir le diagnostic.
+
+- **Deux canaux** : notification dans l'application (cloche, page
+  `/notifications`) et message **Telegram** direct.
+- **Préférences respectées** : un canal ou un type désactivé n'est jamais
+  envoyé.
+- **Une seule alerte** par boutique, par jour et par problème : la clé de
+  déduplication est unique **par destinataire** (le propriétaire et le
+  gestionnaire d'une même boutique sont tous les deux prévenus).
+- **Traçable** : chaque envoi est écrit dans `notifications` avec son canal
+  (`web` / `telegram`) et son statut (`sent` / `failed`).
+- **Référence locale** : la dérive est mesurée par rapport à la **médiane
+  des 7 contrôles précédents** (et non à la veille), sur **180 jours**
+  d'historique — les variations saisonnières ne déclenchent donc pas de
+  fausse alerte. Seuil : **20 %**.

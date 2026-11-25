@@ -98,7 +98,7 @@ export async function recordCoherenceSnapshot(
 /** Historique des contrôles d'une boutique (du plus récent au plus ancien). */
 export async function coherenceHistory(
   shopIds: string[],
-  days = 30,
+  days = 180,
 ): Promise<Map<string, CoherenceSnapshot[]>> {
   const result = new Map<string, CoherenceSnapshot[]>();
   if (shopIds.length === 0) return result;
@@ -149,6 +149,41 @@ export async function coherenceHistory(
  * Une dérive n'est pas forcément une faute : Jumia peut corriger un relevé.
  * Ce qui compte, c'est que **le changement soit visible et expliqué**.
  */
+/**
+ * Écart significatif au-delà duquel on parle de dérive.
+ *
+ * Les valeurs contrôlées sont des **cumuls sur une fenêtre glissante** (90
+ * jours) : elles bougent naturellement de quelques pour cent d'un jour à
+ * l'autre. 20 % est un seuil qui ne se déclenche pas sur du bruit, mais qui
+ * se déclenche sur une perte de données ou une correction importante à la
+ * source.
+ */
+export const DRIFT_RATIO = 0.2;
+
+/** Nombre d'instantanés précédents utilisés comme référence. */
+export const BASELINE_WINDOW = 7;
+
+/**
+ * Référence locale : la **médiane** des instantanés précédents.
+ *
+ * Comparer à la médiane plutôt qu'à la veille évite les faux signaux de
+ * saisonnalité (les ventes de décembre ne sont pas comparables à celles de
+ * juin) : la référence est l'histoire **locale** de la boutique.
+ */
+export function localBaseline(history: CoherenceSnapshot[]): number | null {
+  const values = history
+    .slice(1, 1 + BASELINE_WINDOW)
+    .map((snapshot) => snapshot.revenueMinor)
+    .filter((value): value is number => value !== null);
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle] ?? null;
+  const low = sorted[middle - 1] ?? 0;
+  const high = sorted[middle] ?? 0;
+  return Math.round((low + high) / 2);
+}
+
 export type CoherenceDrift = {
   code: "montant_recule" | "volume_aplati" | "ecart_apparu" | "ecart_resolu";
   severity: "avertissement" | "information";
@@ -158,7 +193,7 @@ export type CoherenceDrift = {
   recommendation: string;
 };
 
-/** Compare le dernier instantané au précédent pour une boutique. */
+/** Compare le dernier instantané à la référence locale pour une boutique. */
 export function detectDrift(history: CoherenceSnapshot[]): CoherenceDrift | null {
   if (history.length < 2) return null;
   const latest = history[0];
@@ -187,18 +222,24 @@ export function detectDrift(history: CoherenceSnapshot[]): CoherenceDrift | null
     };
   }
 
-  // Le montant local recule : le vendeur verrait son chiffre diminuer.
+  // Le montant local recule nettement par rapport à la référence locale :
+  // le vendeur verrait son chiffre diminuer.
+  const baseline = localBaseline(history);
   if (
     latest.revenueMinor !== null &&
-    previous.revenueMinor !== null &&
-    latest.revenueMinor < previous.revenueMinor
+    baseline !== null &&
+    latest.revenueMinor < baseline * (1 - DRIFT_RATIO)
   ) {
-    const delta = previous.revenueMinor - latest.revenueMinor;
+    const delta = baseline - latest.revenueMinor;
+    const reference =
+      history.length - 1 >= 3
+        ? `médiane des ${Math.min(BASELINE_WINDOW, history.length - 1)} derniers contrôles (${baseline})`
+        : `contrôle précédent (${baseline})`;
     return {
       code: "montant_recule",
       severity: "avertissement",
-      title: "Le CA articles a reculé depuis le dernier contrôle",
-      evidence: `${previous.day} : ${previous.revenueMinor} · ${latest.day} : ${latest.revenueMinor} (recul de ${delta} unités mineures).`,
+      title: "Le CA articles a reculé nettement",
+      evidence: `${latest.day} : ${latest.revenueMinor} contre ${reference} — recul de ${delta} unités mineures (${Math.round((delta / Math.max(baseline, 1)) * 100)} %).`,
       cause:
         "Correction de la source (relevés modifiés chez Jumia) ou perte de données locales.",
       recommendation: "Vérifier la synchronisation des relevés.",

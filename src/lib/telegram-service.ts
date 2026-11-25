@@ -148,6 +148,7 @@ export async function traceNotification(params: {
       title: params.title,
       body: params.body,
       status: params.status,
+      channel: "telegram",
       sentAt: params.status === "sent" ? new Date() : null,
       error: params.error ?? null,
     });

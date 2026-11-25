@@ -145,7 +145,12 @@ export type CoherenceAnomaly = {
     | "releve_illisible"
     | "commande_manquante"
     | "commande_non_synchronisee"
-    | "commande_en_trop";
+    | "commande_en_trop"
+    // Dérives détectées par l'historique (cf. `coherence-history.ts`).
+    | "derive_montant_recule"
+    | "derive_volume_aplati"
+    | "derive_ecart_apparu"
+    | "derive_ecart_resolu";
   severity: AnomalySeverity;
   title: string;
   /** Ce qui a été mesuré (chiffres). */

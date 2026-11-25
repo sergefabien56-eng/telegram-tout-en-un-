@@ -2,7 +2,8 @@ import { isNotNull } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { audit } from "@/lib/audit";
 import { checkShopCoherence } from "@/lib/coherence";
-import { recordCoherenceSnapshot } from "@/lib/coherence-history";
+import { recordCoherenceSnapshot, detectDrift, coherenceHistory } from "@/lib/coherence-history";
+import { alertCoherenceIssues } from "@/lib/coherence-alerts";
 import { fail, ok } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     .from(schema.shops)
     .where(isNotNull(schema.shops.jumiaAccountId));
 
-  const results: { shop: string; status: string; anomalies: number }[] = [];
+  const results: { shop: string; status: string; anomalies: number; alerts: number }[] = [];
 
   for (const shop of shops) {
     try {
@@ -44,16 +45,32 @@ export async function POST(request: Request) {
       if (check.status !== "indisponible") {
         await recordCoherenceSnapshot(shop.id, check);
       }
+
+      // Dérive : le dernier instantané comparé aux précédents.
+      const history = await coherenceHistory([shop.id], 180);
+      const drift = detectDrift(history.get(shop.id) ?? []);
+
+      // Alerte : le vendeur doit être prévenu, pas seulement able de
+      // constater la dérive en ouvrant le diagnostic.
+      const alerts = await alertCoherenceIssues({
+        shopId: shop.id,
+        shopName: shop.name,
+        anomalies: check.anomalies,
+        drift,
+      });
+
       results.push({
         shop: shop.name,
         status: check.status,
         anomalies: check.anomalies.length,
+        alerts: alerts.filter((alert) => alert.delivered.length > 0).length,
       });
     } catch (error) {
       results.push({
         shop: shop.name,
         status: "indisponible",
         anomalies: 0,
+        alerts: 0,
       });
       console.error("[cron] contrôle de cohérence impossible", shop.id, error);
     }

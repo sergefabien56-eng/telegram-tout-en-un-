@@ -26,6 +26,7 @@ export async function listUserNotifications(userId: string, limit = 20) {
       title: schema.notifications.title,
       body: schema.notifications.body,
       status: schema.notifications.status,
+      channel: schema.notifications.channel,
       createdAt: schema.notifications.createdAt,
       shopId: schema.notifications.shopId,
     })

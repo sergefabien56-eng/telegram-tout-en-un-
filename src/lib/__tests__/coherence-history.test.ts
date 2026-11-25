@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { detectDrift, type CoherenceSnapshot } from "@/lib/coherence-history";
+import {
+  detectDrift,
+  localBaseline,
+  DRIFT_RATIO,
+  type CoherenceSnapshot,
+} from "@/lib/coherence-history";
 
 /**
  * HISTORIQUE DE COHÉRENCE — détection de dérive.
@@ -46,17 +51,59 @@ describe("détection de dérive", () => {
     expect(drift).toBeNull();
   });
 
-  it("signale un CA articles qui recule", () => {
+  it("ne signale pas une variation normale d'un jour à l'autre", () => {
+    // Une fenêtre glissante de 90 jours bouge de quelques pour cent par jour :
+    // ce n'est pas une dérive.
     const drift = detectDrift([
       snapshot({ revenueMinor: 512_449 }),
       snapshot({ id: "snap-0", day: "2026-11-24", revenueMinor: 562_449 }),
     ]);
+    expect(drift).toBeNull();
+  });
+
+  it("signale un CA articles qui recule nettement", () => {
+    const drift = detectDrift([
+      snapshot({ revenueMinor: 300_000 }),
+      snapshot({ id: "snap-0", day: "2026-11-24", revenueMinor: 512_449 }),
+    ]);
     expect(drift?.code).toBe("montant_recule");
     expect(drift?.severity).toBe("avertissement");
-    expect(drift?.evidence).toContain("562449");
+    expect(drift?.evidence).toContain("300000");
     expect(drift?.evidence).toContain("512449");
     expect(drift?.cause).toBeTruthy();
     expect(drift?.recommendation).toBeTruthy();
+  });
+
+  it("compare à la médiane des contrôles précédents (référence locale)", () => {
+    // La veille est inhabituellement haute ; la référence locale (médiane) ne
+    // l'est pas : c'est elle qui doit servir de comparaison.
+    const history = [
+      snapshot({ revenueMinor: 300_000 }),
+      snapshot({ id: "s1", day: "2026-11-24", revenueMinor: 900_000 }),
+      snapshot({ id: "s2", day: "2026-11-23", revenueMinor: 500_000 }),
+      snapshot({ id: "s3", day: "2026-11-22", revenueMinor: 520_000 }),
+      snapshot({ id: "s4", day: "2026-11-21", revenueMinor: 480_000 }),
+    ];
+    // Médiane de [900 000, 500 000, 520 000, 480 000] = moyenne des deux
+    // valeurs centrales : (500 000 + 520 000) / 2.
+    expect(localBaseline(history)).toBe(510_000);
+    const drift = detectDrift(history);
+    expect(drift?.code).toBe("montant_recule");
+    expect(drift?.evidence).toContain("médiane");
+  });
+
+  it("ne signale rien quand la valeur reste proche de la référence locale", () => {
+    const history = [
+      snapshot({ revenueMinor: 505_000 }),
+      snapshot({ id: "s1", day: "2026-11-24", revenueMinor: 500_000 }),
+      snapshot({ id: "s2", day: "2026-11-23", revenueMinor: 520_000 }),
+      snapshot({ id: "s3", day: "2026-11-22", revenueMinor: 480_000 }),
+    ];
+    expect(detectDrift(history)).toBeNull();
+  });
+
+  it("utilise un seuil de dérive de 20 %", () => {
+    expect(DRIFT_RATIO).toBe(0.2);
   });
 
   it("signale l'apparition d'un écart", () => {

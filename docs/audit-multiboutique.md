@@ -23,6 +23,7 @@
 | Périmètre par défaut | **Toutes les boutiques** | **La boutique courante**, agrégat sur demande explicite |
 | Preuve financière | **Aucune** (volumes seulement) | **Au centime**, relevés **et** commandes |
 | Historique de cohérence | **Aucun** | **Un instantané par jour** par boutique + détection de dérive |
+| Alerte au vendeur | **Aucune** : la dérive ne se découvrait qu'en ouvrant le diagnostic | **Alertes web + Telegram**, une par boutique/jour/problème, traçables, dédupliquées **par destinataire** |
 
 **Preuve sur données réelles (25/11/2026, 2 boutiques connectées) :**
 
@@ -282,6 +283,92 @@ supérieure : une commande future reste comptée). Une fenêtre « rolling »
 (90 × 24 h) produisait de faux écarts de 1 commande — c'est ce qui a été
 observé puis corrigé.
 
+### 5.7 RÉFÉRENCE LOCALE ET SEUIL DE DÉRIVE
+
+Comparer le CA d'aujourd'hui à celui d'hier produit un **faux signal** dès
+que la saisonnalité entre en jeu (les ventes de décembre ne sont pas
+comparables à celles de juin). La référence est donc **locale** :
+
+| Élément | Valeur | Raison |
+| --- | --- | --- |
+| Historique conservé | **180 jours** | couvre un cycle saisonnier complet |
+| Référence | **médiane des 7 contrôles précédents** | robuste à un contrôle atypique, contrairement à la moyenne |
+| Seuil de dérive | **20 %** | au-delà : bruit de fond ignoré ; en dessous : perte de données ou correction importante à la source |
+
+La médiane est calculée sur `revenueMinor` : les cumuls sur fenêtre glissante
+(90 jours) bougent naturellement de quelques pour cent d'un jour à l'autre.
+
+```ts
+localBaseline(history)  // médiane des 7 instantanés précédents
+detectDrift(history)    // compare le dernier instantané à cette référence
+```
+
+---
+
+## 5 bis. ALERTES AU VENDEUR
+
+L'historique **détecte** une dérive ; le vendeur doit être **prévenu**. Sans
+alerte, la dérive ne se découvre qu'en ouvrant le diagnostic — c'est-à-dire
+trop tard.
+
+### Ce qui déclenche une alerte
+
+Seulement ce qui est **actionnable** :
+
+| Cas | Alerte ? | Pourquoi |
+| --- | --- | --- |
+| Anomalie `critique` | **oui** | la preuve est fausse : le vendeur perd de l'argent ou voit une donnée erronée |
+| Anomalie `avertissement` | **oui** | action corrective requise |
+| Dérive actionnable (`avertissement`) | **oui** | la boutique s'écarte de sa référence locale |
+| Anomalie `information` (statut périmé) | non | bruit : un relevé non synchronisé est normal |
+| Dérive `ecart_resolu` (`information`) | non | c'est une **bonne nouvelle** |
+| Aucune anomalie, aucune dérive | non | tout va bien |
+
+### Canaux
+
+Deux canaux, **sans coût externe** :
+
+- **web** : notification dans l'application (cloche + page « Notifications ») ;
+- **telegram** : message direct au compte lié du destinataire.
+
+Les préférences du vendeur sont **respectées** (`user_notification_prefs`,
+canal × type) : un type désactivé n'est jamais envoyé.
+
+### Destinataires
+
+Les **propriétaires et gestionnaires** de la boutique (`shop_members` avec
+rôle `owner` ou `manager`). La déduplication est **par destinataire** : deux
+gestionnaires de la même boutique sont **tous les deux** prévenus —
+l'index unique porte sur `(user_id, dedupe_key)`, pas sur la clé seule.
+
+### Clé de déduplication
+
+```
+coherence:<boutique>:<jour UTC>:<code du problème>:<canal>
+```
+
+Une seule alerte par boutique, par jour, par problème et par canal. Le
+contrôle planifié passe chaque jour, et le diagnostic peut être ouvert à la
+main : sans cette clé, le vendeur recevrait le même message plusieurs fois.
+
+### Traçabilité
+
+Chaque envoi est **écrit** dans `notifications` avec son canal
+(`web` / `telegram`) et son statut (`pending`, `sent`, `failed`) : on peut
+prouver ce qui a été envoyé, sur quel canal, et avec quelle erreur en cas
+d'échec.
+
+### Points de déclenchement
+
+| Où | Effet |
+| --- | --- |
+| `POST /api/cron/coherence` | contrôle planifié quotidien (cron GitHub Actions) |
+| `src/lib/diagnostics.ts` (`shouldAlert()`) | diagnostic interne ouvert à la main |
+
+Une **dérive seule** déclenche bien une alerte, même si le contrôle du jour
+ne remonte aucune anomalie : c'est le cas le plus important, puisqu'il est
+invisible sans historique.
+
 ---
 
 ## 6. Périmètre mono-boutique et suppression du statut stocké
@@ -374,7 +461,10 @@ autre boutique. Les fichiers de sauvegarde ne sont jamais commités
 | `src/lib/__tests__/shop-scope.test.ts` | 8 tests : périmètre par défaut mono-boutique, refus d'élargissement |
 | `src/lib/__tests__/financial-proof.test.ts` | 10 tests : la preuve financière **détecte** un montant modifié, un relevé manquant, un relevé surnuméraire, une devise ou un statut de paiement faux |
 | `src/lib/__tests__/order-proof.test.ts` | 10 tests : la preuve des commandes **détecte** un montant modifié (local et USD), une commande manquante, une devise ; et distingue un statut périmé (information) d'un montant erroné (critique) |
-| `src/lib/__tests__/coherence-history.test.ts` | 7 tests : la détection de dérive repère un CA qui recule, un écart qui apparaît, un écart résolu, un volume aplati — et ne se déclenche pas à tort quand la source a changé elle aussi |
+| `src/lib/__tests__/coherence-history.test.ts` | 11 tests : la détection de dérive repère un CA qui recule, un écart qui apparaît, un écart résolu, un volume aplati — et ne se déclenche pas à tort quand la source a changé elle aussi ; référence locale par **médiane** sur 7 contrôles |
+| `src/lib/__tests__/coherence-alerts.test.ts` | 12 tests : seules les anomalies actionnables sont signalées, une dérive l'est aussi, une dérive **résolue** ne l'est pas, la même dérive n'est pas signalée deux fois, et la clé de déduplication distingue boutique, jour, code et canal |
+| `src/lib/__tests__/diagnostics-alert-trigger.test.ts` | 6 tests : le déclencheur d'alerte (une **dérive seule** alerte, une information n'alerte pas, une boutique cohérente n'alerte pas) |
+| `src/lib/__tests__/coherence-alerts.integration.test.ts` | 6 tests **sur base réelle** : le propriétaire et le gestionnaire sont chacun notifiés, le doublon du même jour est bloqué, la dérive seule alerte, et la base est purgée en fin de test |
 | `src/lib/__tests__/shop-guard.test.ts` | lecture des identifiants Jumia, rejet des données étrangères |
 
 ### 8.2 E2E
@@ -425,10 +515,16 @@ proprement avec un message explicite — il n'échoue jamais bruyamment.
 1. **Surveiller `jobs`** : une synchronisation qui se termine en `failed`
    doit rester visible dans le diagnostic (elle l'est : `synchronisation_echouee`).
 2. **Historiser les ruptures sur la durée** : l'instantané quotidien est en
-   place ; il reste à conserver plus d'un mois d'historique pour suivre une
-   saison (les ventes de décembre ne se comparent pas à celles de juin).
-3. **Alerter le vendeur** quand une dérive apparaît : l'historique la
-   détecte, mais le vendeur n'est pas encore prévenu.
+   place sur **180 jours** ; la référence locale (médiane sur 7 contrôles)
+   absorbe la saisonnalité. Il reste à suivre l'accumulation sur un an
+   complet pour valider le seuil de 20 % sur une vraie saison.
+3. **Brancher le cron** : les alertes ne partent qu'*après* le contrôle
+   planifié quotidien — tant que les secrets GitHub ne sont pas posés, le
+   contrôle et les alertes ne se déclenchent que manuellement (voir § 9.2).
+4. **Ajuster le seuil de dérive** : 20 % est un choix raisonnable au
+   démarrage ; si des alertes se déclenchent trop souvent sur une boutique
+   très saisonnière, ce sera le signal de le recaler sur la référence
+   locale plutôt que sur une valeur fixe (`DRIFT_RATIO`).
 
 ---
 
@@ -446,5 +542,10 @@ proprement avec un message explicite — il n'échoue jamais bruyamment.
 | Suppression du statut stocké | `drizzle/0012_drop_shop_status.sql`, `src/db/schema.ts` | migration Drizzle appliquée après sauvegarde ; 2 boutiques et 316/48/26 données intactes |
 | Périmètre mono-boutique | `src/lib/order-access.ts`, `src/lib/shop-scope.ts` | 8 tests unitaires + 1 E2E (défaut, refus, agrégat explicite) |
 | Preuve des commandes au centime | `src/lib/coherence.ts` (`compareOrders`) | 193 et 123 commandes comparées, 0 divergence, montants identiques |
-| Historique et dérive | `src/lib/coherence-history.ts`, `drizzle/0013_coherence_snapshots.sql` | 7 tests de dérive + instantanés écrits sur les 2 boutiques réelles |
+| Historique et dérive | `src/lib/coherence-history.ts`, `drizzle/0013_coherence_snapshots.sql` | 11 tests de dérive + instantanés écrits sur les 2 boutiques réelles |
 | Contrôle planifié | `src/app/api/cron/coherence/route.ts`, `.github/workflows/coherence.yml` | 401 sans secret, 200 avec : 2 boutiques contrôlées |
+| Référence locale et seuil | `src/lib/coherence-history.ts` (`localBaseline`, `DRIFT_RATIO`) | médiane sur 7 contrôles, seuil 20 %, 180 jours d'historique |
+| Alertes au vendeur | `src/lib/coherence-alerts.ts` | 12 tests unitaires + 6 tests sur base réelle (2 destinataires), alerte web **et** Telegram tracées |
+| Dédup. par destinataire | `drizzle/0015_awesome_plazm.sql` (`(user_id, dedupe_key)`) | propriétaire et gestionnaire d'une même boutique : 2 notifications, pas 1 |
+| Déclenchement sur dérive seule | `src/lib/diagnostics.ts` (`shouldAlert()`) | 6 tests : une dérive sans anomalie alerte bien |
+| Traçabilité des envois | `notifications.channel` (`web` / `telegram`) | chaque envoi Telegram écrit avec son statut (`sent` / `failed`) |

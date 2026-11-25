@@ -179,7 +179,8 @@ Règle : les documents **officiels** ne sont jamais modifiés ; les documents in
 
 ### 2.7 notifications / audit / ai / jobs / webhooks
 
-**`notifications`** : `id`, `user_id`, `shop_id` NULL, `type`, `title`, `body`, `status` (`pending`\|`sent`\|`failed`\|`grouped`), `sent_at`, `error`, `created_at`.
+**`notifications`** : `id`, `user_id`, `shop_id` NULL, `type`, `title`, `body`, `status` (`pending`\|`sent`\|`failed`\|`grouped`), `sent_at`, `error`, `dedupe_key` NULL, `channel` (`web`\|`telegram`), `created_at`.
+Index `(user_id, status)`. Index unique partiel `(user_id, dedupe_key)` **où `dedupe_key` n'est pas NULL** : la clé décrit le *problème* (`coherence:<boutique>:<jour>:<code>:<canal>`) et l'unicité est **par destinataire** — deux gestionnaires d'une même boutique sont tous les deux prévenus.
 **`audit_logs`** : `id`, `user_id`, `shop_id`, `action`, `entity_type`, `entity_id`, `old_value jsonb`, `new_value jsonb`, `result`, `ip`, `user_agent`, `created_at`. Index `(shop_id, created_at)`, `(user_id, created_at)`.
 **`ai_conversations`** : `id`, `user_id`, `shop_id` NULL, `title`, `created_at`, `updated_at`.
 **`ai_messages`** : `id`, `conversation_id`, `role` (`user`\|`assistant`\|`tool`), `content`, `tool_calls jsonb`, `tokens_in`, `tokens_out`, `cost_minor`, `created_at`.
@@ -263,6 +264,15 @@ Le `app.current_user_id` est positionné par l'application au début de chaque t
 - Une migration = un fichier horodaté ; jamais de modification rétroactive.
 - Environnements : `dev` (données de démonstration autorisées), `staging` (données de démonstration), `production` (**aucune donnée fictive**).
 - Chaque migration a un test de non-régression (schéma + contraintes).
+
+### 5.1 Migrations de l'audit multiboutique
+
+| Migration | Contenu |
+|---|---|
+| `0012_drop_shop_status.sql` | Suppression de `shops.status` : l'état de connexion est **calculé** (`src/lib/connection-state.ts`), jamais stocké. |
+| `0013_coherence_snapshots.sql` | Table `coherence_snapshots` : un instantané par boutique et par jour (volumétries, montants comparés, anomalies). Unique `(shop_id, day)`. |
+| `0014_notification_dedupe_key.sql` | Colonne `notifications.dedupe_key` + index unique partiel, pour qu'une alerte ne soit pas renvoyée chaque jour. |
+| `0015_awesome_plazm.sql` | Index unique **par destinataire** `(user_id, dedupe_key)` (l'ancien index global faisait se bloquer mutuellement deux gestionnaires d'une même boutique) + colonne `notifications.channel` (`web` / `telegram`) pour tracer chaque envoi. |
 
 ---
 
