@@ -83,14 +83,21 @@ export default async function ATraiterPage({
 
   // Les compteurs sont calculés **en base**, avec les mêmes définitions que
   // les sous-vues : ils ne dépendent pas du nombre de lignes listées.
-  const [compteurs, enAttenteCompteur, pretesCompteur] = await Promise.all([
-    countOrdersForShops(shopIds, filtres),
+  const [enAttenteCompteur, pretesCompteur] = await Promise.all([
     countOrdersForShops(shopIds, { ...filtres, family: "en-attente" }),
     countOrdersForShops(shopIds, { ...filtres, family: "pretes-a-expedier" }),
   ]);
 
   const enAttente = enAttenteCompteur.orders;
   const pretes = pretesCompteur.orders;
+
+  // Le total affiché porte sur les commandes **à traiter** (celles des deux
+  // sous-vues), pas sur tout le périmètre : le chiffre et le montant
+  // décrivent le même ensemble.
+  const totalATraiter = enAttenteCompteur.totalMinor + pretesCompteur.totalMinor;
+  const devisesATraiter = [
+    ...new Set([...enAttenteCompteur.currencies, ...pretesCompteur.currencies]),
+  ];
 
   const sousVues = [
     {
@@ -150,14 +157,12 @@ export default async function ATraiterPage({
         <div className="card p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Total affiché</p>
           <p className="mt-3 text-2xl font-semibold text-night">
-            {compteurs.currencies.length === 1
-              ? formatMoney(compteurs.totalMinor, compteurs.currencies[0]!)
-              : "—"}
+            {devisesATraiter.length === 1 ? formatMoney(totalATraiter, devisesATraiter[0]!) : "—"}
           </p>
           <p className="mt-1 text-xs text-muted">
-            {compteurs.currencies.length > 1
+            {devisesATraiter.length > 1
               ? "Devises multiples : total non additionné."
-              : "Montant des commandes du périmètre affiché. Ce n'est pas le CA encaissé."}
+              : "Montant des commandes à traiter (en attente + prêtes à expédier). Ce n'est pas le CA encaissé."}
           </p>
         </div>
         <div className="card p-5">
