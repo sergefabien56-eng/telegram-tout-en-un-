@@ -40,7 +40,9 @@ export type AuditAction =
   | "admin.shop_repaired"
   | "admin.coherence_cron"
   | "shop.data_exported"
-  | "product.purchase_price_updated";
+  | "product.purchase_price_updated"
+  | "shop.catalog_refreshed"
+  | "product.publication_requested";
 
 export type AuditResult = "success" | "failure" | "blocked";
 

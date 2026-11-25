@@ -30,6 +30,12 @@ export type AiToolDefinition = z.infer<typeof aiToolSchemaSchema>;
 export type AiMessage = {
   role: "user" | "assistant";
   content: string;
+  /**
+   * Image jointe (base64). Seul Gemini la lit : c'est ce qui permet le
+   * parcours « photo → texte » sans jamais inventer une caractéristique
+   * invisible.
+   */
+  image?: { mimeType: string; base64: string };
 };
 
 export type AiReply = {
@@ -174,7 +180,12 @@ class GeminiProvider implements AiProvider {
     ): Record<string, unknown> => {
       const contents = messages.map((message) => ({
         role: message.role === "assistant" ? "model" : "user",
-        parts: [{ text: message.content }],
+        parts: message.image
+          ? [
+              { text: message.content },
+              { inline_data: { mime_type: message.image.mimeType, data: message.image.base64 } },
+            ]
+          : [{ text: message.content }],
       }));
       const body: Record<string, unknown> = {
         systemInstruction: { parts: [{ text: system }] },
@@ -262,6 +273,11 @@ class GroqProvider implements AiProvider {
     tools: AiToolDefinition[];
     messages: AiMessage[];
   }): Promise<AiReply> {
+    if (input.messages.some((message) => message.image)) {
+      throw new Error(
+        "Le fournisseur IA configuré ne sait pas lire les images : l'analyse visuelle est indisponible.",
+      );
+    }
     const messages: Record<string, unknown>[] = [
       { role: "system", content: input.system },
       ...input.messages.map((message) => ({ role: message.role, content: message.content })),

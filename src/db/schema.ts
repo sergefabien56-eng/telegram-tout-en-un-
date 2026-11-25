@@ -500,6 +500,82 @@ export const productVariants = pgTable(
   ],
 );
 
+/**
+ * PUBLICATIONS DE PRODUITS — suivi des créations envoyées à Jumia.
+ *
+ * La création d'un produit est **asynchrone** : Jumia renvoie un `feedId`,
+ * traite le flux en arrière-plan, puis le produit passe un contrôle qualité.
+ * On conserve donc une ligne par envoi, avec l'état réel du flux et les
+ * erreurs éventuelles : jamais « publié » au moment du clic.
+ */
+export const productPublications = pgTable(
+  "product_publications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** SKU vendeur : c'est la clé qui relie l'envoi au produit côté Jumia. */
+    sellerSku: text("seller_sku").notNull(),
+    /** Identifiant du flux Jumia (`feedId`), renseigné après envoi. */
+    feedId: text("feed_id"),
+    /**
+     * État de la demande, tel que présenté à l'utilisateur :
+     * `envoyee` (reçue par Jumia) · `en_traitement` · `acceptee` ·
+     * `rejetee` · `publiee` (présente au catalogue) · `inconnue`.
+     */
+    status: text("status").notNull().default("envoyee"),
+    /** État brut du flux côté Jumia (PENDING, IN_PROGRESS, COMPLETED, FAILED). */
+    feedStatus: text("feed_status"),
+    /** Identifiant du produit chez Jumia, une fois la création confirmée. */
+    productSid: text("product_sid"),
+    /** État du contrôle qualité Jumia sur le produit. */
+    qcStatus: text("qc_status"),
+    /** Erreurs renvoyées par Jumia (messages globaux et par business client). */
+    errors: jsonb("errors"),
+    /** Charge utile envoyée : elle est conservée pour rejouer ou expliquer. */
+    payload: jsonb("payload").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("product_publications_shop_idx").on(t.shopId, t.submittedAt),
+    index("product_publications_sku_idx").on(t.shopId, t.sellerSku),
+  ],
+);
+
+/**
+ * RÉFÉRENTIEL DES CATÉGORIES JUMIA — copie locale, par boutique.
+ *
+ * L'API Jumia ne propose **aucun filtre par nom** sur `GET /catalog/categories` :
+ * la seule façon de proposer une recherche fiable est de garder le
+ * référentiel en local. On y conserve le chemin complet et l'identifiant de
+ * l'ensemble d'attributs, qui détermine les champs réellement exigés.
+ */
+export const jumiaCatalogCategories = pgTable(
+  "jumia_catalog_categories",
+  {
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Code de la catégorie chez Jumia. */
+    code: integer("code").notNull(),
+    name: text("name").notNull(),
+    /** Chemin complet « Books, Movies and Music / … ». */
+    completePath: text("complete_path").notNull(),
+    hasChildren: boolean("has_children").notNull().default(false),
+    /** Ensemble d'attributs : il porte les champs obligatoires de la catégorie. */
+    attributeSetSid: text("attribute_set_sid"),
+    attributeSetName: text("attribute_set_name"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.shopId, t.code] }),
+    index("jumia_catalog_categories_path_idx").on(t.shopId, t.completePath),
+  ],
+);
+
 // Type pratique pour l'application.
 export type User = typeof users.$inferSelect;
 export type Shop = typeof shops.$inferSelect;

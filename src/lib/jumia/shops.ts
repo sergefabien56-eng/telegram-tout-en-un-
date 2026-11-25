@@ -8,6 +8,11 @@ export type RemoteShop = {
   email: string | null;
   /** Pays / clients commerciaux rattachés à la boutique. */
   countries: { code: string; name: string | null; status: string | null }[];
+  /**
+   * Clients commerciaux (ex. « jumia-ci »). C'est le code qui porte le prix
+   * local chez Jumia : il est nécessaire pour créer un produit.
+   */
+  businessClients: { code: string; name: string | null; countryCode: string | null }[];
 };
 
 /**
@@ -46,6 +51,17 @@ export function listRemoteShopsFromBody(body: unknown): RemoteShop[] {
               code: row.countryCode,
               name: typeof row.name === "string" ? row.name : null,
               status: typeof row.status === "string" ? row.status : null,
+            },
+          ];
+        }),
+        businessClients: clients.flatMap((client): RemoteShop["businessClients"] => {
+          const row = client as { code?: unknown; name?: unknown; countryCode?: unknown };
+          if (typeof row.code !== "string" || !row.code) return [];
+          return [
+            {
+              code: row.code,
+              name: typeof row.name === "string" ? row.name : null,
+              countryCode: typeof row.countryCode === "string" ? row.countryCode : null,
             },
           ];
         }),
@@ -98,19 +114,19 @@ export async function listRemoteShops(scope?: JumiaAccountScope): Promise<Remote
       // Fusion des clients commerciaux (un appel peut en apporter d'autres).
       const countries = new Map(existing.countries.map((row) => [row.code, row]));
       for (const row of shop.countries) countries.set(row.code, row);
+      const businessClients = new Map(existing.businessClients.map((row) => [row.code, row]));
+      for (const row of shop.businessClients) businessClients.set(row.code, row);
       merged.set(shop.id, {
         ...existing,
         email: existing.email ?? shop.email,
         countries: Array.from(countries.values()),
+        businessClients: Array.from(businessClients.values()),
       });
     }
   }
 
   if (merged.size === 0) {
-    throw new JumiaError(
-      "Aucune boutique Jumia n'est accessible avec ce compte.",
-      "no_shop",
-    );
+    throw new JumiaError("Aucune boutique Jumia n'est accessible avec ce compte.", "no_shop");
   }
   return Array.from(merged.values());
 }

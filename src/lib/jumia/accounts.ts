@@ -89,10 +89,7 @@ async function findOwnedAccount(userId: string, accountId: string) {
     .select()
     .from(schema.jumiaAccounts)
     .where(
-      and(
-        eq(schema.jumiaAccounts.id, accountId),
-        eq(schema.jumiaAccounts.ownerUserId, userId),
-      ),
+      and(eq(schema.jumiaAccounts.id, accountId), eq(schema.jumiaAccounts.ownerUserId, userId)),
     )
     .limit(1);
   return rows[0] ?? null;
@@ -133,7 +130,9 @@ export async function createJumiaAccount(
       refreshToken: input.refreshToken,
     });
   } catch (error) {
-    return { error: error instanceof JumiaError ? error.message : "Jumia a refusé ces identifiants." };
+    return {
+      error: error instanceof JumiaError ? error.message : "Jumia a refusé ces identifiants.",
+    };
   }
 
   const email = input.email?.trim() || emailFromAccessToken(exchanged.accessToken) || null;
@@ -203,6 +202,32 @@ export async function resolveDefaultAccount(
   const linked = await accountIdForShop(shopId);
   if (linked && (await isOwnedBy(userId, linked))) return linked;
   return null;
+}
+
+/**
+ * Code du client commercial d'une boutique (ex. « jumia-ci »).
+ *
+ * C'est ce code qui porte le **prix local** chez Jumia : sans lui, la
+ * création d'un produit n'a pas de prix pour le marché de la boutique.
+ */
+export async function businessClientCodeForShop(shopId: string): Promise<string | null> {
+  const rows = await getDb()
+    .select({
+      remoteShopId: schema.shops.remoteShopId,
+      jumiaAccountId: schema.shops.jumiaAccountId,
+    })
+    .from(schema.shops)
+    .where(eq(schema.shops.id, shopId))
+    .limit(1);
+  const shop = rows[0];
+  if (!shop?.remoteShopId || !shop.jumiaAccountId) return null;
+  try {
+    const remote = await listRemoteShops({ accountId: shop.jumiaAccountId });
+    const cible = remote.find((entry) => entry.id === shop.remoteShopId);
+    return cible?.businessClients[0]?.code ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Devise par pays Jumia (R3 : une boutique doit avoir la bonne devise). */

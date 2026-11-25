@@ -113,6 +113,20 @@
       "when": 1795598375476,
       "tag": "0015_awesome_plazm",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795622374118,
+      "tag": "0016_product_publications",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795622391675,
+      "tag": "0017_jumia_catalog_categories",
+      "breakpoints": true
     }
   ]
 }

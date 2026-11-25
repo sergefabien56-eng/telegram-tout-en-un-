@@ -247,6 +247,42 @@ Une boutique réelle ne peut pas être ajoutée deux fois (`UNIQUE(platform, ext
 
 ---
 
+## 6 bis. Publication de produits — cycle réel (25/11/2026)
+
+### 6 bis.1 Le cycle officiel
+
+1. `POST /feeds/products/create` avec `{ shopId, products: [...] }` → la plateforme renvoie un
+   `feedId`.
+2. `GET /feeds/{feedId}` relit l'état du flux (traitement, contrôle qualité, motifs de refus).
+3. Le produit est ensuite **recherché au catalogue** par `sellerSku` (`GET /catalog/products`) :
+   c'est ce produit, et lui seul, qui porte un `productSid`.
+4. L'état « publiée » n'est retenu que si le produit est retrouvé, **actif**, **visible** et
+   **`QC APPROVED`**.
+
+Un flux de création **ne contient pas** de `productSid` : l'identifiant n'existe qu'après la
+création, et il est obtenu par la relecture du catalogue.
+
+### 6 bis.2 Ce que la plateforme exige réellement
+
+| Élément   | Source                                                                    |
+| --------- | ------------------------------------------------------------------------- |
+| Catégorie | `GET /catalog/categories` (chemin complet + `attributeSet.sid`)           |
+| Attributs | `GET /catalog/attribute-sets/{sid}` (`mandatory`, `variation`, `options`) |
+| Marques   | `GET /catalog/brands` (`code` / `name`)                                   |
+| Prix      | porté par `businessClients` (ex. `jumia-ci`) et par le produit            |
+
+Le référentiel est **copié en base** (`jumia_catalog_categories`) : l'API ne propose aucun filtre
+par nom sur les catégories, la recherche porte donc sur la copie locale. La validation des
+attributs est refaite **côté serveur** avant chaque envoi.
+
+### 6 bis.3 Mots de passe
+
+Un `client_secret` n'est **jamais** demandé : le parcours Self Authorization ne demande que
+`client_id` et `refresh_token`. Les jetons sont chiffrés (AES-256-GCM), ne sont jamais renvoyés,
+journalisés ni exportés, et sont renouvelés à la rotation.
+
+---
+
 ## 7. Ressources non couvertes par une API officielle identifiée
 
 À ce stade (Phase 0), **aucune** API officielle n'a été identifiée pour :

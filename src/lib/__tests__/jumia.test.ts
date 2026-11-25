@@ -48,9 +48,9 @@ describe("réponse OAuth en erreur", () => {
       ),
     );
     const { exchangeAccessToken } = await import("@/lib/jumia/client");
-    await expect(
-      exchangeAccessToken({ clientId: "c", refreshToken: "r" }),
-    ).rejects.toBeInstanceOf(JumiaError);
+    await expect(exchangeAccessToken({ clientId: "c", refreshToken: "r" })).rejects.toBeInstanceOf(
+      JumiaError,
+    );
   });
 });
 
@@ -70,7 +70,25 @@ describe("normalisation GET /shops", () => {
         name: "NKSF Shop",
         email: "shop@example.com",
         countries: [{ code: "CI", name: "Jumia", status: "ACTIVE" }],
+        // Le code du client commercial n'est pas fourni : il reste vide
+        // plutôt que d'être inventé.
+        businessClients: [],
       },
+    ]);
+  });
+
+  it("conserve le code du client commercial, qui porte le prix local", () => {
+    const shops = listRemoteShopsFromBody([
+      {
+        id: "abc",
+        name: "NKSF Shop",
+        businessClients: [
+          { code: "jumia-ci", name: "Jumia Côte d'Ivoire", countryCode: "CI", status: "ACTIVE" },
+        ],
+      },
+    ]);
+    expect(shops[0]?.businessClients).toEqual([
+      { code: "jumia-ci", name: "Jumia Côte d'Ivoire", countryCode: "CI" },
     ]);
   });
 
