@@ -275,3 +275,68 @@ Nouveaux fichiers de test :
 | Socle des vues                    | `src/components/order-workspace.tsx`                                                |
 | Panneau de synchronisation        | `src/components/order-sync-panel.tsx`                                               |
 | Captures ventes                   | `docs/captures/16-ventes-a-historique.png` … `docs/captures/28-mini-app-ventes.png` |
+
+---
+
+## 8. Vérification en production (25/11/2026)
+
+Déploiement : CI verte → workflow « Déploiement Render » → `https://tout-en-un-business-manager.onrender.com`.
+Commits : `6b794ea` (refonte) et `f8e957a` (total « À traiter » aligné sur son compteur).
+
+### 8.1 Sécurité et disponibilité
+
+| Contrôle                                                                            | Résultat                                                |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `/api/health`                                                                       | `200` · `status: ok` · migrations à jour                |
+| Webhook Telegram sans secret                                                        | `401` (protégé)                                         |
+| Les 11 pages du module sans session                                                 | `307` (redirection vers la connexion — pages présentes) |
+| `/api/shops`, `/api/dashboard`, `/api/search`, `/api/commandes/export` sans session | `401`                                                   |
+
+### 8.2 Module « Ventes & Commandes » sur les données réelles
+
+Contrôle automatisé par `node scripts/verif-ventes.mjs` (nouveau script, dans le dépôt).
+
+| Vue                                   | Commandes           | Total affiché  | Liste                                                               |
+| ------------------------------------- | ------------------- | -------------- | ------------------------------------------------------------------- |
+| A — Toutes les commandes (Historique) | **268**             | 1 318 006 FCFA | 200 lignes (plafond d'écran)                                        |
+| A — Annulées                          | **49**              | 235 069 FCFA   | 49 lignes                                                           |
+| B — À traiter                         | **5**               | 28 355 FCFA    | hub                                                                 |
+| B — En attente                        | **2**               | 14 618 FCFA    | 2 lignes                                                            |
+| B — Prêtes à expédier                 | **3**               | 13 737 FCFA    | 3 lignes                                                            |
+| B — Factures à imprimer               | —                   | —              | _API Vendor Center ne fournit pas de factures : rien n'est inventé_ |
+| C — Expédiées                         | **14**              | 68 371 FCFA    | 14 lignes                                                           |
+| C — Retours                           | **3**               | 20 747 FCFA    | 3 lignes                                                            |
+| D — Villes & localités                | 314 (hors annulées) | 1 548 526 FCFA | 79 localités agrégées                                               |
+
+Contrôles automatiques :
+
+| Contrôle                                                                                | Résultat |
+| --------------------------------------------------------------------------------------- | -------- |
+| Cohérence compteurs (268 + 49 = **317** commandes)                                      | **OUI**  |
+| Listes affichées ≤ compteurs (plafond 200 par vue)                                      | **OUI**  |
+| Somme « À traiter » = « En attente » + « Prêtes à expédier » (14 618 + 13 737 = 28 355) | **OUI**  |
+| Sous-rubriques présentes sur chaque écran                                               | **OUI**  |
+| Refus hors périmètre affiché                                                            | **OUI**  |
+| Jeton Jumia exposé dans les pages                                                       | **NON**  |
+
+### 8.3 Non-régression du lot « pilotage »
+
+`node scripts/verif-perimetre.mjs` : MaxiShopsCI 181 877 F / 43 articles / net 327 944 F ;
+NKSF SHOP 116 514 F / 25 articles / net 289 657 F ; agrégat **298 391 F** (= somme exacte) ;
+refus hors périmètre affiché. **Les deux boutiques renvoient toujours des chiffres différents.**
+
+### 8.4 Base et sauvegarde
+
+| Élément                                     | Valeur                                                                     |
+| ------------------------------------------- | -------------------------------------------------------------------------- |
+| État après purge du compte de démonstration | 1 utilisateur · 2 boutiques · **317 commandes** · 48 produits · 26 relevés |
+| Sauvegarde                                  | `backups/backup-2026-11-25-13-59-07.sql.gz` (23 tables)                    |
+| SHA-256                                     | `73a50c322d645508a238dd05a0d48c54292f44d41fb2c8492915f19b89020311`         |
+
+### 8.5 Ce qui reste à faire manuellement
+
+| Action                                                                                      | Pourquoi                                                                                       |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Synchronisation réelle Jumia sur les deux boutiques (bouton « Synchroniser cette période ») | quota + secrets : jamais exécuté automatiquement ; à faire une fois après déploiement          |
+| Lecture du comportement au-delà de 5 pages de 200                                           | dépend du quota réel du compte vendeur                                                         |
+| Rendu sur un téléphone Telegram réel                                                        | l'anti-rebond du client n'est pas reproductible en test ; captures mobile (390 × 844) fournies |
