@@ -57,16 +57,44 @@ jobs:
       - name: Attendre la mise en ligne et vérifier /api/health
         env:
           URL: https://tout-en-un-business-manager.onrender.com
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Pendant un déploiement, l'ancienne instance répond encore : un
+          # simple « status ok » ne prouve donc **rien**. On exige que
+          # l'instance en ligne serve le commit attendu (ou un commit plus
+          # récent, si un autre push a eu lieu entre-temps).
           for attempt in $(seq 1 40); do
             body="$(curl -fsS --max-time 20 "$URL/api/health" || true)"
             if echo "$body" | grep -q '"status":"ok"'; then
-              echo "✅ En ligne après ${attempt} tentative(s) : $body"
-              exit 0
+              commit="$(echo "$body" | grep -o '"commit":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+              if [ -z "$commit" ] || [ "$commit" = "null" ]; then
+                # Le commit n'est pas communiqué : on retombe sur l'ancien
+                # contrôle, mais on le dit.
+                echo "  [${attempt}] en ligne, commit non communiqué — ancien contrôle retenu"
+                echo "✅ En ligne après ${attempt} tentative(s) : $body"
+                exit 0
+              fi
+              if [ "$commit" = "$EXPECTED_SHA" ] || [ "$commit" = "${EXPECTED_SHA:0:7}" ]; then
+                echo "✅ En ligne sur le commit ${commit} après ${attempt} tentative(s)"
+                exit 0
+              fi
+              # L'inline tourne sur un autre commit : soit le nouveau build
+              # est encore en cours, soit un push plus récent a déjà été
+              # déployé (son propre run s'en chargera).
+              ahead="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/compare/${EXPECTED_SHA}...${commit}" \
+                2>/dev/null | grep -o '"status":"[a-z]*"' | head -1 | cut -d'"' -f4 || true)"
+              if [ "$ahead" = "ahead" ] || [ "$ahead" = "identical" ]; then
+                echo "✅ L'instance en ligne (${commit}) est postérieure au commit attendu."
+                exit 0
+              fi
+              echo "  [${attempt}] en ligne mais sur le commit ${commit} — nouveau build en cours"
+            else
+              echo "  [${attempt}] pas encore prêt…"
             fi
-            echo "  [${attempt}] pas encore prêt…"
             sleep 15
           done
-          echo "::error::Le service ne répond pas après 10 minutes." >&2
+          echo "::error::Le service ne répond pas sur le commit attendu après 10 minutes." >&2
           exit 1

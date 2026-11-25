@@ -11,6 +11,11 @@ export function GET() {
     app: "tout-en-un-business-manager",
     phase: "P1",
     timestamp: new Date().toISOString(),
+    // Commit réellement déployé (fourni par Render). Pendant un déploiement,
+    // l'ancienne instance répond encore : sans cette information, on ne peut
+    // pas distinguer « le nouveau code est en ligne » de « l'ancien code
+    // répond toujours ».
+    commit: process.env.RENDER_GIT_COMMIT ?? null,
     config: configPresence(process.env),
     // Les migrations sont appliquées au démarrage : on publie le résultat
     // pour qu'un échec soit visible immédiatement, pas caché.
