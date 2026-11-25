@@ -200,7 +200,7 @@ La Mini App consomme `navigation.config.ts` : la section B y affiche automatique
 | Comportement du quota Jumia au-delà de 5 pages            | dépend du quota réel du compte                                                     | à observer en production                                    |
 | Lecture des factures                                      | l'API Vendor Center utilisée n'en fournit pas                                      | sans objet — aucune facture n'est fabriquée                 |
 | Rendu exact sur un téléphone Telegram réel                | l'anti-rebond du client Telegram n'est pas reproductible en test                   | captures mobile (390 × 844) fournies                        |
-| `docs/captures` sur l'espace de nom `Ventes et commandes` | le logo du bandeau se chevauche — **défaut préexistant**, hors périmètre de ce lot | à traiter dans un lot didentity                             |
+| `docs/captures` sur l'espace de nom `Ventes et commandes` | ~~le logo du bandeau se chevauche~~ — **corrigé** : logo officiel vectoriel et libellé unique (voir `design-system.md` § 1.1) | captures régénérées le 25/11/2026                          |
 
 ---
 

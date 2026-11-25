@@ -83,3 +83,16 @@ requêtes, fusionnées.
 
 Une seconde synchronisation est idempotente (0 insertion). Détail : `docs/jumia-integration.md`
 § 5 bis et `docs/matrice-etat-regressions.md` § 10.
+
+## Identité de marque — logo officiel « Tout en Un » (25/11/2026)
+
+Le logo communiqué par le commanditaire remplace le placeholder « TU » dans toute l'application : pictogramme vectoriel dans la barre latérale, l'accueil, la connexion et la Mini App, et icône applicative (`src/app/icon.svg`).
+
+| Contrôle | Résultat |
+|---|---|
+| Fidélité à la source officielle | **0,69/255 d'écart absolu moyen par canal (0,27 %)** |
+| Rendu desktop / mobile / Mini App, clair et sombre | vérifié dans un navigateur (captures régénérées) |
+| Typecheck · lint · tests unitaires | verts · **335 réussis / 2 ignorés** |
+| Suite E2E complète (dont audits WCAG axe) | **76 réussis / 0 échec** |
+
+Détail : `docs/design-system.md` § 1.1 et `docs/matrice-etat-regressions.md` § 11.

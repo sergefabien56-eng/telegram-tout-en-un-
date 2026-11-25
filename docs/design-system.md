@@ -22,7 +22,22 @@
 | `text` | `#0F172A` | Texte principal |
 | `muted` | `#64748B` | Texte secondaire |
 
-### 1.1 Contraste (WCAG AA)
+### 1.1 Logo (identité officielle)
+
+Le logo « Tout en Un » est **vectoriel** : il n'existe pas de bitmap dans le code applicatif. Le pictogramme est partagé entre l'icône applicative (`src/app/icon.svg`) et le composant React (`src/components/brand-mark.tsx`), tous deux alimentés par la même source de vérité, `src/lib/brand-logo.json`, produite par `scripts/generate-brand-assets.mjs`.
+
+| Élément | Couleur | Valeur |
+|---|---|---|
+| Pavé (fond arrondi, rayon 91,67 / 1024 ≈ 8,95 %) | bleu nuit | `#0d1a38` |
+| Carrés clairs (4) | blanc bleuté | `#ecf2f9` |
+| Carré central + bras diagonaux | turquoise | `#22bdc4` |
+
+- **Usage** : `<Logo />` (pictogramme 36 px + signature) ou `<Logo className="h-8 w-8" withName={false} />` quand le libellé est déjà présent à côté (barre latérale, en-tête compact de la Mini App).
+- **Fidélité** : le rendu généré a été comparé au fichier officiel à **0,69/255 d'écart absolu moyen par canal** (0,27 %). Le contrôle est reproductible : `node scripts/verify-brand-assets.mjs` (comparaison visuelle dans `docs/captures/29-logo-source-et-rendu.png`).
+- **Thème sombre** : le pavé bleu nuit se confond avec les fonds sombres (`#11192C`). Un liseré `white/25` de 1 px, inscrit dans le pavé, le détache du fond sans altérer l'œuvre : `dark:ring-1 dark:ring-inset`.
+- **Accessibilité** : le pictogramme est décoratif (`aria-hidden`) quand la signature est visible ; quand il est seul, il porte le nom accessible « Tout en Un » afin que le lien qui l'héberge reste toujours nommable (mode « rail » de la barre latérale).
+
+### 1.2 Contraste (WCAG AA)
 
 | Couple | Ratio | Conclusion |
 |---|---|---|

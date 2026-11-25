@@ -500,3 +500,49 @@ Répartition des statuts importés :
 
 « 2 pages » = une page par fenêtre (création, puis mise à jour) : c'est la trace directe de
 la double lecture.
+
+---
+
+## 11. Logo officiel « Tout en Un » (25/11/2026)
+
+### 11.1 Ce qui a été remplacé
+
+| Emplacement | Avant | Après |
+|---|---|---|
+| `src/components/logo.tsx` | carré bleu « TU » dessiné à la main | pictogramme officiel vectoriel (`BrandMark`) |
+| `src/app/icon.svg` | placeholder « TU » | logo officiel vectoriel |
+| Barre latérale, en-tête compact de la Mini App | logo **et** libellé superposés (chevauchement) | pictogramme + libellé unique, sans chevauchement |
+
+Le logo est désormais **vectoriel et unique** : `src/lib/brand-logo.json` est la source de vérité, consommée à la fois par `src/app/icon.svg` (icône applicative) et par `src/components/brand-mark.tsx` (interface). `scripts/generate-brand-assets.mjs` régénère les deux, `scripts/verify-brand-assets.mjs` contrôle la fidélité.
+
+### 11.2 Fidélité à la source
+
+| Mesure | Valeur |
+|---|---|
+| Écart absolu moyen face au fichier officiel | **0,69/255 par canal (0,27 %)** |
+| Preuve visuelle (source \| rendu) | `docs/captures/29-logo-source-et-rendu.png` |
+| Contrôle reproductible | `node scripts/verify-brand-assets.mjs` |
+
+### 11.3 Rendus vérifiés
+
+Écrans rejoués dans un navigateur (desktop 1440 × 900, mobile 390 × 844, Mini App 420 × 900), en thème clair et en thème sombre :
+
+| Écran | Constat |
+|---|---|
+| Accueil (desktop/mobile) | pictogramme 36 px + signature, identique à la source |
+| Connexion | pictogramme 40 px + signature |
+| Barre latérale (clair) | pictogramme 32 px, libellé « TOUT EN UN » unique, plus de chevauchement |
+| Barre latérale (sombre) | pavé bleu nuit détaché du fond par un liseré `white/25` de 1 px |
+| Mode « rail » | libellé masqué, le lien garde le nom accessible « Tout en Un » |
+| Mini App | pictogramme 32 px dans l'en-tête compact |
+
+Les 28 captures de `docs/captures/` ont été régénérées avec le nouveau logo.
+
+### 11.4 Tests exécutés
+
+| Suite | Résultat |
+|---|---|
+| `npm run typecheck` | vert |
+| `npm run lint` | vert |
+| `npm test` | **335 réussis / 2 ignorés** |
+| `npx playwright test` (suite entière) | **76 réussis / 0 échec** — audits WCAG axe inclus |

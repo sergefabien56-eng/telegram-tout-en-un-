@@ -12,7 +12,7 @@
 | 4   | [hebergement-gratuit.md](hebergement-gratuit.md)   | Offres gratuites réelles, quotas, risques, migration              |
 | 5   | [telegram-integration.md](telegram-integration.md) | Bot, Mini App, auth `initData`, notifications                     |
 | 6   | [formules-financieres.md](formules-financieres.md) | Commissions, marges, règles de calcul                             |
-| 7   | [design-system.md](design-system.md)               | Couleurs, typographie, composants, navigation, responsive         |
+| 7   | [design-system.md](design-system.md)               | Logo officiel, couleurs, typographie, composants, navigation, responsive |
 | 8   | [mimi.md](mimi.md)                                 | Architecture IA, outils, coûts, limites                           |
 | 9   | [plan-phase-1.md](plan-phase-1.md)                 | Lots, tests, démonstration, risques, questions ouvertes           |
 | 10  | [sauvegarde.md](sauvegarde.md)                     | Sauvegarde planifiée, rétention, restauration, export R2/Drive    |
