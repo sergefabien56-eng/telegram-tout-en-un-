@@ -21,19 +21,19 @@ Jumia expose **deux** API distinctes. Il faut choisir (ou combiner) selon le pay
 ### 1.2 Vendor Center — GPM & GOP API (multi-boutiques, OAuth2)
 
 - Documentation : [Vendor API (GPM/GOP)](https://vendorcenter.jumia.com/api-docs/) [2]
-- **Vendor Center** = portail Jumia qui gère **toutes les boutiques avec un identifiant unique** (concept de *mastershop*) — exactement le besoin « plusieurs boutiques, une seule interface ». [2]
+- **Vendor Center** = portail Jumia qui gère **toutes les boutiques avec un identifiant unique** (concept de _mastershop_) — exactement le besoin « plusieurs boutiques, une seule interface ». [2]
 - Authentification : **OAuth2 uniquement**. Deux modes : **Self Authorization** (intégrations non supervisées : ERP, tâches planifiées) et **Web Application** (connexion humaine via navigateur). Pour notre ERP, c'est **Self Authorization** qui est préconisé. [2]
 - Endpoints clés : [2]
   - **GPM (catalogue)** : `GET /catalog/products` (paginé « next token »), `GET /catalog/stock` (paginé), `POST /feeds/products/stock` (maj stock), maj prix/statut, `GET /catalog/brands|categories|attributes`, `GET /consignment-stock`.
   - **GOP (commandes)** : `GET /orders` (pagine, multi-pays), `GET /orders/items`, `PUT /orders` (annulation), `POST /orders/pack`, `POST /orders/ready-to-ship`, `GET /shipment-providers`.
   - **Paiements** : `GET /payments/payout-statement`.
-- **Limites de débit** (officielles) : **200 requêtes/minute** et **4 requêtes/seconde**, appliquées au niveau *mastershop*. [2]
+- **Limites de débit** (officielles) : **200 requêtes/minute** et **4 requêtes/seconde**, appliquées au niveau _mastershop_. [2]
 - Versionnage : doc v2.0 (2026-08-11) — corrections de forme, **pas de changement de comportement**. [2]
 
 ### 1.3 Quelle surface pour la Côte d'Ivoire ?
 
 - La Côte d'Ivoire dispose de **VendorHub CI** (`vendorhub.jumia.ci`) et du **Vendor Center**. La page officielle des commissions est `vendorhub.jumia.ci/commissions`. [8]
-- **Recommandation** : privilégier **Vendor Center (GPM/GOP)** pour la multi-boutique (un seul token, toutes les boutiques), et utiliser **Seller Center** en secours si une boutique n'est pas rattachée au *mastershop* (la doc Jumia indique de contacter le *account manager* dans ce cas). [2]
+- **Recommandation** : privilégier **Vendor Center (GPM/GOP)** pour la multi-boutique (un seul token, toutes les boutiques), et utiliser **Seller Center** en secours si une boutique n'est pas rattachée au _mastershop_ (la doc Jumia indique de contacter le _account manager_ dans ce cas). [2]
 - **Point à vérifier avant P2** : accès API effectif du compte vendeur CI, mode d'autorisation disponible, etsurface exacte (Self Authorization) — une demande peut être nécessaire.
 
 ---
@@ -42,47 +42,47 @@ Jumia expose **deux** API distinctes. Il faut choisir (ou combiner) selon le pay
 
 ### 2.1 Produits
 
-| Besoin | Endpoint (Vendor Center) | Notes |
-|---|---|---|
-| Liste catalogue | `GET /catalog/products` | paginé « next token » ; filtres `status`, `qcStatus`, `visible`, `latestFirst` [2] |
-| Détails produit | `GET /catalog/products/{id}` | — |
-| Création | `POST /feeds/products` (feed asynchrone) | vérifier le feed via son id |
-| Mise à jour contenu | `POST /feeds/products` | — |
-| Mise à jour stock | `POST /feeds/products/stock` | limite de **1 000 enregistrements** par feed [2] |
-| Mise à jour prix | `POST /feeds/products/price` | **validation humaine obligatoire** côté TOUT EN UN |
+| Besoin              | Endpoint (Vendor Center)                 | Notes                                                                              |
+| ------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| Liste catalogue     | `GET /catalog/products`                  | paginé « next token » ; filtres `status`, `qcStatus`, `visible`, `latestFirst` [2] |
+| Détails produit     | `GET /catalog/products/{id}`             | —                                                                                  |
+| Création            | `POST /feeds/products` (feed asynchrone) | vérifier le feed via son id                                                        |
+| Mise à jour contenu | `POST /feeds/products`                   | —                                                                                  |
+| Mise à jour stock   | `POST /feeds/products/stock`             | limite de **1 000 enregistrements** par feed [2]                                   |
+| Mise à jour prix    | `POST /feeds/products/price`             | **validation humaine obligatoire** côté TOUT EN UN                                 |
 
 ### 2.2 Stocks
 
-| Besoin | Endpoint | Notes |
-|---|---|---|
-| Stocks | `GET /catalog/stock` | paginé « next token » [2] |
-| Stock par commande | `GET /catalog/stock/salesorderitem/{orderItemSid}` | réserve de stock [2] |
-| Consignment | `GET /consignment-stock` | si entrepôt Jumia (FBT) |
+| Besoin             | Endpoint                                           | Notes                     |
+| ------------------ | -------------------------------------------------- | ------------------------- |
+| Stocks             | `GET /catalog/stock`                               | paginé « next token » [2] |
+| Stock par commande | `GET /catalog/stock/salesorderitem/{orderItemSid}` | réserve de stock [2]      |
+| Consignment        | `GET /consignment-stock`                           | si entrepôt Jumia (FBT)   |
 
 ### 2.3 Commandes
 
-| Besoin | Endpoint | Notes |
-|---|---|---|
-| Commandes | `GET /orders` | filtres `status`, `createdAfter/Before`, `updatedAfter/Before`, `size` [2] |
-| Lignes | `GET /orders/items?orderId=...` | plusieurs ids possibles [2] |
-| Annulation | `PUT /orders` | — |
-| Emballer / expédier | `POST /orders/pack`, `POST /orders/ready-to-ship` | — |
+| Besoin              | Endpoint                                          | Notes                                                                      |
+| ------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| Commandes           | `GET /orders`                                     | filtres `status`, `createdAfter/Before`, `updatedAfter/Before`, `size` [2] |
+| Lignes              | `GET /orders/items?orderId=...`                   | plusieurs ids possibles [2]                                                |
+| Annulation          | `PUT /orders`                                     | —                                                                          |
+| Emballer / expédier | `POST /orders/pack`, `POST /orders/ready-to-ship` | —                                                                          |
 
 ### 2.4 Factures / documents
 
-| Besoin | Surface Seller Center | Notes |
-|---|---|---|
-| Document de commande | `GetDocument` | document lié à la commande (facture) — **format et disponibilité selon marché, à qualifier** |
-| Métadonnées facture | `SetInvoiceNumber`, `SetInvoiceAccessKey` | renseigne numéro/accès facture [1] |
-| Statistiques / paiements | `GetStatistics`, `GetPayoutStatus` | vue financière vendeur [1] |
+| Besoin                   | Surface Seller Center                     | Notes                                                                                        |
+| ------------------------ | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Document de commande     | `GetDocument`                             | document lié à la commande (facture) — **format et disponibilité selon marché, à qualifier** |
+| Métadonnées facture      | `SetInvoiceNumber`, `SetInvoiceAccessKey` | renseigne numéro/accès facture [1]                                                           |
+| Statistiques / paiements | `GetStatistics`, `GetPayoutStatus`        | vue financière vendeur [1]                                                                   |
 
 > **Factures officielles** : si l'API fournit le document, on le telécharge, on calcule son **empreinte SHA-256**, on le stocke en l'état (jamais de modification de montants/dates/numéros). Si l'API ne le fournit pas → `storage_key = NULL` et mention **« Indisponible »**. Les documents produits par TOUT EN UN portent la mention **« Document interne — non officiel »**.
 
 ### 2.5 Finance
 
-| Besoin | Endpoint | Notes |
-|---|---|---|
-| Relevé de paiement | `GET /payments/payout-statement` | source des `finance_transactions` |
+| Besoin               | Endpoint                                           | Notes                                                          |
+| -------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| Relevé de paiement   | `GET /payments/payout-statement`                   | source des `finance_transactions`                              |
 | Statistiques vendeur | `GetStatistics`, `GetPayoutStatus` (Seller Center) | délais de paiement à connaître (payout mensuel, délai annoncé) |
 
 ---
@@ -124,11 +124,11 @@ Un compte vendeur Jumia peut regrouper plusieurs boutiques. Avant d'enregistrer
 une donnée, on compare **l'identifiant de boutique porté par la charge utile
 Jumia** avec la boutique ciblée :
 
-| Ressource | Identifiant Jumia | Contrôle |
-|---|---|---|
-| Commande | `shopIds` (tableau) | commande conservée si la boutique ciblée est dans `shopIds`, sinon **écartée** |
-| Relevé de versement | `shopSid` | conservé si `shopSid` = boutique ciblée, sinon **écarté** (colonne `payout_statements.remote_shop_sid`) |
-| Produit | `shop.id` | conservé si `shop.id` = boutique ciblée, sinon **écarté** |
+| Ressource           | Identifiant Jumia   | Contrôle                                                                                                |
+| ------------------- | ------------------- | ------------------------------------------------------------------------------------------------------- |
+| Commande            | `shopIds` (tableau) | commande conservée si la boutique ciblée est dans `shopIds`, sinon **écartée**                          |
+| Relevé de versement | `shopSid`           | conservé si `shopSid` = boutique ciblée, sinon **écarté** (colonne `payout_statements.remote_shop_sid`) |
+| Produit             | `shop.id`           | conservé si `shop.id` = boutique ciblée, sinon **écarté**                                               |
 
 Les données écartées sont comptées (`skipped`) et journalisées dans
 `audit_logs` (`action = shop.*_synced`, `result = blocked`,
@@ -141,6 +141,30 @@ Module : `src/lib/shop-guard.ts`.
 
 `Connecté` · `Synchronisation en cours` · `Synchronisé` · `Synchronisation partielle` · `Erreur` · `Reconnexion nécessaire`.
 
+### 3.4 Synchronisation par période explicite (module « Ventes & Commandes »)
+
+La lecture des commandes ne se fait plus sur une fenêtre glissante : l'écran **« Synchroniser
+cette période »** demande une date de début et une date de fin, et la fenêtre est **envoyée à
+l'API** (`createdAfter` / `createdBefore`), jamais reconstruite localement.
+
+| Règle                  | Valeur                                                 | Où elle est appliquée                                                         |
+| ---------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Période obligatoire    | les deux dates sont exigées                            | `src/lib/order-sync-policy.ts` (`validateSyncWindow`) — **client et serveur** |
+| Période inversée       | refusée                                                | idem                                                                          |
+| Période > 90 jours     | refusée                                                | idem                                                                          |
+| Confirmation           | demandée au-delà de 30 jours                           | panneau de synchronisation                                                    |
+| Suivi des mises à jour | `updatedAfter` / `updatedBefore`                       | `src/lib/jumia/orders.ts` (`buildOrderQuery`)                                 |
+| Pagination             | conservée telle quelle (5 pages × 200 maximum)         | `src/lib/jumia/orders.ts`                                                     |
+| Upsert                 | idempotent (clé unique boutique + id distant)          | `src/lib/orders-sync.ts`                                                      |
+| Lecture partielle      | état `partial`, **jamais** présenté comme une réussite | `src/lib/orders-sync.ts` + interface                                          |
+
+Les refus de période et de permission sont **contrôlés côté serveur**
+(`POST /api/shops/[id]/commandes/sync`) : masquer un bouton dans l'interface ne suffit pas, la
+route elle-même refuse une période invalide et une permission absente.
+
+**Aucun jeton Jumia** (access token, refresh token, mot de passe) n'apparaît dans l'interface,
+dans les logs ni dans les exports : les identifiants restent côté serveur, dans le coffre chiffré.
+
 ---
 
 ## 4. Webhooks Jumia
@@ -151,19 +175,62 @@ Module : `src/lib/shop-guard.ts`.
 
 ---
 
-## 5. Mapping des statuts (à figer en P2)
+## 5. Mapping des statuts — figé et testé (25/11/2026)
 
-| Statut Jumia (commande) | Statut TOUT EN UN |
-|---|---|
-| `pending` | `pending` |
-| `ready to ship` | `ready_to_ship` |
-| `shipped` | `shipped` |
-| `delivered` | `delivered` |
-| `cancelled` | `cancelled` |
-| `failed delivery` | `failed` |
-| `returned` / `return waiting for approval` | `returned` / `return_pending` |
+La classification est **centralisée** dans `src/lib/order-status.ts` : c'est la source de vérité,
+utilisée par le JavaScript (libellés, familles) **et** par le SQL (conditions de filtre), de sorte
+qu'un compteur et la liste qu'il décrit ne puissent pas diverger. L'équivalence des deux est
+vérifiée par un test d'intégration sur base réelle.
 
-Les libellés exacts varient selon l'API ; le mapping sera écrit dans `src/modules/jumia-integration/mappings.ts` et **testé** avec des exemples réels.
+### 5.1 Statuts bruts et familles
+
+| Statut Jumia (libellé réel)                                                     | Statut interne                | Famille                           |
+| ------------------------------------------------------------------------------- | ----------------------------- | --------------------------------- |
+| `pending`, `pending pickup`, `awaiting pickup`, `pending delivery`              | `pending`                     | en attente                        |
+| `ready to ship`, `ready`                                                        | `ready_to_ship`               | prêtes à expédier                 |
+| `shipped`, `picked up`, `in transit`                                            | `shipped`                     | expédiées                         |
+| `delivered`                                                                     | `delivered`                   | expédiées (livrées)               |
+| `cancelled`, `canceled`                                                         | `cancelled`                   | annulées                          |
+| `failed delivery`, `delivery failed`                                            | `failed`                      | échecs (distinct des annulations) |
+| `returned`, `return waiting for approval`, `return approved`, `return rejected` | `returned` / `return_pending` | retours                           |
+
+Les libellés exacts varient selon l'API ; ils sont normalisés avant classification
+(minuscules, espaces et tirets ramenés à une seule forme).
+
+### 5.2 Les quatre vues et la condition SQL qui les définit
+
+| Vue                        | Condition appliquée **en base**, avant toute limite de lignes             |
+| -------------------------- | ------------------------------------------------------------------------- |
+| **A — Historique**         | toutes les commandes **sauf** les annulées (la famille `hors-annulees`)   |
+| **A — Annulées**           | uniquement les annulations                                                |
+| **B — En attente**         | préparation **non** confirmée : `packed < total`, ou `total = 0`          |
+| **B — Prêtes à expédier**  | préparation **confirmée** : `packed ≥ total > 0`, et expédition non faite |
+| **C — Expédiées**          | expédition confirmée (`shipped`, `picked up`)                             |
+| **C — Retours**            | tous les statuts de retour, **sans** catégorie imposée par motif          |
+| **D — Villes & localités** | agrégat par localité : uniquement des effectifs et des taux               |
+
+### 5.3 Règles qui font foi
+
+1. **Une commande à statuts multiples n'est jamais « prête à expédier »** : si `packed < total`,
+   elle reste « en attente » et l'interface affiche « préparation partielle (x/y) ».
+2. **Annulation et échec de livraison sont deux notions distinctes** : une annulation n'apparaît
+   jamais dans le taux d'échec d'une localité.
+3. **Les retours sont regroupés** : aucun motif n'est exigé par Jumia côté API de lecture, on ne
+   fabrication donc pas de catégorie.
+4. **Le total affiché est le montant des commandes affichées** — ce n'est pas le CA encaissé
+   (une commande livrée ou expédiée n'est pas nécessairement encaissée). Les devises multiples ne
+   sont pas additionnées : l'interface affiche « — » et l'explique.
+5. **Les factures ne sont pas inventées** : l'API Vendor Center utilisée ne fournit pas de
+   factures ; la page « Factures à imprimer » est honnête et renvoie vers le Vendor Center.
+
+### 5.4 Ce que l'API permet — et ne permet pas
+
+| Besoin                                                   | Support API                                            | Conséquence dans l'application                                                                                                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suivre les changements de statut d'une commande ancienne | `updatedAfter` / `updatedBefore` sur `GET /orders` [2] | la case « Relire aussi les commandes plus anciennes dont le statut a changé » est proposée par défaut ; sans elle, un changement postérieur à la création passerait inaperçu |
+| Filtrer par statut côté API                              | `status` sur `GET /orders` [2]                         | utilisé pour les lectures ciblées ; le filtrage fin se fait aussi **en base**, pour garantir que les compteurs et les listes décrivent le même ensemble                      |
+| Créer / lire une facture                                 | non couvert par l'API utilisée                         | page honnête, aucune donnée fabriquée                                                                                                                                        |
+| Connaître le motif d'un retour                           | non exposé par l'API de lecture                        | le motif est affiché **s'il figure dans la charge utile brute**, sinon il n'est pas deviné                                                                                   |
 
 ---
 
