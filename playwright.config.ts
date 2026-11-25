@@ -7,6 +7,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
+  // Après la suite : on efface les comptes et boutiques de démonstration pour
+  // qu'aucune donnée fictive ne reste en base (R1).
+  globalTeardown: "./e2e/global-teardown.ts",
   // Le serveur de dev compile à la volée : on laisse une marge large.
   timeout: 90_000,
   fullyParallel: false,

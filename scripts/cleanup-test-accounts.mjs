@@ -20,8 +20,9 @@ const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false 
  * On peut cibler un motif précis avec `--email=<fragment>`.
  */
 const extra = process.argv.find((arg) => arg.startsWith("--email="))?.split("=")[1];
-const TEST_EMAIL_RE =
-  extra ?? "(2fa|dbg|smoke|e2e|a11y|mini|probe|prod|owner|member|orders|search)[.-].*@exemple\\.ci$";
+// Tous les comptes de test utilisent l'adresse de démonstration `@exemple.ci`
+// (domaine réservé) : le motif est large pour ne laisser aucun résidu.
+const TEST_EMAIL_RE = extra ?? ".*@exemple\\.ci$";
 
 // 1. Journal d'audit rattaché aux comptes de test (avant suppression des comptes).
 const ids = await pool.query(`SELECT id FROM users WHERE email ~ $1`, [TEST_EMAIL_RE]);

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { Pool } from "pg";
+import { purgeTestAccounts } from "./helpers/purge-test-accounts";
 
 /**
  * Prépare la base avant la suite E2E :
@@ -34,18 +35,9 @@ export default async function globalSetup() {
 
   const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
   try {
-    const pattern =
-      "(2fa|dbg|smoke|e2e|a11y|mini|jumia|link|owner|probe|prod|ui)[.-].*@exemple\\.ci$";
-    // `shops.owner_user_id` est en RESTRICT : on supprime d'abord les boutiques
-    // et leurs membres, sinon le DELETE des utilisateurs échoue.
-    await pool.query(
-      `DELETE FROM shops WHERE owner_user_id IN (SELECT id FROM users WHERE email ~ $1)`,
-      [pattern],
-    );
-    const users = await pool.query(`DELETE FROM users WHERE email ~ $1 RETURNING id`, [pattern]);
-    const attempts = await pool.query(`DELETE FROM login_attempts`);
+    const result = await purgeTestAccounts(pool);
     console.log(
-      `[e2e] base préparée : ${users.rowCount ?? 0} compte(s) de test, ${attempts.rowCount ?? 0} tentative(s) purgées`,
+      `[e2e] base préparée : ${result.users} compte(s) de test supprimé(s), ${result.shops} boutique(s), ${result.attempts} tentative(s) purgées`,
     );
   } finally {
     await pool.end();
