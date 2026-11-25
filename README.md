@@ -109,7 +109,7 @@ npm test          # Vitest (unitaires + intégration sur base réelle)
 npm run e2e       # Playwright (npx playwright install au préalable)
 ```
 
-État au 22/11/2026 : **243 tests réussis / 2 ignorés**, **57 E2E réussis**, typecheck, lint et build verts.
+État au 22/11/2026 : **243 tests réussis / 2 ignorés**, **58 E2E réussis**, typecheck, lint et build verts.
 
 Le périmètre multi-boutiques est couvert par un test d'intégration dédié
 (`src/lib/__tests__/dashboard-scope.integration.test.ts`) : une boutique inaccessible

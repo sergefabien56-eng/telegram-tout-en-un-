@@ -131,4 +131,57 @@ test.describe("Pilotage", () => {
     // Pas un tableau vide : un refus explicite (un zéro trompeur est pire).
     await expect(page.getByRole("alert").first()).toContainText("périmètre");
   });
+
+  test("les permissions sont vérifiées côté serveur, pas seulement dans le menu", async ({
+    page,
+  }) => {
+    const emailA = `pilotage-proprio-${Date.now()}@exemple.ci`;
+    const emailB = `pilotage-vendeur-${Date.now()}@exemple.ci`;
+
+    // 1. Le vendeur doit **exister** avant l'invitation (sinon un jeton est
+    //    nécessaire). On l'inscrit dans un contexte jetable : l'inscription
+    //    ouvre une session, on ne veut surtout pas qu'elle remplace celle du
+    //    propriétaire dans le contexte principal.
+    const contexteVendeur = await page.context().browser()!.newContext({
+      baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
+    });
+    const pageInscription = await contexteVendeur.newPage();
+    await pageInscription.request.post("/api/auth/register", {
+      data: { email: emailB, password: PASSWORD, fullName: "Vendeur" },
+    });
+    await contexteVendeur.close();
+
+    // 2. Le propriétaire crée sa boutique.
+    await login(page, emailA, PASSWORD);
+    const created = await page.request.post("/api/shops", {
+      data: {
+        name: "PILOTAGE PERMISSIONS",
+        externalShopId: `E2E-PILOT-P-${Date.now()}`,
+        country: "CI",
+        currency: "XOF",
+      },
+    });
+    expect(created.status()).toBe(201);
+    const shopId = (await created.json()).data?.id as string;
+
+    // 3. Le vendeur existe déjà : il est ajouté immédiatement, sans jeton.
+    const invite = await page.request.post(`/api/shops/${shopId}/members`, {
+      data: { email: emailB, role: "stock" },
+    });
+    expect(invite.status()).toBe(201);
+
+    // 4. Le vendeur n'a pas `reports:read` : la comparaison des performances
+    //    ne doit rien lui montrer, même en ouvrant l'URL directement.
+    const contexte = await page.context().browser()!.newContext({
+      baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
+    });
+    const pageVendeur = await contexte.newPage();
+    await pageVendeur.request.post("/api/auth/login", {
+      data: { email: emailB, password: PASSWORD },
+    });
+    const reponse = await pageVendeur.goto("/performances");
+    expect(reponse?.status()).toBeLessThan(400);
+    await expect(pageVendeur.getByText(/Aucun rapport disponible/i).first()).toBeVisible();
+    await contexte.close();
+  });
 });

@@ -43,7 +43,7 @@ Légende : ✅ opérationnel · 🔧 corrigé · ✚ nouveau · ⏳ à venir (no
 | Élément | État | Preuve |
 |---|---|---|
 | 48 rubriques de navigation, 8 sections | ✅ | `navigation.test.ts`, `e2e/pilotage.spec.ts` |
-| 34 pages métier et leurs filtres/exports | ✅ | 243 tests + 56 E2E |
+| 34 pages métier et leurs filtres/exports | ✅ | 243 tests + 58 E2E |
 | 56 routes API et leurs contrôles d'accès | ✅ | Suite complète |
 | « Tout ouvrir » / « Tout fermer » (Mini App) | ✅ | `e2e/mini-menu.spec.ts` |
 | Bot Telegram, Mini App, cron de cohérence | ✅ | `e2e/mini-menu.spec.ts`, smoke |
@@ -108,7 +108,7 @@ Mouvements · Entrepôts · Inventaires · Dépenses · Achats · Rapprochements
 | Niveau | Volume | Résultat |
 |---|---|---|
 | Vitest (unitaires + intégration, base réelle) | 41 fichiers / 245 tests | **243 réussis / 2 ignorés** |
-| Playwright (E2E) | 56 tests | **56/56 réussis** |
+| Playwright (E2E) | 58 tests | **58/58 réussis** |
 | `tsc --noEmit` | — | **0 erreur** |
 | ESLint | — | **0 erreur** |
 | `next build` | — | **succès** |
@@ -130,6 +130,8 @@ Mouvements · Entrepôts · Inventaires · Dépenses · Achats · Rapprochements
 | R8 | Unitaire : `upsertOrders(shopId, lignes)` — signature inexistante | Bloquante | Le helper d'insertion attend un tableau de lignes, chacune portant son `shopId` | Test corrigé (garde-fou multi-boutiques du helper conservé) | ✅ Résolu |
 | R9 | `getByText("CA commandes")` ambigu (KPI + note de méthode) | Mineure | Libellé présent deux fois, c'est voulu | `.first()` | ✅ Résolu |
 | R10 | Rôle `admin` ajouté en base par un script de démonstration | Sans impact | `admin` n'existe pas dans le modèle de rôles (`owner`, `manager`, `stock`, `accountant`, `assistant`) → permissions nulles, comportement correct et vérifié | Compte de démonstration repassé `owner` | ✅ Résolu |
+| R11 | E2E : l'invitation d'un membre renvoyait 404 | Moyenne | `POST /api/auth/register` **pose une session** : inscrire le vendeur dans le contexte principal_session en avait fait le propriétaire, qui n'a pas accès à la boutique | Inscription faite dans un contexte jetable, puis invitation depuis le contexte du propriétaire | ✅ Résolu |
+| R12 | Axe : contraste insuffisant sur le badge « Non rattachée » (1.98:1) et le texte d'avertissement (2.14:1) | Sérieuse | La couleur d'avertissement `#F59E0B` n'est pas lisible sur fond clair | `--warning` passe à `#92400E` en thème clair : **6.1:1** sur le fond des pastilles, 7.1:1 sur blanc | ✅ Résolu |
 
 ### 3.1 Régressions fonctionnelles (rapportées par l'utilisateur) — état
 
