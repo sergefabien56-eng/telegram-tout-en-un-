@@ -22,6 +22,8 @@ type MiniAppShellProps = {
   shops: { id: string; name: string; role: string }[];
   /** Permissions calculées côté serveur : le « Plus » n'affiche que du réel. */
   permissions: string[];
+  /** Boutique courante (cookie de sélection) : celle réellement affichée. */
+  currentShopId?: string | null;
   children: ReactNode;
 };
 
@@ -35,11 +37,17 @@ function NavIcon({ name }: { name: string }) {
  * Coquille Mini App (spec 4.4) : en-tête compact, contenu identique à la
  * version web, navigation basse à 5 accès max + « Plus ».
  */
-export function MiniAppShell({ user, shops, permissions, children }: MiniAppShellProps) {
+export function MiniAppShell({
+  user,
+  shops,
+  permissions,
+  currentShopId,
+  children,
+}: MiniAppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [shopId, setShopId] = useState(shops[0]?.id ?? "");
+  const [shopId, setShopId] = useState(currentShopId ?? shops[0]?.id ?? "");
 
   // Bouton retour natif Telegram quand il est disponible.
   useEffect(() => {

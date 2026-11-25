@@ -1,3 +1,8 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useRef } from "react";
+
 type ShopOption = { id: string; name: string };
 
 type Props = {
@@ -12,16 +17,41 @@ const STATUTS = ["CREATED", "PENDING", "SHIPPED", "DELIVERED", "CANCELED", "RETU
  * l'état reste dans l'URL (partageable, retour navigateur fonctionnel).
  */
 export function OrderFilters({ shops, values }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /**
+   * Changer de boutique applique le filtre immédiatement, en conservant la
+   * période et le statut déjà choisis : le vendeur voit tout de suite les
+   * données de la boutique qu'il vient de sélectionner.
+   */
+  function applyShop(value: string) {
+    const form = formRef.current;
+    if (!form) return;
+    const params = new URLSearchParams();
+    for (const [key, raw] of new FormData(form).entries()) {
+      const entry = String(raw);
+      if (!entry) continue;
+      params.set(key, entry);
+    }
+    if (!value) params.delete("boutique");
+    else params.set("boutique", value);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
   return (
-    <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
+    <form ref={formRef} method="get" className="mt-4 flex flex-wrap items-end gap-3">
       <label className="flex flex-col gap-1 text-xs font-medium text-muted">
         Boutique
         <select
           name="boutique"
           defaultValue={values.boutique ?? ""}
+          onChange={(event) => applyShop(event.target.value)}
           className="focusable rounded-lg border border-border bg-card px-3 py-2 text-sm text-night"
         >
-          <option value="">Toutes les boutiques</option>
+          <option value="">Toutes les boutiques ({shops.length})</option>
           {shops.map((shop) => (
             <option key={shop.id} value={shop.id}>
               {shop.name}

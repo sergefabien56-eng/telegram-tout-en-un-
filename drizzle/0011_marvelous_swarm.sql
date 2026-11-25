@@ -1,0 +1,1 @@
+ALTER TABLE "payout_statements" ADD COLUMN "remote_shop_sid" text;

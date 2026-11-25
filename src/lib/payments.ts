@@ -30,9 +30,15 @@ function normalizeStatement(input: {
 
   if (opening === null || revenue === null || fees === null || closing === null) return null;
 
+  const remoteShopSid =
+    typeof input.raw.shopSid === "string" && input.raw.shopSid.trim()
+      ? input.raw.shopSid.trim()
+      : null;
+
   return {
     shopId: input.shopId,
     statementNumber,
+    remoteShopSid,
     currency,
     openingBalanceMinor: opening,
     itemRevenueMinor: revenue,
@@ -81,6 +87,7 @@ export async function upsertPayoutStatements(
         .update(payoutStatements)
         .set({
           currency: values.currency,
+          remoteShopSid: values.remoteShopSid,
           openingBalanceMinor: values.openingBalanceMinor,
           itemRevenueMinor: values.itemRevenueMinor,
           shipmentFeeMinor: values.shipmentFeeMinor,

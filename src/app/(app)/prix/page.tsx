@@ -1,6 +1,7 @@
 import { ExportButton } from "@/components/export-button";
 import { PurchasePriceField } from "@/components/purchase-price-field";
-import { ScopeNotice, ShopSelect } from "@/components/shop-select";
+import { ShopSelect } from "@/components/shop-select";
+import { ScopeNotice } from "@/components/scope-notice";
 import { getShopAccess } from "@/lib/permissions";
 import { listVariants, marginOf } from "@/lib/catalog";
 import { formatMoney, minorUnits } from "@/lib/money";

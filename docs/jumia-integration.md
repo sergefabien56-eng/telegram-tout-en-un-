@@ -118,7 +118,26 @@ lancer une synchronisation à la main pour voir ses données — l'écran
 
 Module : `src/lib/full-sync.ts` · Route : `POST /api/shops/:id/sync`.
 
-### 3.2 Statuts boutique (rappel cahier des charges)
+### 3.2 Garde-fou « une boutique, une donnée »
+
+Un compte vendeur Jumia peut regrouper plusieurs boutiques. Avant d'enregistrer
+une donnée, on compare **l'identifiant de boutique porté par la charge utile
+Jumia** avec la boutique ciblée :
+
+| Ressource | Identifiant Jumia | Contrôle |
+|---|---|---|
+| Commande | `shopIds` (tableau) | commande conservée si la boutique ciblée est dans `shopIds`, sinon **écartée** |
+| Relevé de versement | `shopSid` | conservé si `shopSid` = boutique ciblée, sinon **écarté** (colonne `payout_statements.remote_shop_sid`) |
+| Produit | `shop.id` | conservé si `shop.id` = boutique ciblée, sinon **écarté** |
+
+Les données écartées sont comptées (`skipped`) et journalisées dans
+`audit_logs` (`action = shop.*_synced`, `result = blocked`,
+`metadata.reason = autre_boutique`) : rien n'est perdu en silence, et une
+boutique ne peut jamais récupérer les chiffres d'une autre.
+
+Module : `src/lib/shop-guard.ts`.
+
+### 3.3 Statuts boutique (rappel cahier des charges)
 
 `Connecté` · `Synchronisation en cours` · `Synchronisé` · `Synchronisation partielle` · `Erreur` · `Reconnexion nécessaire`.
 

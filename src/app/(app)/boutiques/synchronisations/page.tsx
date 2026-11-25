@@ -1,4 +1,5 @@
-import { ScopeNotice, ShopSelect } from "@/components/shop-select";
+import { ShopSelect } from "@/components/shop-select";
+import { ScopeNotice } from "@/components/scope-notice";
 import { ShopFullSyncButton } from "@/components/shop-full-sync-button";
 import Link from "next/link";
 import { shopCounts, shopSyncHistory } from "@/lib/insights";

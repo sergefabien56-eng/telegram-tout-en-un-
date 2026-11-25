@@ -1,5 +1,5 @@
 import { ExportButton } from "@/components/export-button";
-import { ScopeNotice } from "@/components/shop-select";
+import { ScopeNotice } from "@/components/scope-notice";
 import Link from "next/link";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";

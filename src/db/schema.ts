@@ -448,6 +448,12 @@ export const payoutStatements = pgTable(
       .notNull()
       .references(() => shops.id, { onDelete: "cascade" }),
     statementNumber: text("statement_number").notNull(),
+    /**
+     * Identifiant de boutique renvoyé par Jumia (`shopSid` du relevé).
+     * Sert de garde-fou : un relevé portant l'identifiant d'une autre boutique
+     * n'est jamais enregistré sous celle-ci.
+     */
+    remoteShopSid: text("remote_shop_sid"),
     /** Devise des montants de ce relevé. */
     currency: text("currency").notNull().default("XOF"),
     openingBalanceMinor: integer("opening_balance_minor").notNull(),

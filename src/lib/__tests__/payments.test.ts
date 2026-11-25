@@ -8,6 +8,7 @@ function row(partial: Partial<Row>): Row {
     id: partial.id ?? "id",
     shopId: "shop-1",
     statementNumber: partial.statementNumber ?? "PS1",
+    remoteShopSid: partial.remoteShopSid ?? null,
     currency: "XOF",
     openingBalanceMinor: 0,
     itemRevenueMinor: partial.itemRevenueMinor ?? 0,

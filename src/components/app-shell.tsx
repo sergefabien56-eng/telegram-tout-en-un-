@@ -27,6 +27,8 @@ type AppShellProps = {
   user: { fullName: string; email: string };
   shops: ShellShop[];
   permissions: string[];
+  /** Boutique courante (cookie de sélection) : celle réellement affichée. */
+  currentShopId?: string | null;
   children: React.ReactNode;
 };
 
@@ -196,11 +198,20 @@ function Sidebar({
   );
 }
 
-export function AppShell({ user, shops, permissions, children }: AppShellProps) {
+export function AppShell({
+  user,
+  shops,
+  permissions,
+  currentShopId,
+  children,
+}: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebar, setSidebar] = useState<SidebarState>("open");
   const [userMenu, setUserMenu] = useState(false);
-  const [shopId, setShopId] = useState(shops[0]?.id ?? "");
+  // La boutique affichée est celle choisie par le vendeur (cookie), sinon la
+  // première accessible : sans cela, l'en-tête pouvait annoncer une boutique
+  // et la page en montrer une autre.
+  const [shopId, setShopId] = useState(currentShopId ?? shops[0]?.id ?? "");
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
 

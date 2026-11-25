@@ -1,4 +1,5 @@
-import { ScopeNotice, ShopSelect } from "@/components/shop-select";
+import { ShopSelect } from "@/components/shop-select";
+import { ScopeNotice } from "@/components/scope-notice";
 import { listCategories } from "@/lib/insights";
 import { readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";

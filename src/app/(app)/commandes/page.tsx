@@ -63,8 +63,15 @@ export default async function CommandesPage({
     currencies.size === 1 ? rows.reduce((sum, row) => sum + row.order.totalAmountMinor, 0) : null;
   const currency = currencies.size === 1 ? ([...currencies][0] as string) : null;
   const shopId = shopIds.length === 1 ? shopIds[0] : undefined;
-  const firstShop = scope.allowed[0];
-  const linked = Boolean(firstShop?.remoteShopId);
+  const filteredShop = shopId ? scope.allowed.find((row) => row.id === shopId) : undefined;
+  // Cibles de synchronisation : la boutique filtrée, sinon toutes les
+  // boutiques autorisées (le vendeur choisit explicitement laquelle relire).
+  const syncOptions = scope.allowed.map((row) => ({
+    id: row.id,
+    name: row.name,
+    linked: Boolean(row.remoteShopId),
+  }));
+  const syncTargetId = filteredShop?.id ?? syncOptions[0]?.id ?? "";
 
   return (
     <div className="space-y-6">
@@ -80,13 +87,31 @@ export default async function CommandesPage({
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-night">Période affichée</h2>
         <OrderFilters shops={scope.allowed} values={values} />
+        <p className="mt-3 text-xs text-muted" role="status">
+          {filteredShop ? (
+            <>
+              Filtre actif : <span className="font-medium text-night">{filteredShop.name}</span> —
+              seules ses commandes sont affichées.
+            </>
+          ) : (
+            <>
+              Filtre actif :{" "}
+              <span className="font-medium text-night">toutes les boutiques</span> — les commandes
+              sont regroupées, chaque ligne indique sa boutique.
+            </>
+          )}
+        </p>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Commandes</p>
           <p className="mt-3 text-3xl font-semibold text-night">{rows.length}</p>
-          <p className="mt-1 text-xs text-muted">Toutes boutiques autorisées confondues.</p>
+          <p className="mt-1 text-xs text-muted">
+            {filteredShop
+              ? `Boutique ${filteredShop.name} uniquement.`
+              : "Toutes les boutiques autorisées confondues."}
+          </p>
         </div>
         <div className="card p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Total affiché</p>
@@ -111,11 +136,18 @@ export default async function CommandesPage({
                 label="Exporter la sélection (CSV)"
               />
             )}
-            <OrderSyncButton shopId={firstShop?.id ?? ""} linked={linked} />
+            <OrderSyncButton
+              shopId={syncTargetId}
+              linked={Boolean(
+                scope.allowed.find((row) => row.id === syncTargetId)?.remoteShopId,
+              )}
+              options={syncOptions}
+              days={90}
+            />
           </div>
           <p className="mt-2 text-xs text-muted">
-            La synchronisation porte sur la première boutique autorisée ; l&apos;export reprend le
-            filtre en cours.
+            La synchronisation porte sur la boutique choisie ci-dessus (90 jours) ; l&apos;export
+            reprend le filtre en cours.
           </p>
         </div>
       </section>

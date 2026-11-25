@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db";
 import { fetchAllProductPages, fetchAllStockPages } from "@/lib/jumia/catalog";
 import { applyStocks, normalizeProductSet, upsertProductSets } from "@/lib/catalog";
 import { resolveDefaultAccount } from "@/lib/jumia/accounts";
+import { belongsToShop, productShopId } from "@/lib/shop-guard";
 
 export type CatalogSyncKind = "products" | "stocks" | "all";
 
@@ -84,7 +85,27 @@ export async function syncShopCatalog(params: {
         size: PAGE_SIZE,
         maxPages: MAX_PAGES,
       });
-      const normalized = fetched.products.flatMap((raw) => {
+      // Garde-fou : un produit portant l'identifiant d'une autre boutique
+      // n'est jamais enregistré sous celle-ci.
+      const foreign = fetched.products.filter(
+        (raw) => !belongsToShop(productShopId(raw as Record<string, unknown>), shop.remoteShopId),
+      );
+      const kept = fetched.products.filter((raw) =>
+        belongsToShop(productShopId(raw as Record<string, unknown>), shop.remoteShopId),
+      );
+      if (foreign.length > 0) {
+        await audit({
+          action: "shop.products_synced",
+          result: "blocked",
+          userId: params.userId,
+          entityType: "shop",
+          entityId: params.shopId,
+          ip: params.requestMeta?.ip,
+          userAgent: params.requestMeta?.userAgent,
+          metadata: { reason: "autre_boutique", ecartees: foreign.length },
+        });
+      }
+      const normalized = kept.flatMap((raw) => {
         const row = normalizeProductSet({
           shopId: params.shopId,
           countryCode: shop.country ?? null,
@@ -93,7 +114,7 @@ export async function syncShopCatalog(params: {
         return row ? [row] : [];
       });
       const counts = await upsertProductSets(normalized);
-      productsCount = fetched.products.length;
+      productsCount = kept.length;
       productInserted = counts.inserted;
       productUpdated = counts.updated;
       pages = fetched.pages;

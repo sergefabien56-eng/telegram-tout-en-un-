@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db";
 import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { normalizeOrder, upsertOrders } from "@/lib/orders";
 import { resolveDefaultAccount } from "@/lib/jumia/accounts";
+import { belongsToShop, orderShopIds } from "@/lib/shop-guard";
 
 export type SyncResult = {
   ok: boolean;
@@ -13,6 +14,8 @@ export type SyncResult = {
   updated?: number;
   pages?: number;
   truncated?: boolean;
+  /** Commandes lues mais écartées : elles appartenaient à une autre boutique. */
+  skipped?: number;
 };
 
 /** Formate une date en `YYYY-MM-DD` (UTC), format attendu par Jumia. */
@@ -93,7 +96,28 @@ export async function syncShopOrders(params: {
       maxPages: MAX_PAGES,
     });
 
-    const normalized = orders.flatMap((raw) => {
+    // Garde-fou : une commande portant l'identifiant d'une autre boutique
+    // n'est jamais enregistrée sous celle-ci (Jumia peut renvoyer les
+    // commandes d'un compte multi-boutiques).
+    const foreign = orders.filter(
+      (raw) => !belongsToShop(orderShopIds(raw as Record<string, unknown>), remoteShopId),
+    );
+    if (foreign.length > 0) {
+      await audit({
+        action: "shop.orders_synced",
+        result: "blocked",
+        userId: params.userId,
+        entityType: "shop",
+        entityId: params.shopId,
+        ip: params.requestMeta?.ip,
+        userAgent: params.requestMeta?.userAgent,
+        metadata: { reason: "autre_boutique", ecartees: foreign.length },
+      });
+    }
+    const kept = orders.filter(
+      (raw) => belongsToShop(orderShopIds(raw as Record<string, unknown>), remoteShopId),
+    );
+    const normalized = kept.flatMap((raw) => {
       const row = normalizeOrder(params.shopId, raw);
       return row ? [row] : [];
     });
@@ -130,11 +154,12 @@ export async function syncShopOrders(params: {
     await releaseLock();
     return {
       ok: true,
-      orders: orders.length,
+      orders: kept.length,
       inserted,
       updated,
       pages,
       truncated,
+      skipped: foreign.length,
     };
   } catch (error) {
     await db

@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { listUserShops } from "@/lib/shops";
 
-const SHOP_COOKIE = "teu_shop";
+/** Nom du cookie qui mémorise la boutique choisie par le vendeur. */
+export const SHOP_COOKIE = "teu_shop";
 
 /** Boutique courante (cookie de sélection), sinon la première accessible. */
 export async function getCurrentShop(userId: string) {

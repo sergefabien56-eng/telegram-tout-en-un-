@@ -3,6 +3,7 @@ import { MiniAppShell } from "@/components/mini-app-shell";
 import { TelegramThemeSync } from "@/components/telegram-theme-sync";
 import { UI_COOKIE } from "@/lib/cookies";
 import { listUserShops } from "@/lib/shops";
+import { SHOP_COOKIE } from "@/lib/current-shop";
 import { getSessionUser } from "@/lib/session";
 import { isRole, ROLE_PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -18,6 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login");
 
   const shops = await listUserShops(user.id);
+
+  // Boutique courante choisie par le vendeur (cookie `teu_shop`). Elle doit
+  // piloter l'affichage : l'en-tête et les pages show the same boutique.
+  const cookieShopId = (await cookies()).get(SHOP_COOKIE)?.value ?? null;
+  const currentShopId =
+    shops.find((shop) => shop.id === cookieShopId)?.id ?? shops[0]?.id ?? null;
 
   // Union des permissions sur toutes les boutiques de l'utilisateur.
   const permissions = new Set<string>();
@@ -48,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           user={{ fullName: user.fullName, email: user.email }}
           shops={shellShops}
           permissions={[...permissions]}
+          currentShopId={currentShopId}
         >
           {children}
         </MiniAppShell>
@@ -60,6 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       user={{ fullName: user.fullName, email: user.email }}
       shops={shellShops}
       permissions={[...permissions]}
+      currentShopId={currentShopId}
     >
       {children}
     </AppShell>
