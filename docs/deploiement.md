@@ -139,3 +139,15 @@ lent, ~30-60 s). Aucune carte bancaire, aucune facturation.
 
 Telegram exige une URL **HTTPS publique**. L'aperçu Arena (`*.e2b.app`) est derrière une garde
 d'origine (403 pour Telegram) → impossible. D'où le déploiement.
+
+## Migrations appliquées automatiquement
+
+Au démarrage du serveur, l'application applique les migrations Drizzle en
+attente (`src/instrumentation.ts` → `src/lib/db-migrate.ts`). Un déploiement ne
+peut donc jamais laisser la base en retard sur le code (colonne manquante →
+écran en erreur).
+
+- La migration est **idempotente** : Drizzle n'applique que ce qui manque.
+- En cas d'échec, l'application démarre quand même et `/api/health` publie le
+  résultat (`migrations: { ok, applied, error }`) : rien n'est caché.
+- La commande manuelle reste disponible : `npm run db:migrate`.

@@ -9,7 +9,9 @@ services:
     # Les devDependencies (Tailwind, TypeScript) sont requises par `next build`.
     # NODE_ENV=production les sauterait : on force --include=dev.
     buildCommand: npm install --include=dev && npm run build
-    startCommand: npm run start
+    # Les migrations sont appliquées au démarrage : un déploiement ne peut
+    # jamais laisser la base en retard sur le code.
+    startCommand: npm run db:migrate && npm run start
     healthCheckPath: /api/health
     envVars:
       # NB : pas de NODE_ENV=production ici — il ferait sauter les devDependencies
