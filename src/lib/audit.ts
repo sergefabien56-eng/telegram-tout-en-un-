@@ -36,6 +36,8 @@ export type AuditAction =
   | "shop.stocks_synced"
   | "shop.payments_synced"
   | "shop.full_synced"
+  | "admin.diagnostic_run"
+  | "admin.shop_repaired"
   | "shop.data_exported"
   | "product.purchase_price_updated";
 

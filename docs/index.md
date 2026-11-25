@@ -16,6 +16,7 @@
 | 8   | [mimi.md](mimi.md)                                 | Architecture IA, outils, coûts, limites                           |
 | 9   | [plan-phase-1.md](plan-phase-1.md)                 | Lots, tests, démonstration, risques, questions ouvertes           |
 | 10  | [sauvegarde.md](sauvegarde.md)                     | Sauvegarde planifiée, rétention, restauration, export R2/Drive    |
+| 11  | [audit-multiboutique.md](audit-multiboutique.md)   | Audit technique multiboutique : causes, corrections, preuves      |
 
 ## Maquettes (présentation)
 
@@ -50,4 +51,5 @@
 - ✅ **Finitions — actions rapides**, **Mini App**, **accessibilité WCAG AA**.
 - ✅ **Déploiement automatique** GitHub → Render (uniquement après une CI verte).
 - ✅ **CI + 24 tests E2E verts**, dont le parcours 2FA corrigé en production.
-- ⬜ **Reste à faire** : accès Vendor Center Jumia (Phase 2), modules commandes/catalogue/stocks.
+- ✅ **Audit technique multiboutique** ([audit-multiboutique.md](audit-multiboutique.md)) : isolation garantie, états de connexion factuels, preuve de cohérence Jumia ↔ application, diagnostic intégré `/admin/diagnostics`.
+- ⬜ **Reste à faire** : comparaison des montants de relevé au centime (les volumes sont prouvés, les montants restent à prouver).

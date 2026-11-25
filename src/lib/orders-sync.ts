@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
 import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { normalizeOrder, upsertOrders } from "@/lib/orders";
-import { resolveDefaultAccount } from "@/lib/jumia/accounts";
+import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, orderShopIds } from "@/lib/shop-guard";
 
 export type SyncResult = {
@@ -79,8 +79,17 @@ export async function syncShopOrders(params: {
     return { ok: false, reason: "Une synchronisation est déjà en cours pour cette boutique." };
   }
 
-  // Compte vendeur Jumia de la boutique (multi-comptes).
-  const accountId = await resolveDefaultAccount(params.userId, params.shopId);
+  // Compte vendeur Jumia de la boutique : il doit être lié explicitement.
+  // Aucune lecture du compte d'une autre boutique n'est possible.
+  const accountId = await accountIdForShop(params.shopId);
+  if (!accountId) {
+    await releaseLock();
+    return {
+      ok: false,
+      reason:
+        "Cette boutique n'est liée à aucun compte vendeur Jumia : rattachez-la à un compte avant de synchroniser.",
+    };
+  }
 
   const before = new Date();
   const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

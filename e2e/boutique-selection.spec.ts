@@ -31,6 +31,9 @@ test("le sélecteur de boutique conserve la boutique choisie", async ({ page }) 
   const [alphaId, betaId] = ids;
 
   await gotoSafely(page, "/dashboard");
+  // Le serveur de dev compile à la volée : on attend l'hydratation React pour
+  // que le gestionnaire de changement du sélecteur soit bien attaché.
+  await page.waitForLoadState("networkidle");
 
   const headerSelect = page.locator("header select").first();
   await expect(headerSelect).toBeVisible();
@@ -42,10 +45,14 @@ test("le sélecteur de boutique conserve la boutique choisie", async ({ page }) 
   await gotoSafely(page, "/dashboard");
   await expect(page.locator("header select").first()).toHaveValue(alphaId);
 
-  // Idem pour la seconde boutique.
+  // Idem pour la seconde boutique : on attend de nouveau l'hydratation après
+  // le rechargement, sinon le gestionnaire de changement n'est pas attaché et
+  // la sélection n'est jamais enregistrée.
+  await page.waitForLoadState("networkidle");
   await page.locator("header select").first().selectOption(betaId);
   await page.waitForTimeout(1500);
   await gotoSafely(page, "/dashboard");
+  await page.waitForLoadState("networkidle");
   await expect(page.locator("header select").first()).toHaveValue(betaId);
 });
 
@@ -76,6 +83,9 @@ test("le filtre boutique s'applique immédiatement et affiche la boutique active
   const [alphaId] = ids;
 
   await gotoSafely(page, "/commandes");
+  // Hydratation React attendue : sans elle, le changement de boutique n'est
+  // pas appliqué (navigation côté client).
+  await page.waitForLoadState("networkidle");
   const filtre = page.locator("section select[name='boutique']").first();
   await expect(filtre).toBeVisible();
 
@@ -109,6 +119,7 @@ test("la synchronisation des commandes annonce la boutique cible", async ({ page
   }
 
   await gotoSafely(page, "/commandes");
+  await page.waitForLoadState("networkidle");
   // Le bouton nomme la boutique qui sera synchronisée.
   await expect(page.getByRole("button", { name: /Synchroniser les commandes de / })).toBeVisible();
   await expect(page.getByText(/La synchronisation porte sur la boutique choisie/)).toBeVisible();

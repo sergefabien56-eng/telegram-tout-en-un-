@@ -6,6 +6,13 @@ import { JumiaShopLink } from "@/components/jumia-shop-link";
 import { roleHasPermission } from "@/lib/roles";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
+type ConnectionState = {
+  state: string;
+  label: string;
+  detail: string;
+  operational: boolean;
+};
+
 type ShopRow = {
   id: string;
   name: string;
@@ -18,6 +25,8 @@ type ShopRow = {
   remoteShopName?: string | null;
   createdAt: string;
   role: string;
+  /** État factuel (lien, compte vendeur, données reçues). */
+  connection?: ConnectionState | null;
 };
 
 type MemberRow = {
@@ -172,11 +181,19 @@ export default function BoutiquesPage() {
                         {shop.currency}
                       </p>
                       <p className="mt-1 text-xs text-muted">
-                        Statut : <span className="font-medium">{shop.status}</span>
-                        {shop.remoteShopName ? (
-                          <span className="text-success"> · Jumia : {shop.remoteShopName}</span>
-                        ) : null}
+                        Connexion :{" "}
+                        <span
+                          className={`font-medium ${
+                            shop.connection?.operational ? "text-success" : "text-danger"
+                          }`}
+                        >
+                          {shop.connection?.label ?? shop.status}
+                        </span>
+                        {shop.remoteShopName ? ` · Jumia : ${shop.remoteShopName}` : null}
                       </p>
+                      {shop.connection && !shop.connection.operational ? (
+                        <p className="mt-1 text-xs text-muted">{shop.connection.detail}</p>
+                      ) : null}
                     </button>
                   </li>
                 ))}

@@ -3,6 +3,7 @@ import { ScopeNotice } from "@/components/scope-notice";
 import { ShopFullSyncButton } from "@/components/shop-full-sync-button";
 import Link from "next/link";
 import { shopCounts, shopSyncHistory } from "@/lib/insights";
+import { connectionStates } from "@/lib/connection-state";
 import { readSearchValues, resolveShopIds } from "@/lib/order-access";
 import { scopedShops } from "@/lib/shop-scope";
 import { getSessionUser } from "@/lib/session";
@@ -36,6 +37,7 @@ export default async function SynchronisationsPage({
   const shopIds = resolveShopIds(values.boutique, scope.allowed);
   const counts = await shopCounts(shopIds);
   const history = await shopSyncHistory(shopIds);
+  const states = await connectionStates(shopIds);
   const rows = scope.allowed.filter((shop) => shopIds.includes(shop.id));
 
   return (
@@ -71,6 +73,20 @@ export default async function SynchronisationsPage({
                 return (
                   <tr key={shop.id} className="border-b border-border align-top last:border-0">
                     <td className="py-2.5 pr-3 text-night">{shop.name}</td>
+                    <td className="py-2.5 pr-3">
+                      <span
+                        className={`font-medium ${
+                          states.get(shop.id)?.operational ? "text-success" : "text-danger"
+                        }`}
+                      >
+                        {states.get(shop.id)?.label ?? "inconnu"}
+                      </span>
+                      {states.get(shop.id) && !states.get(shop.id)?.operational ? (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {states.get(shop.id)?.detail}
+                        </p>
+                      ) : null}
+                    </td>
                     <td className="py-2.5 pr-3 text-muted">
                       {shop.remoteShopName ?? "non rattachée"}
                     </td>

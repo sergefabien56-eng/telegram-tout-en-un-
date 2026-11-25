@@ -176,26 +176,33 @@ export async function isOwnedBy(userId: string, accountId: string): Promise<bool
 }
 
 /**
- * Compte à utiliser quand l'écran n'en précise pas :
- * le compte déjà rattaché à la boutique, sinon le premier compte enregistré.
- * Renvoie `null` si l'utilisateur n'a aucun compte (on retombe alors sur
- * l'identifiant historique unique).
+ * Compte vendeur Jumia **explicitement lié** à une boutique.
+ *
+ * Aucun repli : c'est la garantie d'isolation entre boutiques. Une boutique
+ * sans compte lié ne synchronise pas (plutôt que de lire le compte d'une
+ * autre boutique, ce qui mélangerait les données).
+ */
+export async function accountIdForShop(shopId: string): Promise<string | null> {
+  const rows = await getDb()
+    .select({ id: schema.shops.jumiaAccountId })
+    .from(schema.shops)
+    .where(eq(schema.shops.id, shopId))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * Compte à utiliser quand l'écran n'en précise pas : uniquement celui déjà
+ * lié à la boutique. Ne renvoie jamais le compte d'une autre boutique.
  */
 export async function resolveDefaultAccount(
   userId: string,
   shopId?: string,
 ): Promise<string | null> {
-  if (shopId) {
-    const rows = await getDb()
-      .select({ jumiaAccountId: schema.shops.jumiaAccountId })
-      .from(schema.shops)
-      .where(eq(schema.shops.id, shopId))
-      .limit(1);
-    const linked = rows[0]?.jumiaAccountId;
-    if (linked && (await isOwnedBy(userId, linked))) return linked;
-  }
-  const accounts = await listJumiaAccounts(userId);
-  return accounts[0]?.id ?? null;
+  if (!shopId) return null;
+  const linked = await accountIdForShop(shopId);
+  if (linked && (await isOwnedBy(userId, linked))) return linked;
+  return null;
 }
 
 /** Devise par pays Jumia (R3 : une boutique doit avoir la bonne devise). */

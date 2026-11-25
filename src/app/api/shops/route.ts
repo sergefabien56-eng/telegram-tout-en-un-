@@ -4,13 +4,24 @@ import { createShop } from "@/lib/shops";
 import { formatZodErrors, createShopSchema } from "@/lib/validation";
 import { audit } from "@/lib/audit";
 
-/** GET /api/shops — boutiques de l'utilisateur connecté. */
+/**
+ * GET /api/shops — boutiques de l'utilisateur connecté, avec leur **état de
+ * connexion réel** (lien + compte vendeur + données reçues). Le statut
+ * historique n'est jamais renvoyé seul : il ne prouve rien.
+ */
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return fail(401, "Non authentifié.");
   const { listUserShops } = await import("@/lib/shops");
+  const { connectionStates } = await import("@/lib/connection-state");
   const shops = await listUserShops(user.id);
-  return ok(shops);
+  const states = await connectionStates(shops.map((shop) => shop.id));
+  return ok(
+    shops.map((shop) => ({
+      ...shop,
+      connection: states.get(shop.id) ?? null,
+    })),
+  );
 }
 
 /** POST /api/shops — crée une boutique (devient owner). */

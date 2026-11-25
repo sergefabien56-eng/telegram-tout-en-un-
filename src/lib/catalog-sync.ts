@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
 import { fetchAllProductPages, fetchAllStockPages } from "@/lib/jumia/catalog";
 import { applyStocks, normalizeProductSet, upsertProductSets } from "@/lib/catalog";
-import { resolveDefaultAccount } from "@/lib/jumia/accounts";
+import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, productShopId } from "@/lib/shop-guard";
 
 export type CatalogSyncKind = "products" | "stocks" | "all";
@@ -49,6 +49,16 @@ export async function syncShopCatalog(params: {
     return { ok: false, reason: "Cette boutique n'est pas encore rattachée à une boutique Jumia." };
   }
 
+  let released = false;
+  async function releaseLock() {
+    if (released) return;
+    released = true;
+    await db
+      .update(schema.shops)
+      .set({ syncInProgress: false })
+      .where(eq(schema.shops.id, params.shopId));
+  }
+
   const locked = await db
     .update(schema.shops)
     .set({ syncInProgress: true })
@@ -58,17 +68,15 @@ export async function syncShopCatalog(params: {
     return { ok: false, reason: "Une synchronisation est déjà en cours pour cette boutique." };
   }
 
-  // Compte vendeur Jumia de la boutique (multi-comptes).
-  const accountId = await resolveDefaultAccount(params.userId, params.shopId);
-
-  let released = false;
-  async function releaseLock() {
-    if (released) return;
-    released = true;
-    await db
-      .update(schema.shops)
-      .set({ syncInProgress: false })
-      .where(eq(schema.shops.id, params.shopId));
+  // Compte vendeur Jumia de la boutique : il doit être lié explicitement.
+  const accountId = await accountIdForShop(params.shopId);
+  if (!accountId) {
+    await releaseLock();
+    return {
+      ok: false,
+      reason:
+        "Cette boutique n'est liée à aucun compte vendeur Jumia : rattachez-la à un compte avant de synchroniser.",
+    };
   }
 
   try {

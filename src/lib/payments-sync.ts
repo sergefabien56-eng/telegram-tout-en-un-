@@ -5,7 +5,7 @@ import { shops } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { fetchPayoutStatements } from "@/lib/jumia/payments";
 import { upsertPayoutStatements } from "@/lib/payments";
-import { resolveDefaultAccount } from "@/lib/jumia/accounts";
+import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, statementShopSid } from "@/lib/shop-guard";
 
 export async function syncShopPayments(input: {
@@ -28,7 +28,13 @@ export async function syncShopPayments(input: {
   if (!locked) throw new Error("Une synchronisation est déjà en cours pour cette boutique.");
 
   try {
-    const accountId = await resolveDefaultAccount(input.userId, input.shopId);
+    // Compte vendeur Jumia de la boutique : il doit être lié explicitement.
+    const accountId = await accountIdForShop(input.shopId);
+    if (!accountId) {
+      throw new Error(
+        "Cette boutique n'est liée à aucun compte vendeur Jumia : rattachez-la à un compte avant de synchroniser.",
+      );
+    }
     const { statements } = await fetchPayoutStatements({
       accountId: accountId ?? undefined,
       createdAfter: input.createdAfter,

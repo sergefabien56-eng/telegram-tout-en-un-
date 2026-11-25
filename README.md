@@ -192,3 +192,16 @@ node scripts/backup-test.mjs              # sauvegarde → restauration → comp
 - Montants en entiers + devise ; dates en UTC.
 - Permissions vérifiées **côté serveur**.
 - Voir [`PROJET.md`](PROJET.md) et [`docs/`](docs/index.md).
+
+## 14. Diagnostic multiboutique
+
+L'écran **Administration → Diagnostic des boutiques** (`/admin/diagnostics`)
+prouve, pour chaque boutique, que les données affichées viennent bien de son
+Seller Center Jumia : état de connexion factuel, volumétrie source ↔ locale,
+écarts chiffrés, anomalies qualifiées (mélange, doublon, péremption,
+provenance absente), test réseau du compte vendeur. L'action « Resynchroniser »
+produit une **sauvegarde** de la base avant toute écriture et journalise
+l'opération.
+
+- Audit complet : [`docs/audit-multiboutique.md`](docs/audit-multiboutique.md).
+- Rapport par l'API : `GET /api/admin/diagnostics?deep=1`.

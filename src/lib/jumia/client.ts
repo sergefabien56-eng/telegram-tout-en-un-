@@ -305,36 +305,38 @@ async function accessTokenForAccount(accountId: string): Promise<string> {
 }
 
 /**
- * Access token du compte Jumia rattaché à une boutique locale.
+ * Access token du compte Jumia **explicitement lié** à une boutique locale.
  *
- * Les boutiques rattachées avant l'arrivée du multi-compte n'ont pas encore de
- * `jumia_account_id` : on retombe alors sur l'identifiant historique, ce qui
- * préserve la synchronisation existante sans manipulation en base.
+ * Aucun repli n'est possible : une boutique sans compte vendeur lié refuse
+ * la synchronisation. C'est la garantie qu'une boutique ne lit jamais les
+ * données d'un autre compte vendeur (cause racine des mélanges de données).
  */
 export async function getAccessTokenForShop(shopId: string): Promise<string> {
-  let accountId: string | null = null;
-  try {
-    const rows = await getDb()
-      .select({
-        jumiaAccountId: schema.shops.jumiaAccountId,
-        remoteShopId: schema.shops.remoteShopId,
-      })
-      .from(schema.shops)
-      .where(eq(schema.shops.id, shopId))
-      .limit(1);
-    accountId = rows[0]?.jumiaAccountId ?? null;
-    if (!accountId && !rows[0]?.remoteShopId) {
-      throw new JumiaError(
-        "Cette boutique n'est rattachée à aucun compte Jumia.",
-        "not_configured",
-      );
-    }
-  } catch (error) {
-    if (error instanceof JumiaError) throw error;
-    // Base inaccessible : on tente l'identifiant historique.
+  const rows = await getDb()
+    .select({
+      jumiaAccountId: schema.shops.jumiaAccountId,
+      remoteShopId: schema.shops.remoteShopId,
+    })
+    .from(schema.shops)
+    .where(eq(schema.shops.id, shopId))
+    .limit(1);
+  const shop = rows[0];
+  if (!shop) {
+    throw new JumiaError("Boutique introuvable.", "not_configured");
   }
-  if (accountId) return accessTokenForAccount(accountId);
-  return getAccessToken();
+  if (!shop.remoteShopId) {
+    throw new JumiaError(
+      "Cette boutique n'est rattachée à aucune boutique Jumia.",
+      "not_configured",
+    );
+  }
+  if (!shop.jumiaAccountId) {
+    throw new JumiaError(
+      "Cette boutique n'est liée à aucun compte vendeur Jumia : rattachez-la à un compte (Boutiques → Comptes Jumia) avant de synchroniser.",
+      "not_configured",
+    );
+  }
+  return accessTokenForAccount(shop.jumiaAccountId);
 }
 
 /**

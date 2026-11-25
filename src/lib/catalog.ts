@@ -155,9 +155,19 @@ export async function upsertProductSets(
 ): Promise<{ processed: number; inserted: number; updated: number }> {
   const firstRow = rows[0];
   if (!firstRow) return { processed: 0, inserted: 0, updated: 0 };
-  const db = getDb();
 
   const shopId = firstRow.product.shopId;
+
+  // Garde-fou d'isolation : un lot ne peut concerner qu'une seule boutique.
+  // Contrôle fait AVANT toute ouverture de connexion.
+  const batchShops = new Set(rows.map((row) => row.product.shopId));
+  if (batchShops.size > 1) {
+    throw new Error(
+      `Lot de catalogue multi-boutiques refusé (${batchShops.size} boutiques) : chaque synchronisation ne porte que sur une boutique.`,
+    );
+  }
+
+  const db = getDb();
   const externalIds = rows.map((row) => row.product.externalProductId);
   const existing = new Map(
     (

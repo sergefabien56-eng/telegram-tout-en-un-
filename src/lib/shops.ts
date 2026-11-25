@@ -57,6 +57,7 @@ export async function listUserShops(userId: string) {
       remoteShopId: schema.shops.remoteShopId,
       remoteShopName: schema.shops.remoteShopName,
       remoteLinkedAt: schema.shops.remoteLinkedAt,
+      jumiaAccountId: schema.shops.jumiaAccountId,
       lastSyncAt: schema.shops.lastSyncAt,
       lastSyncStatus: schema.shops.lastSyncStatus,
       createdAt: schema.shops.createdAt,

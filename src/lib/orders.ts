@@ -104,11 +104,22 @@ export async function upsertOrders(rows: OrderInsert[]): Promise<{
   updated: number;
 }> {
   if (rows.length === 0) return { processed: 0, inserted: 0, updated: 0 };
-  const db = getDb();
 
   const first = rows[0];
   if (!first) return { processed: 0, inserted: 0, updated: 0 };
   const shopId = first.shopId;
+
+  // Garde-fou d'isolation : un lot ne peut concerner qu'une seule boutique.
+  // Contrôle fait AVANT toute ouverture de connexion : un lot multi-boutiques
+  // ne doit jamais atteindre la base, même en lecture.
+  const batchShops = new Set(rows.map((row) => row.shopId));
+  if (batchShops.size > 1) {
+    throw new Error(
+      `Lot de commandes multi-boutiques refusé (${batchShops.size} boutiques) : chaque synchronisation ne porte que sur une boutique.`,
+    );
+  }
+
+  const db = getDb();
   const externalIds = rows.flatMap((row) => (row.externalOrderId ? [row.externalOrderId] : []));
   const existing = new Set(
     (

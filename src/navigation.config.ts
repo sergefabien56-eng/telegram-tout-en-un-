@@ -414,6 +414,14 @@ export const NAV_ITEMS: NavItem[] = [
     permission: "admin:read",
   },
   {
+    key: "admin-diagnostics",
+    label: "Diagnostic des boutiques",
+    href: "/admin/diagnostics",
+    icon: "Stethoscope",
+    section: "H",
+    permission: "admin:read",
+  },
+  {
     key: "settings",
     label: "Paramètres",
     href: "/parametres",

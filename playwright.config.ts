@@ -23,11 +23,15 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    // Marge mémoire : la compilation à la volée de nombreuses pages fait
-    // redémarrer le dev server sur le seuil par défaut.
-    command: "NODE_OPTIONS=--max-old-space-size=1200 npm run dev",
+    // On joue la suite sur le **build de production** : plus léger que le
+    // serveur de dev (qui compile à la volée et sature la mémoire sur une
+    // machine modeste), et plus réaliste — c'est exactement ce qui est
+    // déployé. `E2E_USE_DEV=1` permet de revenir au serveur de dev.
+    command: process.env.E2E_USE_DEV
+      ? "NODE_OPTIONS=--max-old-space-size=900 npm run dev"
+      : "npm run build && npm run start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
   },
 });
