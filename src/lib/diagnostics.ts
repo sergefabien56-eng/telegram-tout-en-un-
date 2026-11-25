@@ -4,6 +4,13 @@ import { listUserShops } from "@/lib/shops";
 import { hasAdminAccess } from "@/lib/admin";
 import { connectionStates, type ConnectionLabel } from "@/lib/connection-state";
 import { checkShopCoherence, type CoherenceAnomaly, type CoherenceCheck } from "@/lib/coherence";
+import {
+  coherenceHistory,
+  detectDrift,
+  recordCoherenceSnapshot,
+  type CoherenceDrift,
+  type CoherenceSnapshot,
+} from "@/lib/coherence-history";
 import { testJumiaAccount } from "@/lib/jumia/accounts";
 
 /**
@@ -34,6 +41,10 @@ export type ShopDiagnostic = {
   /** Test réel du compte vendeur (réseau Jumia). */
   accountTest: { ok: boolean; shops: number; error?: string } | null;
   anomalies: CoherenceAnomaly[];
+  /** Dérive détectée entre le dernier contrôle et le précédent. */
+  drift: CoherenceDrift | null;
+  /** Historique quotidien des contrôles (le plus récent en premier). */
+  history: CoherenceSnapshot[];
   /** Verdict global de la boutique. */
   verdict: "operationnelle" | "partielle" | "hors_service";
 };
@@ -87,6 +98,18 @@ export async function diagnosticReport(params: {
 
     if (params.deep) {
       coherence = await checkShopCoherence({ shopId: shop.id });
+
+      // Historisation : chaque contrôle laisse une trace quotidienne, ce qui
+      // permet de voir une boutique dériver dans le temps (et pas seulement
+      // d'être correcte ou non à l'instant présent).
+      if (coherence.status !== "indisponible") {
+        try {
+          await recordCoherenceSnapshot(shop.id, coherence);
+        } catch (error) {
+          console.error("[diagnostic] instantané de cohérence non enregistré", error);
+        }
+      }
+
       if (shop.jumiaAccountId) {
         const test = await testJumiaAccount(params.userId, shop.jumiaAccountId);
         accountTest = { ok: test.ok, shops: test.shops, error: test.error };
@@ -140,8 +163,37 @@ export async function diagnosticReport(params: {
       coherence,
       accountTest,
       anomalies,
+      drift: null,
+      history: [],
       verdict,
     });
+  }
+
+  // Historique : rechargé **après** les contrôles, pour que l'instantané du
+  // jour soit déjà en base quand on compare le dernier contrôle au
+  // précédent.
+  const history = await coherenceHistory(
+    selected.map((shop) => shop.id),
+    30,
+  );
+  for (const diagnostic of diagnostics) {
+    const shopHistory = history.get(diagnostic.shopId) ?? [];
+    const drift = detectDrift(shopHistory);
+    if (drift) {
+      diagnostic.anomalies.push({
+        code: "synchronisation_echouee",
+        severity: drift.severity,
+        title: drift.title,
+        evidence: drift.evidence,
+        cause: drift.cause,
+        recommendation: drift.recommendation,
+      });
+      diagnostic.drift = drift;
+      if (drift.severity === "avertissement") {
+        diagnostic.verdict = "partielle";
+      }
+    }
+    diagnostic.history = shopHistory;
   }
 
   const summary = {

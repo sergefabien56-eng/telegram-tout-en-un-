@@ -205,3 +205,7 @@ l'opération.
 
 - Audit complet : [`docs/audit-multiboutique.md`](docs/audit-multiboutique.md).
 - Rapport par l'API : `GET /api/admin/diagnostics?deep=1`.
+- Contrôle planifié quotidien (0 FCFA, cron GitHub Actions) :
+  `POST /api/cron/coherence`, protégé par `CRON_SECRET`. Chaque passage
+  compare les **montants** des commandes et des relevés au centime et écrit
+  l'instantané du jour : une dérive se voit alors dans le temps.

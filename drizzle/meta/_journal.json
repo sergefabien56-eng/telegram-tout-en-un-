@@ -92,6 +92,13 @@
       "when": 1795594256031,
       "tag": "0012_drop_shop_status",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795596327126,
+      "tag": "0013_coherence_snapshots",
+      "breakpoints": true
     }
   ]
 }

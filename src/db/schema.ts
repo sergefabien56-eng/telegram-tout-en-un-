@@ -290,6 +290,53 @@ export const jobs = pgTable(
   (t) => [index("jobs_status_run_at_idx").on(t.status, t.runAt)],
 );
 
+/**
+ * INSTANTANÉS DE COHÉRENCE — historique quotidien par boutique.
+ *
+ * Un contrôle ponctuel dit « tout va bien » aujourd'hui ; c'est la **suite**
+ * qui prouve qu'une boutique ne dérive pas. On conserve donc un instantané
+ * par jour et par boutique : volumétries source et locale, montants
+ * comparés, nombre d'anomalies. Une dérive se voit alors dans le temps.
+ */
+export const coherenceSnapshots = pgTable(
+  "coherence_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Jour UTC de l'instantané (un seul par boutique et par jour). */
+    day: text("day").notNull(),
+    /** Verdict du contrôle : `coherent` | `ecart` | `indisponible`. */
+    status: text("status").notNull(),
+    /** Volumétrie locale au moment du contrôle. */
+    localProducts: integer("local_products").notNull().default(0),
+    localOrders: integer("local_orders").notNull().default(0),
+    localStatements: integer("local_statements").notNull().default(0),
+    /** Volumétrie renvoyée par Jumia (null si la lecture a échoué). */
+    remoteProducts: integer("remote_products"),
+    remoteOrders: integer("remote_orders"),
+    remoteStatements: integer("remote_statements"),
+    /** CA articles comparé (unités mineures) : local et Jumia. */
+    revenueMinor: integer("revenue_minor"),
+    remoteRevenueMinor: integer("remote_revenue_minor"),
+    /** Solde net comparé (unités mineures) : local et Jumia. */
+    netMinor: integer("net_minor"),
+    remoteNetMinor: integer("remote_net_minor"),
+    /** Montant total des commandes comparées (unités mineures). */
+    ordersAmountMinor: integer("orders_amount_minor"),
+    remoteOrdersAmountMinor: integer("remote_orders_amount_minor"),
+    /** Nombre d'anomalies détectées et détail des codes. */
+    anomalies: integer("anomalies").notNull().default(0),
+    anomalyCodes: jsonb("anomaly_codes"),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("coherence_snapshots_shop_day_idx").on(t.shopId, t.day),
+    index("coherence_snapshots_shop_checked_idx").on(t.shopId, t.checkedAt),
+  ],
+);
+
 export const notifications = pgTable(
   "notifications",
   {

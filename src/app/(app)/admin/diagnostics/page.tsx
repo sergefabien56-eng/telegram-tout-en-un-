@@ -307,6 +307,125 @@ export default async function DiagnosticsPage() {
               </div>
             ) : null}
 
+            {shop.coherence?.ordersProof ? (
+              <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Preuve des commandes (au centime)
+                </p>
+                <p className="mt-1 text-sm text-night">
+                  {shop.coherence.ordersProof.compared} commande(s) comparée(s) ·{" "}
+                  {shop.coherence.ordersProof.divergent} montant(s) divergent(s) ·{" "}
+                  {shop.coherence.ordersProof.missing} manquante(s) ·{" "}
+                  {shop.coherence.ordersProof.outdated} statut(s) périmé(s)
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                        <th className="py-2 pr-3">Montant</th>
+                        <th className="py-2 pr-3 text-right">Dans Tout en Un</th>
+                        <th className="py-2 text-right">Chez Jumia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border">
+                        <td className="py-2.5 pr-3 text-night">Montant des commandes</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.ordersProof.local.amountMinor,
+                            shop.coherence.ordersProof.currency,
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {formatMoney(
+                            shop.coherence.ordersProof.remote.amountMinor,
+                            shop.coherence.ordersProof.currency,
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-border last:border-0">
+                        <td className="py-2.5 pr-3 text-night">Écart</td>
+                        <td className="py-2.5 pr-3 text-right text-muted">
+                          {shop.coherence.ordersProof.local.amountMinor -
+                            shop.coherence.ordersProof.remote.amountMinor ===
+                          0
+                            ? "aucun"
+                            : formatMoney(
+                                shop.coherence.ordersProof.local.amountMinor -
+                                  shop.coherence.ordersProof.remote.amountMinor,
+                                shop.coherence.ordersProof.currency,
+                              )}
+                        </td>
+                        <td className="py-2.5 text-right text-muted">
+                          {shop.coherence.ordersProof.divergent} commande(s) divergente(s)
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
+            {shop.history.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Historique des contrôles
+                </p>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                        <th className="py-2 pr-3">Jour</th>
+                        <th className="py-2 pr-3 text-right">Commandes</th>
+                        <th className="py-2 pr-3 text-right">CA articles</th>
+                        <th className="py-2 pr-3 text-right">Écarts</th>
+                        <th className="py-2 text-right">Verdict</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shop.history.slice(0, 14).map((snapshot) => (
+                        <tr key={snapshot.id} className="border-b border-border last:border-0">
+                          <td className="py-2.5 pr-3 text-night">{snapshot.day}</td>
+                          <td className="py-2.5 pr-3 text-right text-muted">
+                            {snapshot.localOrders}
+                          </td>
+                          <td className="py-2.5 pr-3 text-right text-muted">
+                            {snapshot.revenueMinor === null
+                              ? "—"
+                              : formatMoney(snapshot.revenueMinor, "XOF")}
+                          </td>
+                          <td className="py-2.5 pr-3 text-right text-muted">
+                            {snapshot.anomalies}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <span
+                              className={
+                                snapshot.status === "coherent"
+                                  ? "text-success"
+                                  : snapshot.status === "ecart"
+                                    ? "text-danger"
+                                    : "text-muted"
+                              }
+                            >
+                              {snapshot.status === "coherent"
+                                ? "cohérent"
+                                : snapshot.status === "ecart"
+                                  ? "écart"
+                                  : "indisponible"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  Un instantané est conservé par boutique et par jour : c&apos;est la suite des
+                  contrôles qui prouve qu&apos;une boutique ne dérive pas.
+                </p>
+              </div>
+            ) : null}
+
             {shop.coherence && shop.coherence.notes.length > 0 ? (
               <ul className="mt-3 list-disc pl-5 text-xs text-muted">
                 {shop.coherence.notes.map((note) => (

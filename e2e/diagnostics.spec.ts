@@ -62,6 +62,20 @@ test("le diagnostic annonce l'état réel de chaque boutique", async ({ page }) 
   await expect(page.getByText(/Données reçues, synchronisée/).first()).toBeVisible();
 });
 
+test("le contrôle planifié est protégé par un secret et refuse les appels anonymes", async ({
+  page,
+}) => {
+  // Sans secret : refus net, jamais de contrôle lancé.
+  const anonymous = await page.request.post("/api/cron/coherence");
+  expect(anonymous.status()).toBe(401);
+
+  // Avec un mauvais secret : refus également.
+  const wrong = await page.request.post("/api/cron/coherence", {
+    headers: { Authorization: "Bearer secret-faux" },
+  });
+  expect(wrong.status()).toBe(401);
+});
+
 test("le diagnostic refuse un utilisateur sans accès d'administration", async ({ page }) => {
   const email = `diag-membre-${Date.now()}@exemple.ci`;
   const password = "MotDePasse123";

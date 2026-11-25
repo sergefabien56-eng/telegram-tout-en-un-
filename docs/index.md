@@ -51,5 +51,5 @@
 - ✅ **Finitions — actions rapides**, **Mini App**, **accessibilité WCAG AA**.
 - ✅ **Déploiement automatique** GitHub → Render (uniquement après une CI verte).
 - ✅ **CI + 24 tests E2E verts**, dont le parcours 2FA corrigé en production.
-- ✅ **Audit technique multiboutique** ([audit-multiboutique.md](audit-multiboutique.md)) : isolation garantie, états de connexion factuels, preuve de cohérence Jumia ↔ application, diagnostic intégré `/admin/diagnostics`.
+- ✅ **Audit technique multiboutique** ([audit-multiboutique.md](audit-multiboutique.md)) : isolation garantie, états de connexion factuels, preuve de cohérence Jumia ↔ application (volumes, montants des commandes et des relevés au centime), historique quotidien et détection de dérive, diagnostic intégré `/admin/diagnostics`.
 - ⬜ **Reste à faire** : comparaison des montants de relevé au centime (les volumes sont prouvés, les montants restent à prouver).

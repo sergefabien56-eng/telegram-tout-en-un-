@@ -5,6 +5,7 @@ import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { fetchAllProductPages } from "@/lib/jumia/catalog";
 import { fetchAllPayoutStatements } from "@/lib/jumia/payments";
 import { normalizePayoutStatement } from "@/lib/payments";
+import { normalizeOrder } from "@/lib/orders";
 import { orderShopIds, productShopId, statementShopSid } from "@/lib/shop-guard";
 import { formatMoney } from "@/lib/money";
 
@@ -59,6 +60,10 @@ export type CoherenceCheck = {
    * de la devise locale.
    */
   financials: FinancialProof | null;
+  /**
+   * PREUVE DES COMMANDES : comparaison au centime, commande par commande.
+   */
+  ordersProof: OrderProof | null;
   status: CoherenceStatus;
   /** Anomalies prouvées, avec leur cause et leur conséquence. */
   anomalies: CoherenceAnomaly[];
@@ -91,6 +96,37 @@ export type FinancialProof = {
   truncated: boolean;
 };
 
+/**
+ * Comparaison des commandes entre Jumia et la copie locale.
+ *
+ * Les **montants** doivent être identiques au centime : c'est la preuve que
+ * les chiffres affichés au vendeur sont ceux de sa source. Le **statut**,
+ * lui, évolue normalement (une commande expédiée devient livrée) : un écart
+ * de statut signale une copie locale **périmée**, pas une erreur de montant.
+ */
+export type OrderProof = {
+  /** Commandes comparées (présentes des deux côtés). */
+  compared: number;
+  /** Commandes chez Jumia mais absentes de la base. */
+  missing: number;
+  /** Commandes en base, hors de la fenêtre lue chez Jumia. */
+  extra: number;
+  /** Commandes dont au moins un montant diverge. */
+  divergent: number;
+  /** Commandes dont le statut chez Jumia a changé depuis la dernière copie. */
+  outdated: number;
+  /** Totaux locaux des commandes comparées (unités mineures). */
+  local: { amountMinor: number; usdMinor: number };
+  /** Totaux Jumia des mêmes commandes (unités mineures). */
+  remote: { amountMinor: number; usdMinor: number };
+  /** Devise des montants locaux comparés. */
+  currency: string;
+  /** Détail des divergences de montant (au plus 20). */
+  details: { externalOrderId: string; field: string; local: number; remote: number }[];
+  /** Lecture distante tronquée : les totaux sont alors des bornes basses. */
+  truncated: boolean;
+};
+
 export type CoherenceAnomaly = {
   code:
     | "donnees_manquantes"
@@ -106,7 +142,10 @@ export type CoherenceAnomaly = {
     | "releve_manquant"
     | "releve_en_trop"
     | "releve_non_attribuable"
-    | "releve_illisible";
+    | "releve_illisible"
+    | "commande_manquante"
+    | "commande_non_synchronisee"
+    | "commande_en_trop";
   severity: AnomalySeverity;
   title: string;
   /** Ce qui a été mesuré (chiffres). */
@@ -169,6 +208,7 @@ export async function checkShopCoherence(params: {
       remote: null,
       deltas: { products: null, orders: null, statements: null },
       financials: null,
+      ordersProof: null,
       status: "indisponible",
       anomalies: [],
       notes: ["Boutique introuvable."],
@@ -333,6 +373,7 @@ export async function checkShopCoherence(params: {
       remote: null,
       deltas: { products: null, orders: null, statements: null },
       financials: null,
+      ordersProof: null,
       status: "indisponible",
       anomalies,
       notes,
@@ -342,6 +383,7 @@ export async function checkShopCoherence(params: {
   let remote: CoherenceCheck["remote"] = null;
   let deltas: CoherenceCheck["deltas"] = { products: null, orders: null, statements: null };
   let financials: CoherenceCheck["financials"] = null;
+  let ordersProof: CoherenceCheck["ordersProof"] = null;
   let status: CoherenceStatus = "indisponible";
 
   try {
@@ -406,6 +448,19 @@ export async function checkShopCoherence(params: {
     for (const anomaly of financialProof.anomalies) {
       anomalies.push(anomaly);
       status = "ecart";
+    }
+
+    // --- PREUVE DES COMMANDES (au centime, commande par commande) ---
+    const orderProof = await proveOrders({
+      shopId: shop.id,
+      remoteOrders: orderPages.orders,
+      truncated: orderPages.truncated,
+    });
+    ordersProof = orderProof.proof;
+
+    for (const anomaly of orderProof.anomalies) {
+      anomalies.push(anomaly);
+      if (anomaly.severity === "critique") status = "ecart";
     }
 
     deltas = {
@@ -496,6 +551,7 @@ export async function checkShopCoherence(params: {
     remote,
     deltas,
     financials,
+    ordersProof,
     status,
     anomalies,
     notes,
@@ -862,4 +918,231 @@ export function compareFinancials(params: {
     },
     anomalies,
   };
+}
+
+
+/* ------------------------------------------------------------------ */
+/* PREUVE DES COMMANDES : au centime, commande par commande             */
+/* ------------------------------------------------------------------ */
+
+/** Ligne locale de commande, telle que stockée en base. */
+export type LocalOrderRow = {
+  externalOrderId: string;
+  orderNumber: string | null;
+  status: string;
+  currency: string;
+  totalAmountMinor: number;
+  totalAmountUsdMinor: number | null;
+  remoteCreatedAt: Date | null;
+};
+
+/**
+ * Compare chaque commande renvoyée par Jumia avec la ligne enregistrée.
+ *
+ * Comme pour les relevés, la conversion passe par `normalizeOrder()` — la
+ * fonction utilisée à l'écriture. L'écart mesuré est donc réel.
+ *
+ * Deux natures d'écart sont distinguées :
+ * - **montant** : critique (le chiffre affiché au vendeur serait faux) ;
+ * - **statut** : information (Jumia a fait avancer la commande depuis la
+ *   dernière copie — la donnée est périmée, pas fausse).
+ */
+export function compareOrders(params: {
+  shopId: string;
+  localRows: LocalOrderRow[];
+  remoteOrders: unknown[];
+  truncated?: boolean;
+}): { proof: OrderProof; anomalies: CoherenceAnomaly[] } {
+  const { shopId, localRows, remoteOrders, truncated = false } = params;
+  const anomalies: CoherenceAnomaly[] = [];
+  const localById = new Map(localRows.map((row) => [row.externalOrderId, row]));
+
+  const details: OrderProof["details"] = [];
+  const totals = {
+    local: { amountMinor: 0, usdMinor: 0 },
+    remote: { amountMinor: 0, usdMinor: 0 },
+  };
+  let compared = 0;
+  let missing = 0;
+  let divergent = 0;
+  let outdated = 0;
+  let currency = localRows[0]?.currency ?? "XOF";
+  const seen = new Set<string>();
+
+  for (const raw of remoteOrders) {
+    const expected = normalizeOrder(shopId, raw);
+    if (!expected) {
+      anomalies.push({
+        code: "donnees_sans_provenance",
+        severity: "avertissement",
+        title: "Une commande Jumia n'a pas pu être décodée",
+        evidence: "La commande renvoyée par Jumia est sans identifiant ou sans statut : elle n'est ni comparable ni enregistrée.",
+        cause: "Format de commande inhabituel renvoyé par l'API Jumia.",
+        recommendation: "Aucun montant de cette commande n'est attribué.",
+      });
+      continue;
+    }
+
+    seen.add(expected.externalOrderId);
+    const orderCurrency = expected.currency ?? currency;
+    currency = orderCurrency;
+
+    const local = localById.get(expected.externalOrderId);
+    if (!local) {
+      missing += 1;
+      anomalies.push({
+        code: "commande_manquante",
+        severity: "critique",
+        title: `Commande ${expected.orderNumber ?? expected.externalOrderId} absente de la base`,
+        evidence: `Jumia renvoie la commande ${expected.orderNumber ?? expected.externalOrderId} (${formatMoney(expected.totalAmountMinor, orderCurrency)}) alors qu'elle n'est pas enregistrée pour cette boutique.`,
+        cause: "Commandes jamais synchronisées, ou synchronisation interrompue.",
+        recommendation: "Resynchroniser les commandes de la boutique.",
+      });
+      continue;
+    }
+
+    compared += 1;
+    totals.local.amountMinor += local.totalAmountMinor;
+    totals.local.usdMinor += local.totalAmountUsdMinor ?? 0;
+    totals.remote.amountMinor += expected.totalAmountMinor;
+    totals.remote.usdMinor += expected.totalAmountUsdMinor ?? 0;
+
+    // --- Montants : doivent être identiques au centime ---
+    const divergences: { field: string; label: string; local: number; remote: number }[] = [];
+    if (local.totalAmountMinor !== expected.totalAmountMinor) {
+      divergences.push({
+        field: "totalAmountMinor",
+        label: "montant de la commande",
+        local: local.totalAmountMinor,
+        remote: expected.totalAmountMinor,
+      });
+    }
+    const localUsd = local.totalAmountUsdMinor;
+    const remoteUsd = expected.totalAmountUsdMinor;
+    if (localUsd !== remoteUsd) {
+      divergences.push({
+        field: "totalAmountUsdMinor",
+        label: "montant en USD",
+        local: localUsd ?? 0,
+        remote: remoteUsd ?? 0,
+      });
+    }
+    if (local.currency !== expected.currency) {
+      divergences.push({
+        field: "currency",
+        label: "devise",
+        local: 0,
+        remote: 0,
+      });
+    }
+
+    if (divergences.length > 0) {
+      divergent += 1;
+      for (const divergence of divergences.slice(0, 3)) {
+        if (details.length < 20) {
+          details.push({
+            externalOrderId: expected.externalOrderId,
+            field: divergence.field,
+            local: divergence.local,
+            remote: divergence.remote,
+          });
+        }
+        anomalies.push({
+          code: "montant_divergent",
+          severity: "critique",
+          title: `Commande ${expected.orderNumber ?? expected.externalOrderId} : ${divergence.label} divergent`,
+          evidence:
+            divergence.field === "currency"
+              ? `Devise locale « ${local.currency} » contre « ${expected.currency} » chez Jumia.`
+              : `${divergence.label} : ${formatMoney(divergence.local, orderCurrency)} dans l'application contre ${formatMoney(divergence.remote, orderCurrency)} chez Jumia (écart ${formatMoney(Math.abs(divergence.remote - divergence.local), orderCurrency)}).`,
+          cause:
+            "Commande modifiée chez Jumia après la dernière synchronisation, ou donnée enregistrée pour une autre boutique.",
+          recommendation: "Resynchroniser les commandes de la boutique.",
+        });
+      }
+    }
+
+    // --- Statut : la donnée est périmée, pas fausse ---
+    if (local.status !== expected.status) {
+      outdated += 1;
+      anomalies.push({
+        code: "commande_non_synchronisee",
+        severity: "information",
+        title: `Commande ${expected.orderNumber ?? expected.externalOrderId} : statut périmé`,
+        evidence: `L'application indique « ${local.status} », Jumia indique « ${expected.status} ».`,
+        cause: "La commande a changé depuis la dernière synchronisation.",
+        recommendation: "Resynchroniser pour actualiser les statuts.",
+      });
+    }
+  }
+
+  // Commandes en base hors de la lecture Jumia (fenêtre, pagination).
+  const extra = localRows.filter((row) => !seen.has(row.externalOrderId)).length;
+  if (extra > 0 && !truncated) {
+    anomalies.push({
+      code: "commande_en_trop",
+      severity: "information",
+      title: `${extra} commande(s) enregistrées hors de la fenêtre Jumia`,
+      evidence: `${extra} commande(s) figurent dans la base mais n'ont pas été renvoyées par Jumia sur la fenêtre lue.`,
+      cause: "Commandes plus anciennes que la fenêtre, ou pagination Jumia limitée.",
+      recommendation: "Aucune suppression automatique ; vérifier la pagination si l'écart est suspect.",
+    });
+  }
+
+  // Totaux : un écart global signale une dérive, pas une simple différence.
+  const amountDelta = totals.local.amountMinor - totals.remote.amountMinor;
+  if (amountDelta !== 0) {
+    anomalies.push({
+      code: "montant_divergent",
+      severity: "critique",
+      title: "Total des commandes divergent sur la fenêtre",
+      evidence: `Application : ${formatMoney(totals.local.amountMinor, currency)} · Jumia : ${formatMoney(totals.remote.amountMinor, currency)} (écart ${formatMoney(Math.abs(amountDelta), currency)}).`,
+      cause: "Commandes incomplètes, périmées ou attribuées à la mauvaise boutique.",
+      recommendation: "Resynchroniser les commandes de la boutique et contrôler le périmètre.",
+    });
+  }
+
+  return {
+    proof: {
+      compared,
+      missing,
+      extra,
+      divergent,
+      outdated,
+      local: totals.local,
+      remote: totals.remote,
+      currency,
+      details,
+      truncated,
+    },
+    anomalies,
+  };
+}
+
+/** Lecture locale des commandes de la boutique, puis comparaison. */
+async function proveOrders(params: {
+  shopId: string;
+  remoteOrders: unknown[];
+  truncated: boolean;
+}): Promise<{ proof: OrderProof; anomalies: CoherenceAnomaly[] }> {
+  const db = getDb();
+  const localRows = await db
+    .select({
+      externalOrderId: schema.orders.externalOrderId,
+      orderNumber: schema.orders.orderNumber,
+      status: schema.orders.status,
+      currency: schema.orders.currency,
+      totalAmountMinor: schema.orders.totalAmountMinor,
+      totalAmountUsdMinor: schema.orders.totalAmountUsdMinor,
+      remoteCreatedAt: schema.orders.remoteCreatedAt,
+    })
+    .from(schema.orders)
+    .where(eq(schema.orders.shopId, params.shopId));
+
+  return compareOrders({
+    shopId: params.shopId,
+    localRows,
+    remoteOrders: params.remoteOrders,
+    truncated: params.truncated,
+  });
 }

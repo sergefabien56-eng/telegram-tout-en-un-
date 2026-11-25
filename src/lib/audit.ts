@@ -38,6 +38,7 @@ export type AuditAction =
   | "shop.full_synced"
   | "admin.diagnostic_run"
   | "admin.shop_repaired"
+  | "admin.coherence_cron"
   | "shop.data_exported"
   | "product.purchase_price_updated";
 

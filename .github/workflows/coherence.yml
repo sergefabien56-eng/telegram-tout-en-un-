@@ -1,0 +1,55 @@
+name: Contrôle de cohérence quotidien
+
+# Contrôle de cohérence planifié (0 FCFA — cron GitHub Actions gratuit).
+#
+# - tous les jours à 05:12 UTC : appel de `POST /api/cron/coherence` ;
+# - le serveur refait le contrôle de chaque boutique rattachée à un compte
+#   vendeur et enregistre l'instantané du jour ;
+# - c'est cet historique quotidien qui permet de voir une boutique **dériver**
+#   dans le temps, et pas seulement d'être correcte ou non à l'instant présent.
+#
+# Prérequis : les secrets `APP_URL` et `CRON_SECRET`
+# (Settings → Secrets and Variables → Actions). Sans eux, le job se termine
+# proprement avec un message explicite.
+
+on:
+  schedule:
+    - cron: "12 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: controle-coherence
+  cancel-in-progress: false
+
+jobs:
+  coherence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Contrôle de cohérence des boutiques
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::notice::APP_URL ou CRON_SECRET absent : contrôle ignoré."
+            exit 0
+          fi
+          base="${APP_URL%/}"
+          echo "Contrôle de cohérence sur ${base}"
+          response="$(curl -sS -w '\n%{http_code}' -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "${base}/api/cron/coherence")"
+          code="$(printf '%s' "${response}" | tail -n 1)"
+          body="$(printf '%s' "${response}" | sed '$d')"
+          echo "${body}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::Le contrôle de cohérence a échoué (HTTP ${code})."
+            exit 1
+          fi
+          echo "::notice::Contrôle de cohérence terminé."

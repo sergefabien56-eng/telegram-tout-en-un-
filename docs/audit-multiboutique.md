@@ -21,7 +21,8 @@
 | Fenêtre de comparaison | **Fausse alerte** (fenêtre rolling ≠ dates Jumia) | **Alignée** sur les jours UTC utilisés par l'API Jumia |
 | Statut de boutique stocké | **Colonne `shops.status`** : source de vérité concurrente | **Supprimée** (migration `0012`) : l'état se calcule |
 | Périmètre par défaut | **Toutes les boutiques** | **La boutique courante**, agrégat sur demande explicite |
-| Preuve financière | **Aucune** (volumes seulement) | **Au centime**, relevé par relevé |
+| Preuve financière | **Aucune** (volumes seulement) | **Au centime**, relevés **et** commandes |
+| Historique de cohérence | **Aucun** | **Un instantané par jour** par boutique + détection de dérive |
 
 **Preuve sur données réelles (25/11/2026, 2 boutiques connectées) :**
 
@@ -76,6 +77,8 @@ Interface web / Telegram / Mini App
 | B9 | Colonne `shops.status` posée au rattachement | Source de vérité concurrante : un lecteur pouvait croire la boutique « connectée » sur un statut declaratif | Un statut **déclaré** cohabitait avec l'état réel | Colonne **supprimée** (migration `0012`), état calculé partout |
 | B10 | `resolveShopIds()` : une boutique inconnue ou absente retombait sur **toutes** les boutiques autorisées | Une URL pouvait élargir le périmètre ; l'affichage par défaut mélangeait les boutiques | Absence de périmètre par défaut | Défaut = **boutique courante** ; une boutique non autorisée donne un périmètre **vide** (refus explicite) |
 | B11 | Relevés de versement lus sur une seule page et jamais comparés aux montants stockés | Une dérive financière (ou un relevé manquant) passait inaperçue | Aucun contrôle de cohérence financière | `compareFinancials()` : comparaison au centime, relevé par relevé |
+| B12 | Montants des commandes jamais comparés à la source | Le chiffre affiché au vendeur pouvait diverger de Jumia sans qu'on le sache | Contrôle limité aux volumes | `compareOrders()` : comparaison au centime, commande par commande |
+| B13 | Aucune mémoire des contrôles | Une boutique pouvait dériver sans que personne ne le voie | Contrôle ponctuel, sans historique | Table `coherence_snapshots` (migration `0013`) : un instantané par jour et par boutique, dérive détectée automatiquement |
 
 ---
 
@@ -174,6 +177,12 @@ factices des tests E2E sont créées puis **supprimées** par
 | `synchronisation_echouee` | critique | Dernière synchronisation en échec |
 | `compte_manquant` | critique | Boutique non comparable (pas de lien ou pas de compte) |
 | `lecture_impossible` | critique | Jumia a refusé la lecture (jeton, quota, réseau) |
+| `montant_divergent` | critique | Montant d'un relevé ou d'une commande différent de la source |
+| `releve_manquant` / `commande_manquante` | critique | Donnée présente chez Jumia, absente de la base |
+| `releve_en_trop` / `commande_en_trop` | information | Donnée en base, hors de la fenêtre lue chez Jumia |
+| `commande_non_synchronisee` | information | Statut de commande périmé (la donnée est ancienne, pas fausse) |
+| `releve_non_attribuable` | avertissement | Relevé Jumia sans `shopSid` : non attribuable, donc non vérifié |
+| `releve_illisible` | avertissement | Relevé Jumia non décodable : aucun montant attribué |
 
 ### 5.3 PREUVE FINANCIÈRE (au centime)
 
@@ -207,7 +216,58 @@ Anomalies dédiées : `montant_divergent` (critique), `releve_manquant`
 | MaxiShopsCI | 13 | 0 | 512 449 XOF | 512 449 XOF |
 | NKSF SHOP | 13 | 0 | 454 168 XOF | 454 168 XOF |
 
-### 5.4 Fenêtre de comparaison
+### 5.4 PREUVE DES COMMANDES (au centime)
+
+`compareOrders()` (`src/lib/coherence.ts`) compare chaque commande renvoyée
+par Jumia avec la ligne enregistrée, **commande par commande**.
+
+Comme pour les relevés, la conversion passe par `normalizeOrder()` — la
+fonction utilisée à l'écriture. L'écart mesuré est donc réel.
+
+Deux natures d'écart sont **distinguées**, car elles ne se traitent pas de la
+même façon :
+
+| Nature | Gravité | Signification |
+| --- | --- | --- |
+| Montant (local, USD, devise) | **critique** | Le chiffre affiché au vendeur serait faux → resynchroniser |
+| Statut | **information** | Jumia a fait avancer la commande depuis la dernière copie → donnée périmée, pas fausse |
+
+Un statut périmé est **normal** (une commande expédiée devient livrée) :
+le traiter comme une erreur noierait le diagnostic sous du bruit.
+
+**Preuve sur données réelles (25/11/2026)** :
+
+| Boutique | Commandes comparées | Montants divergents | Statuts périmés | Montant local | Montant Jumia |
+| --- | --- | --- | --- | --- | --- |
+| MaxiShopsCI | 193 | 0 | 0 | 883 917 XOF | 883 917 XOF |
+| NKSF SHOP | 123 | 0 | 0 | 663 659 XOF | 663 659 XOF |
+
+### 5.5 HISTORIQUE ET DÉRIVE
+
+Un contrôle ponctuel prouve qu'une boutique est cohérente **aujourd'hui**.
+C'est la **suite** des contrôles qui prouve qu'elle ne dérive pas.
+
+**Table `coherence_snapshots`** (migration `0013`) : un instantané par boutique
+et par jour (index unique `(shop_id, day)`), contenant les volumétries locale
+et distante, les montants comparés (CA articles, solde net, montant des
+commandes), le nombre d'anomalies et leurs codes.
+
+**Enregistrement** : à chaque contrôle en profondeur du diagnostic, et une
+fois par jour via le point d'entrée planifié `POST /api/cron/coherence`.
+
+**Dérive** (`detectDrift()`) — comparaison du dernier instantané au précédent :
+
+| Code | Gravité | Détection |
+| --- | --- | --- |
+| `ecart_apparu` | avertissement | le contrôle précédent n'avait aucune anomalie, le dernier en a |
+| `ecart_resolu` | information | l'inverse : les données sont revenues à la normale |
+| `montant_recule` | avertissement | le CA articles local a **diminué** depuis le dernier contrôle |
+| `volume_aplati` | avertissement | les commandes locales ont chuté alors que la source, non |
+
+Une dérive n'est pas forcément une faute : Jumia peut corriger un relevé. Ce
+qui compte, c'est que **le changement soit visible et expliqué**.
+
+### 5.6 Fenêtre de comparaison
 
 L'API Jumia prend `createdAfter` / `createdBefore` sous forme de **dates**.
 La fenêtre est donc calculée en **jours UTC** :
@@ -267,14 +327,19 @@ confusion signalée par le vendeur.
 - API : `GET /api/admin/diagnostics?deep=1` (rapport, contrôle réseau inclus),
   `POST /api/admin/diagnostics` `{ shopId, action: "resync" }` (action
   corrective).
+- Contrôle planifié : `POST /api/cron/coherence`, protégé par
+  `Authorization: Bearer <CRON_SECRET>`, appelé chaque jour par un cron
+  GitHub Actions (`.github/workflows/coherence.yml`, **0 FCFA**).
 - Accès : propriétaires et gestionnaires (`admin:read`). Un autre rôle reçoit
-  **403**.
+  **403**. Le point d'entrée planifié répond **401** sans secret valide.
 
 ### 7.2 Contenu du rapport
 
 Pour chaque boutique : état de connexion, volumes locaux, volumes distants,
-écarts, test réseau du compte vendeur, anomalies classées avec **preuve
-chiffrée**, **origine** et **conséquence/action**.
+écarts, test réseau du compte vendeur, **preuve financière au centime**
+(relevés), **preuve des commandes au centime**, **historique quotidien** des
+contrôles, et anomalies classées avec **preuve chiffrée**, **origine** et
+**conséquence/action**.
 
 Verdicts : `operationnelle`, `partielle`, `hors_service`.
 
@@ -308,6 +373,8 @@ autre boutique. Les fichiers de sauvegarde ne sont jamais commités
 | `src/lib/__tests__/isolation-multishop.test.ts` | 5 tests sur base réelle : deux boutiques, aucune contamination (la base est purgée en fin de test) |
 | `src/lib/__tests__/shop-scope.test.ts` | 8 tests : périmètre par défaut mono-boutique, refus d'élargissement |
 | `src/lib/__tests__/financial-proof.test.ts` | 10 tests : la preuve financière **détecte** un montant modifié, un relevé manquant, un relevé surnuméraire, une devise ou un statut de paiement faux |
+| `src/lib/__tests__/order-proof.test.ts` | 10 tests : la preuve des commandes **détecte** un montant modifié (local et USD), une commande manquante, une devise ; et distingue un statut périmé (information) d'un montant erroné (critique) |
+| `src/lib/__tests__/coherence-history.test.ts` | 7 tests : la détection de dérive repère un CA qui recule, un écart qui apparaît, un écart résolu, un volume aplati — et ne se déclenche pas à tort quand la source a changé elle aussi |
 | `src/lib/__tests__/shop-guard.test.ts` | lecture des identifiants Jumia, rejet des données étrangères |
 
 ### 8.2 E2E
@@ -319,6 +386,7 @@ autre boutique. Les fichiers de sauvegarde ne sont jamais commités
 | `e2e/synchronisations.spec.ts` | historique et progression des synchronisations |
 | `e2e/jumia-link.spec.ts` | rattachement depuis l'interface |
 | `e2e/perimetre-boutique.spec.ts` | 1 test : périmètre mono-boutique par défaut, refus d'élargissement, agrégat explicite |
+| `e2e/diagnostics.spec.ts` | 3 tests : rapport factuel, contrôle planifié protégé par secret (401), refus hors administration |
 
 Les tests E2E ne simulent **aucune donnée métier** pour valider un
 comportement de données : ils créent, vérifient, puis la base est purgée.
@@ -338,12 +406,11 @@ comportement de données : ils créent, vérifient, puis la base est purgée.
 
 1. **Surveiller `jobs`** : une synchronisation qui se termine en `failed`
    doit rester visible dans le diagnostic (elle l'est : `synchronisation_echouee`).
-2. **Comparer les montants de commande** (au centime, commande par commande)
-   comme il a été fait pour les relevés de versement : la preuve financière
-   porte aujourd'hui sur les relevés.
-3. **Historiser les ruptures** : la table `audit_logs` conserve les
-   diagnostics et les réparations, mais pas l'état de cohérence dans le
-   temps ; un relevé quotidien permettrait de voir dériver une boutique.
+2. **Historiser les ruptures sur la durée** : l'instantané quotidien est en
+   place ; il reste à conserver plus d'un mois d'historique pour suivre une
+   saison (les ventes de décembre ne se comparent pas à celles de juin).
+3. **Alerter le vendeur** quand une dérive apparaît : l'historique la
+   détecte, mais le vendeur n'est pas encore prévenu.
 
 ---
 
@@ -360,3 +427,6 @@ comportement de données : ils créent, vérifient, puis la base est purgée.
 | Preuve financière au centime | `src/lib/coherence.ts` (`compareFinancials`) | 13 relevés comparés par boutique, 0 divergence, CA articles identiques |
 | Suppression du statut stocké | `drizzle/0012_drop_shop_status.sql`, `src/db/schema.ts` | migration Drizzle appliquée après sauvegarde ; 2 boutiques et 316/48/26 données intactes |
 | Périmètre mono-boutique | `src/lib/order-access.ts`, `src/lib/shop-scope.ts` | 8 tests unitaires + 1 E2E (défaut, refus, agrégat explicite) |
+| Preuve des commandes au centime | `src/lib/coherence.ts` (`compareOrders`) | 193 et 123 commandes comparées, 0 divergence, montants identiques |
+| Historique et dérive | `src/lib/coherence-history.ts`, `drizzle/0013_coherence_snapshots.sql` | 7 tests de dérive + instantanés écrits sur les 2 boutiques réelles |
+| Contrôle planifié | `src/app/api/cron/coherence/route.ts`, `.github/workflows/coherence.yml` | 401 sans secret, 200 avec : 2 boutiques contrôlées |
