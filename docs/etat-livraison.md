@@ -2,12 +2,12 @@
 
 ## Ce qui est livré et en production
 
-| Lot | Commit | CI | Déploiement |
-|---|---|---|---|
-| Publication de produits Jumia | `9f00e56` | verte | ✅ |
-| Boutiques & Plateformes | `4256bc2` | verte | ✅ |
-| Déploiement adossé au commit | `c0fdb04` | verte | ✅ |
-| Documentation du déploiement | `be50093` | verte | ✅ |
+| Lot                           | Commit    | CI    | Déploiement |
+| ----------------------------- | --------- | ----- | ----------- |
+| Publication de produits Jumia | `9f00e56` | verte | ✅          |
+| Boutiques & Plateformes       | `4256bc2` | verte | ✅          |
+| Déploiement adossé au commit  | `c0fdb04` | verte | ✅          |
+| Documentation du déploiement  | `be50093` | verte | ✅          |
 
 Production : `https://tout-en-un-business-manager.onrender.com` — `/api/health` répond
 `{"status":"ok"}` et publie le commit réellement déployé (`commit`).
@@ -19,11 +19,11 @@ pointe vers `/boutiques/produits/nouveau`, qui n'existait qu'à partir du premie
 
 ## Tests
 
-| Suite | Commande | Résultat |
-|---|---|---|
-| Unitaires + intégration | `npm test` | **329 réussis / 2 ignorés** (49 fichiers) |
-| End-to-end (suite entière) | `npx playwright test` | **76 réussis / 0 échec** |
-| Statique | `npm run typecheck` · `npm run lint` | verts |
+| Suite                      | Commande                             | Résultat                                  |
+| -------------------------- | ------------------------------------ | ----------------------------------------- |
+| Unitaires + intégration    | `npm test`                           | **329 réussis / 2 ignorés** (49 fichiers) |
+| End-to-end (suite entière) | `npx playwright test`                | **76 réussis / 0 échec**                  |
+| Statique                   | `npm run typecheck` · `npm run lint` | verts                                     |
 
 Répartition E2E : `e2e/boutiques-platesformes.spec.ts` (2 scénarios de navigation/cartes) ·
 `e2e/publication-produit-jumia.spec.ts` (3 scénarios de publication).
