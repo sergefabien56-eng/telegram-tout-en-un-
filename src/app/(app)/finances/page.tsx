@@ -38,6 +38,20 @@ export default async function FinancesPage() {
 
   const statements = await listPayoutStatements(shop.id, 50);
   const totals = sumStatements(statements);
+  // Période réellement couverte par les relevés (différente de la période du
+  // tableau de bord) : on l'affiche pour qu'aucun chiffre ne soit ambigu.
+  const statementFrom = statements.reduce<Date | null>(
+    (min, row) => (min === null || row.remoteCreatedAt < min ? row.remoteCreatedAt : min),
+    null,
+  );
+  const statementTo = statements.reduce<Date | null>(
+    (max, row) => (max === null || row.remoteCreatedAt > max ? row.remoteCreatedAt : max),
+    null,
+  );
+  const statementPeriod =
+    statementFrom && statementTo
+      ? `du ${new Date(statementFrom).toLocaleDateString("fr-FR")} au ${new Date(statementTo).toLocaleDateString("fr-FR")}`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -53,7 +67,9 @@ export default async function FinancesPage() {
         <h2 className="text-sm font-semibold text-night">Relevés Jumia</h2>
         <p className="mt-2 text-sm text-muted">
           Chiffre d&apos;affaires articles, frais de livraison, commissions et remboursements tels
-          que Jumia les publie pour ses versements (90 jours par défaut).
+          que Jumia les publie pour ses versements (90 jours par défaut). Le « CA articles » est le
+          montant des articles publiés sur les relevés : il ne suit pas la période du tableau de
+          bord, il suit celle des relevés.
         </p>
         <div id="export-finances" className="mt-4 flex flex-wrap items-center gap-3">
           <ExportButton
@@ -71,7 +87,10 @@ export default async function FinancesPage() {
           <p className="mt-3 text-2xl font-semibold text-night">
             {formatMoney(totals.revenue, shop.currency ?? "XOF")}
           </p>
-          <p className="mt-1 text-xs text-muted">Somme des relevés affichés.</p>
+          <p className="mt-1 text-xs text-muted">
+            Somme des relevés affichés
+            {statementPeriod ? ` (${statementPeriod})` : ""}.
+          </p>
         </div>
         <div className="card p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">

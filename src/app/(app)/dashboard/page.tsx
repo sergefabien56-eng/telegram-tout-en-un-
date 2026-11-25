@@ -109,9 +109,9 @@ export default async function DashboardPage({
         <h2 className="text-sm font-semibold text-night">Vue d&apos;ensemble</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi
-            label="Chiffre d'affaires"
+            label="CA commandes"
             value={formatMoney(kpis.revenueMinor, kpis.currency)}
-            hint={`${kpis.orders} commande(s), dont ${kpis.canceledOrders} annulée(s).`}
+            hint={`Commandes livrées ou expédiées sur ${overview.period.days} j (${kpis.orders} au total, dont ${kpis.canceledOrders} annulée(s)).`}
           />
           <Kpi
             label="Articles vendus"
@@ -134,7 +134,11 @@ export default async function DashboardPage({
           />
         </div>
         <p className="mt-4 text-xs text-muted">
-          Les montants proviennent des commandes et relevés enregistrés ; aucun n&apos;est estimé.
+          Deux mesures distinctes, jamais mélangées : le <strong>CA commandes</strong> vient des
+          commandes livrées ou expédiées sur la période choisie ; le <strong>CA articles</strong>{" "}
+          (rubrique « Indicateurs financiers ») vient des relevés de versement publiés par Jumia et
+          couvre sa propre période. Les montants proviennent des données enregistrées ; aucun
+          n&apos;est estimé.
         </p>
       </section>
 
@@ -184,7 +188,11 @@ export default async function DashboardPage({
             <Kpi
               label="CA articles"
               value={formatMoney(overview.finances.revenueMinor, kpis.currency)}
-              hint={`sur ${overview.finances.statements} relevé(s).`}
+              hint={
+                overview.finances.statementFrom && overview.finances.statementTo
+                  ? `Montant des articles sur ${overview.finances.statements} relevé(s) du ${new Date(overview.finances.statementFrom).toLocaleDateString("fr-FR")} au ${new Date(overview.finances.statementTo).toLocaleDateString("fr-FR")}.`
+                  : `sur ${overview.finances.statements} relevé(s).`
+              }
             />
             <Kpi
               label="Commissions"

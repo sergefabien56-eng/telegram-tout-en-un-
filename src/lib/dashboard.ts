@@ -41,6 +41,9 @@ export type DashboardOverview = {
     paidMinor: number;
     unpaid: boolean;
     statements: number;
+    /** Période réellement couverte par les relevés (ils ne suivent pas la période du tableau de bord). */
+    statementFrom: string | null;
+    statementTo: string | null;
   };
   shops: {
     id: string;
@@ -87,6 +90,8 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
         paidMinor: 0,
         unpaid: false,
         statements: 0,
+        statementFrom: null,
+        statementTo: null,
       },
       shops: [],
       alerts: [],
@@ -122,31 +127,61 @@ export async function dashboardOverview(userId: string, days = 30): Promise<Dash
       rows: await listPayoutStatements(shop.id, 50),
     })),
   );
-  const finances = statementsByShop.reduce(
-    (acc, row) => {
-      const totals = sumStatements(row.rows);
-      return {
-        revenueMinor: acc.revenueMinor + totals.revenue,
-        feesMinor: acc.feesMinor + totals.fees,
-        shipmentFeesMinor: acc.shipmentFeesMinor + totals.shipmentFees,
-        refundsMinor: acc.refundsMinor + totals.refunds,
-        netMinor: acc.netMinor + totals.net,
-        paidMinor: acc.paidMinor + totals.paid,
-        unpaid: acc.unpaid || totals.unpaid,
-        statements: acc.statements + row.rows.length,
-      };
-    },
-    {
-      revenueMinor: 0,
-      feesMinor: 0,
-      shipmentFeesMinor: 0,
-      refundsMinor: 0,
-      netMinor: 0,
-      paidMinor: 0,
-      unpaid: false,
-      statements: 0,
-    },
-  );
+  type FinanceAccumulator = {
+    revenueMinor: number;
+    feesMinor: number;
+    shipmentFeesMinor: number;
+    refundsMinor: number;
+    netMinor: number;
+    paidMinor: number;
+    unpaid: boolean;
+    statements: number;
+    statementFrom: string | null;
+    statementTo: string | null;
+  };
+
+  const finances = statementsByShop.reduce<FinanceAccumulator>((acc, row) => {
+    const totals = sumStatements(row.rows);
+    const from = row.rows.reduce<Date | null>(
+      (min, item) =>
+        min === null || item.remoteCreatedAt < min ? item.remoteCreatedAt : min,
+      null,
+    );
+    const to = row.rows.reduce<Date | null>(
+      (max, item) =>
+        max === null || item.remoteCreatedAt > max ? item.remoteCreatedAt : max,
+      null,
+    );
+    return {
+      revenueMinor: acc.revenueMinor + totals.revenue,
+      feesMinor: acc.feesMinor + totals.fees,
+      shipmentFeesMinor: acc.shipmentFeesMinor + totals.shipmentFees,
+      refundsMinor: acc.refundsMinor + totals.refunds,
+      netMinor: acc.netMinor + totals.net,
+      paidMinor: acc.paidMinor + totals.paid,
+      unpaid: acc.unpaid || totals.unpaid,
+      statements: acc.statements + row.rows.length,
+      statementFrom:
+        from && (!acc.statementFrom || from < new Date(acc.statementFrom))
+          ? from.toISOString()
+          : acc.statementFrom,
+      statementTo:
+        to && (!acc.statementTo || to > new Date(acc.statementTo))
+          ? to.toISOString()
+          : acc.statementTo,
+    };
+  }, {
+    revenueMinor: 0,
+    feesMinor: 0,
+    shipmentFeesMinor: 0,
+    refundsMinor: 0,
+    netMinor: 0,
+    paidMinor: 0,
+    unpaid: false,
+    statements: 0,
+    statementFrom: null,
+    statementTo: null,
+  });
 
   // Tâches en échec : alertes prioritaires.
   const failedJobs = await db
