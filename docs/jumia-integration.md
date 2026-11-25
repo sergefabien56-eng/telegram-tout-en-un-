@@ -147,16 +147,43 @@ La lecture des commandes ne se fait plus sur une fenêtre glissante : l'écran *
 cette période »** demande une date de début et une date de fin, et la fenêtre est **envoyée à
 l'API** (`createdAfter` / `createdBefore`), jamais reconstruite localement.
 
-| Règle                  | Valeur                                                 | Où elle est appliquée                                                         |
-| ---------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Période obligatoire    | les deux dates sont exigées                            | `src/lib/order-sync-policy.ts` (`validateSyncWindow`) — **client et serveur** |
-| Période inversée       | refusée                                                | idem                                                                          |
-| Période > 90 jours     | refusée                                                | idem                                                                          |
-| Confirmation           | demandée au-delà de 30 jours                           | panneau de synchronisation                                                    |
-| Suivi des mises à jour | `updatedAfter` / `updatedBefore`                       | `src/lib/jumia/orders.ts` (`buildOrderQuery`)                                 |
-| Pagination             | conservée telle quelle (5 pages × 200 maximum)         | `src/lib/jumia/orders.ts`                                                     |
-| Upsert                 | idempotent (clé unique boutique + id distant)          | `src/lib/orders-sync.ts`                                                      |
-| Lecture partielle      | état `partial`, **jamais** présenté comme une réussite | `src/lib/orders-sync.ts` + interface                                          |
+| Règle                                        | Valeur                                                 | Où elle est appliquée                                                         |
+| -------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Période obligatoire                          | les deux dates sont exigées                            | `src/lib/order-sync-policy.ts` (`validateSyncWindow`) — **client et serveur** |
+| Période inversée                             | refusée                                                | idem                                                                          |
+| Période > 90 jours                           | refusée                                                | idem                                                                          |
+| Confirmation                                 | demandée au-delà de 30 jours                           | panneau de synchronisation                                                    |
+| Suivi des mises à jour                       | `updatedAfter` / `updatedBefore`                       | `src/lib/jumia/orders.ts` (`buildOrderQuery`)                                 |
+| **Une seule famille de filtres par requête** | création **ou** mise à jour, jamais les deux           | `src/lib/jumia/orders.ts` (`buildOrderWindows`)                               |
+| Pagination                                   | conservée telle quelle (5 pages × 200 maximum)         | `src/lib/jumia/orders.ts`                                                     |
+| Upsert                                       | idempotent (clé unique boutique + id distant)          | `src/lib/orders-sync.ts`                                                      |
+| Lecture partielle                            | état `partial`, **jamais** présenté comme une réussite | `src/lib/orders-sync.ts` + interface                                          |
+
+### 5 bis. La règle qui fait échouer une synchronisation : un seul filtre à la fois
+
+`GET /orders` **refuse** de filtrer par création _et_ par mise à jour dans la même requête.
+Relevé sur l'API réelle (25/11/2026, les deux comptes vendeur) :
+
+```
+HTTP 422
+{"message":"Filtering by both Created and Updated at the same time not allowed,
+            please use only one of them per request.","status":422}
+```
+
+Or la case « Relire aussi les commandes plus anciennes dont le statut a changé » est
+**proposée par défaut** : la lecture combinait donc les deux familles de filtres et se
+faisait refuser à chaque synchronisation (message affiché : « Jumia a refusé la lecture des
+commandes (HTTP 422) »).
+
+La lecture se fait désormais en **deux requêtes** :
+
+1. `createdAfter` / `createdBefore` — les commandes **créées** dans la période choisie ;
+2. `updatedAfter` / `updatedBefore` — les commandes **modifiées** depuis la dernière
+   synchronisation (fenêtre de 90 jours maximum).
+
+Les résultats sont fusionnés : une commande lue dans les deux fenêtres n'est comptée qu'une
+fois, dans son état le plus récent. La limite de pages s'applique à **chaque** lecture, et
+une lecture tronquée reste annoncée comme partielle.
 
 Les refus de période et de permission sont **contrôlés côté serveur**
 (`POST /api/shops/[id]/commandes/sync`) : masquer un bouton dans l'interface ne suffit pas, la

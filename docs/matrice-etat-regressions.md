@@ -406,7 +406,7 @@ catalogue.
 
 | Suite                      | Commande                                                                                       | Résultat                                  |
 | -------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Unitaires + intégration    | `npm test`                                                                                     | **333 réussis / 2 ignorés** (49 fichiers) |
+| Unitaires + intégration    | `npm test`                                                                                     | **335 réussis / 2 ignorés** (49 fichiers) |
 | End-to-end                 | `npx playwright test e2e/boutiques-platesformes.spec.ts e2e/publication-produit-jumia.spec.ts` | **5/5**                                   |
 | End-to-end (suite entière) | `npx playwright test`                                                                          | **76 réussis / 0 échec**                  |
 | Qualité statique           | `npm run typecheck` · `npm run lint` · `npm run build`                                         | verts                                     |
@@ -444,3 +444,36 @@ accepte désormais les deux formes — 4 tests unitaires dédiés.
 | Synchronisation réelle des commandes      | quota + secrets : la couche HTTP est simulée                                                                    |
 | Relecture du QC Jumia sur un vrai produit | dépend d'un flux réellement accepté par la plateforme                                                           |
 | Rendu sur un téléphone Telegram réel      | l'anti-rebond du client n'est pas reproductible en test                                                         |
+
+## 10. Synchronisation des commandes — refus HTTP 422 de l'API Jumia (25/11/2026)
+
+### 10.1 Le refus, et sa cause exacte
+
+| Élément               | Valeur                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Message affiché       | « Jumia a refusé la lecture des commandes (HTTP 422). »                                                          |
+| Message réel de l'API | « Filtering by both Created and Updated at the same time not allowed, please use only one of them per request. » |
+| Déclencheur           | la case « Relire aussi les commandes plus anciennes… » est **activée par défaut**                                |
+| Portée                | les deux comptes vendeur (NKSF SHOP et MaxiShopsCI)                                                              |
+
+Le message de l'API était **perdu** : l'interface n'affichait que le code HTTP, sans la cause.
+
+### 10.2 Correction
+
+- Une requête ne porte plus **qu'une** famille de filtres : `createdAfter/Before` **ou**
+  `updatedAfter/Before` (`buildOrderWindows`).
+- La lecture se fait en **deux requêtes** (création, puis mise à jour) et les résultats sont
+  fusionnés : une commande présente dans les deux fenêtres n'est comptée qu'une fois, dans son
+  état le plus récent.
+- La limite de pages s'applique à **chaque** lecture ; une lecture tronquée reste annoncée
+  comme **partielle** (`truncated` / `partial`).
+- Le message de l'API est désormais affiché en plus du code HTTP.
+
+### 10.3 Preuves
+
+| Preuve                                        | Ce qu'elle montre                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| `scripts/probe-jumia-orders.mjs`              | les paramètres acceptés par `GET /orders` (tous en 200)                   |
+| `scripts/probe-jumia-orders-pagination.mjs`   | les clés réellement renvoyées : `orders`, `nextToken`, `isLastPage`       |
+| `scripts/probe-jumia-orders-422.mjs`          | la règle « un seul filtre par requête », et son refus en 422              |
+| `src/lib/__tests__/order-sync-window.test.ts` | 6 tests : deux requêtes distinctes, fusion sans doublon, message de l'API |

@@ -67,21 +67,60 @@ describe("GET /orders — filtres et pagination", () => {
     expect(requests[1]?.params.token).toBe("token-1");
   });
 
-  it("envoie la fenêtre de mise à jour pour relire les commandes anciennes", async () => {
-    const { requests, module } = await withStubbedJumia([{ orders: [] }]);
+  it("ne mêle jamais création et mise à jour dans la même requête", async () => {
+    // L'API Jumia refuse (HTTP 422) de filtrer par création ET par mise à
+    // jour dans le même appel : « Filtering by both Created and Updated at
+    // the same time not allowed ».
+    const { requests, module } = await withStubbedJumia([{ orders: [] }, { orders: [] }]);
 
     await module.fetchAllOrderPages({
       shopId: "shop-1",
-      createdAfter: "2026-11-01T00:00:00Z",
-      createdBefore: "2026-11-10T23:59:59Z",
-      updatedAfter: "2026-01-01T00:00:00Z",
-      updatedBefore: "2026-11-10T23:59:59Z",
+      createdAfter: "2026-11-01",
+      createdBefore: "2026-11-10",
+      updatedAfter: "2026-01-01",
+      updatedBefore: "2026-11-10",
       size: 200,
       maxPages: 5,
     });
 
-    expect(requests[0]?.params.updatedAfter).toBe("2026-01-01T00:00:00Z");
-    expect(requests[0]?.params.updatedBefore).toBe("2026-11-10T23:59:59Z");
+    // Deux requêtes distinctes : l'une par création, l'autre par mise à jour.
+    expect(requests).toHaveLength(2);
+
+    for (const request of requests) {
+      const parCreation = request.params.createdAfter !== undefined;
+      const parMiseAJour = request.params.updatedAfter !== undefined;
+      expect(parCreation && parMiseAJour).toBe(false);
+    }
+
+    expect(requests[0]?.params.createdAfter).toBe("2026-11-01");
+    expect(requests[0]?.params.updatedAfter).toBeUndefined();
+    expect(requests[1]?.params.updatedAfter).toBe("2026-01-01");
+    expect(requests[1]?.params.createdAfter).toBeUndefined();
+  });
+
+  it("fusionne les deux fenêtres sans compter deux fois la même commande", async () => {
+    const { module } = await withStubbedJumia([
+      { orders: [{ id: "a", status: "CREATED" }, { id: "b" }] },
+      { orders: [{ id: "a", status: "SHIPPED" }, { id: "c" }] },
+    ]);
+
+    const result = await module.fetchAllOrderPages({
+      shopId: "shop-1",
+      createdAfter: "2026-11-01",
+      createdBefore: "2026-11-10",
+      updatedAfter: "2026-01-01",
+      updatedBefore: "2026-11-10",
+      size: 200,
+      maxPages: 5,
+    });
+
+    // « a » est lue dans les deux fenêtres : elle n'est comptée qu'une fois,
+    // dans son état le plus récent (celui de la lecture « mise à jour »).
+    expect(result.orders).toHaveLength(3);
+    const a = result.orders.find((order) => (order as { id?: string }).id === "a") as {
+      status?: string;
+    };
+    expect(a?.status).toBe("SHIPPED");
   });
 
   it("signale une lecture tronquée quand la limite de pages est atteinte", async () => {
@@ -125,5 +164,43 @@ describe("GET /orders — filtres et pagination", () => {
       expect(url.searchParams.has(forbidden)).toBe(false);
     }
     expect(url.search).not.toContain("Bearer");
+  });
+});
+
+describe("GET /orders — refus de l'API", () => {
+  it("affiche le message de Jumia, pas seulement le code HTTP", async () => {
+    vi.doMock("@/lib/jumia/request", () => ({
+      jumiaGet: vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            message:
+              "Filtering by both Created and Updated at the same time not allowed, please use only one of them per request.",
+            status: 422,
+          }),
+          { status: 422, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+      throttle: vi.fn(async () => undefined),
+    }));
+    const ordersModule = await import("@/lib/jumia/orders");
+
+    await expect(
+      ordersModule.fetchAllOrderPages({
+        shopId: "shop-1",
+        createdAfter: "2026-11-01",
+        createdBefore: "2026-11-10",
+        size: 200,
+        maxPages: 5,
+      }),
+    ).rejects.toThrow(/HTTP 422/);
+    await expect(
+      ordersModule.fetchAllOrderPages({
+        shopId: "shop-1",
+        createdAfter: "2026-11-01",
+        createdBefore: "2026-11-10",
+        size: 200,
+        maxPages: 5,
+      }),
+    ).rejects.toThrow(/Filtering by both Created and Updated/);
   });
 });
