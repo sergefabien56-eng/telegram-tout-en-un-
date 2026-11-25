@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  emptyCatalogSyncState,
   parseAttributeSet,
   parseCategories,
+  parseCatalogSyncState,
   validateAgainstAttributeSet,
 } from "@/lib/jumia/catalog-referentiel";
 import {
@@ -279,5 +281,52 @@ describe("messages d'erreur Jumia", () => {
 
   it("ne masque jamais l'échec derrière un succès", () => {
     expect(readJumiaError(null, 500)).toContain("500");
+  });
+});
+
+describe("état du chargement du référentiel", () => {
+  it("relit l'état quand la colonne jsonb rend un objet", () => {
+    // C'est la forme réellement relue depuis PostgreSQL : la colonne est un
+    // `jsonb`, la valeur est déjà décodée.
+    const state = parseCatalogSyncState({
+      complete: true,
+      count: 27147,
+      pages: 271,
+      totalOfPages: 272,
+      lastSyncAt: "2026-11-25T19:12:59.804Z",
+    });
+    expect(state).toEqual({
+      complete: true,
+      count: 27147,
+      pages: 271,
+      totalOfPages: 272,
+      lastSyncAt: "2026-11-25T19:12:59.804Z",
+    });
+  });
+
+  it("relit aussi l'état sous forme de chaîne JSON", () => {
+    const state = parseCatalogSyncState(
+      JSON.stringify({ complete: true, count: 12, pages: 1, totalOfPages: 1 }),
+    );
+    expect(state.complete).toBe(true);
+    expect(state.count).toBe(12);
+    expect(state.lastSyncAt).toBeNull();
+  });
+
+  it("ne pretended jamais qu'un chargement incomplet est complet", () => {
+    expect(parseCatalogSyncState({ complete: false, count: 300 })).toEqual({
+      complete: false,
+      count: 300,
+      pages: 0,
+      totalOfPages: 0,
+      lastSyncAt: null,
+    });
+  });
+
+  it("renvoie un état neutre sur une valeur illisible", () => {
+    expect(parseCatalogSyncState(null)).toEqual(emptyCatalogSyncState());
+    expect(parseCatalogSyncState("pas du json")).toEqual(emptyCatalogSyncState());
+    expect(parseCatalogSyncState("")).toEqual(emptyCatalogSyncState());
+    expect(parseCatalogSyncState(42)).toEqual(emptyCatalogSyncState());
   });
 });

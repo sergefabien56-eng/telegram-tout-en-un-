@@ -22,7 +22,7 @@ pointe vers `/boutiques/produits/nouveau`, qui n'existait qu'à partir du premie
 
 | Suite                      | Commande                             | Résultat                                  |
 | -------------------------- | ------------------------------------ | ----------------------------------------- |
-| Unitaires + intégration    | `npm test`                           | **329 réussis / 2 ignorés** (49 fichiers) |
+| Unitaires + intégration    | `npm test`                           | **333 réussis / 2 ignorés** (49 fichiers) |
 | End-to-end (suite entière) | `npx playwright test`                | **76 réussis / 0 échec**                  |
 | Statique                   | `npm run typecheck` · `npm run lint` | verts                                     |
 

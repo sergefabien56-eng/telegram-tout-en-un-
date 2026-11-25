@@ -406,17 +406,35 @@ catalogue.
 
 | Suite                      | Commande                                                                                       | Résultat                                  |
 | -------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Unitaires + intégration    | `npm test`                                                                                     | **329 réussis / 2 ignorés** (49 fichiers) |
+| Unitaires + intégration    | `npm test`                                                                                     | **333 réussis / 2 ignorés** (49 fichiers) |
 | End-to-end                 | `npx playwright test e2e/boutiques-platesformes.spec.ts e2e/publication-produit-jumia.spec.ts` | **5/5**                                   |
 | End-to-end (suite entière) | `npx playwright test`                                                                          | **76 réussis / 0 échec**                  |
 | Qualité statique           | `npm run typecheck` · `npm run lint` · `npm run build`                                         | verts                                     |
 
 Nouveaux fichiers de test :
 `src/lib/__tests__/navigation-boutiques.test.ts` (8) ·
-`src/lib/__tests__/jumia-product-creation.test.ts` (16) ·
+`src/lib/__tests__/jumia-product-creation.test.ts` (20) ·
 `src/lib/__tests__/product-assistant.test.ts` (16) ·
 `e2e/boutiques-platesformes.spec.ts` (2) ·
 `e2e/publication-produit-jumia.spec.ts` (3).
+
+### 9.5 bis. Référentiel des catégories chargé en production (25/11/2026)
+
+| Boutique    | Catégories | Avec ensemble d'attributs | Pages | État       |
+| ----------- | ---------- | ------------------------- | ----- | ---------- |
+| MaxiShopsCI | 27 147     | 27 147                    | 271   | complet ✅ |
+| NKSF SHOP   | 27 147     | 27 147                    | 271   | complet ✅ |
+
+Le chargement est déclenché par la **route de l'application**
+(`POST /api/shops/:id/catalogue/referentiel`) : permissions, audit et avancement
+sont ceux du produit. Aucun produit n'a été envoyé à Jumia.
+
+Correctif associé : `app_settings.value` est un `jsonb`, dont la valeur est relue
+**déjà décodée** (un objet) et non comme la chaîne JSON écrite. La lecture de
+l'état du chargement acceptait uniquement une chaîne : l'état était perdu à la
+relecture et un chargement terminé restait affiché comme « en cours » (avec un
+rafraîchissement de l'interface toutes les 5 secondes). `parseCatalogSyncState`
+accepte désormais les deux formes — 4 tests unitaires dédiés.
 
 ### 9.6 Non testé automatiquement (à dire tel quel)
 

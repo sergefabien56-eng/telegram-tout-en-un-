@@ -194,6 +194,41 @@ export type CatalogSyncState = {
 
 const SYNC_KEY_PREFIX = "jumia_catalog_sync:";
 
+/** État neutre : rien n'a encore été chargé. */
+export function emptyCatalogSyncState(): CatalogSyncState {
+  return { complete: false, count: 0, pages: 0, totalOfPages: 0, lastSyncAt: null };
+}
+
+/**
+ * Lit un état de chargement stocké en `jsonb`.
+ *
+ * La colonne `app_settings.value` est un `jsonb` : PostgreSQL la rend
+ * **déjà décodeée** (un objet), et non comme la chaîne JSON qu'on y avait
+ * écrite. On accepte donc les deux formes — sans cela, l'état était
+ * systématiquement perdu à la relecture et le chargement complet était
+ * affiché comme « en cours » pour l'éternité.
+ */
+export function parseCatalogSyncState(raw: unknown): CatalogSyncState {
+  let value: unknown = raw;
+  if (typeof value === "string") {
+    if (!value) return emptyCatalogSyncState();
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return emptyCatalogSyncState();
+    }
+  }
+  if (!value || typeof value !== "object") return emptyCatalogSyncState();
+  const parsed = value as Partial<CatalogSyncState>;
+  return {
+    complete: parsed.complete === true,
+    count: Number(parsed.count ?? 0),
+    pages: Number(parsed.pages ?? 0),
+    totalOfPages: Number(parsed.totalOfPages ?? 0),
+    lastSyncAt: typeof parsed.lastSyncAt === "string" ? parsed.lastSyncAt : null,
+  };
+}
+
 /** Registre d'état du chargement (dans `app_settings`, scopé par boutique). */
 export async function readCatalogSyncState(shopId: string): Promise<CatalogSyncState> {
   const rows = await getDb()
@@ -201,22 +236,7 @@ export async function readCatalogSyncState(shopId: string): Promise<CatalogSyncS
     .from(schema.appSettings)
     .where(eq(schema.appSettings.key, `${SYNC_KEY_PREFIX}${shopId}`))
     .limit(1);
-  const raw = rows[0]?.value;
-  if (typeof raw !== "string" || !raw) {
-    return { complete: false, count: 0, pages: 0, totalOfPages: 0, lastSyncAt: null };
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<CatalogSyncState>;
-    return {
-      complete: parsed.complete === true,
-      count: Number(parsed.count ?? 0),
-      pages: Number(parsed.pages ?? 0),
-      totalOfPages: Number(parsed.totalOfPages ?? 0),
-      lastSyncAt: typeof parsed.lastSyncAt === "string" ? parsed.lastSyncAt : null,
-    };
-  } catch {
-    return { complete: false, count: 0, pages: 0, totalOfPages: 0, lastSyncAt: null };
-  }
+  return parseCatalogSyncState(rows[0]?.value);
 }
 
 /** Écrit l'état du chargement. */
