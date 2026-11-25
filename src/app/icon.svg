@@ -1,4 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#1765F5"/>
-  <text x="32" y="41" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF" text-anchor="middle">TU</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="91.67" fill="#0d1a38"/>
+  <g fill="none" stroke-linecap="butt">
+    <line x1="332.144" y1="330.646" x2="437.117" y2="430.892" stroke="#22bdc4" stroke-width="17.98"/>
+    <line x1="692.062" y1="330.652" x2="586.854" y2="430.882" stroke="#22bdc4" stroke-width="17.98"/>
+    <line x1="332.317" y1="681.59" x2="436.837" y2="574.625" stroke="#22bdc4" stroke-width="17.98"/>
+    <line x1="691.889" y1="681.584" x2="587.133" y2="574.634" stroke="#22bdc4" stroke-width="17.98"/>
+  </g>
+  <g>
+    <rect x="195.9" y="196.48" width="141.4" height="139.09" fill="#ecf2f9"/>
+    <rect x="686.9" y="196.48" width="141.4" height="139.09" fill="#ecf2f9"/>
+    <rect x="195.9" y="676.49" width="141.4" height="139.09" fill="#ecf2f9"/>
+    <rect x="686.9" y="676.49" width="141.4" height="139.09" fill="#ecf2f9"/>
+  </g>
+  <rect x="428.8" y="422.95" width="166.38" height="159.9" fill="#22bdc4"/>
 </svg>

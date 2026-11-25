@@ -80,7 +80,7 @@ function MiniAppContent() {
     <main className="min-h-screen bg-surface px-4 py-6">
       <div className="mx-auto max-w-md">
         <div className="flex items-center gap-2">
-          <Logo className="h-8 w-8" />
+          <Logo className="h-8 w-8" withName={false} />
           <span className="text-sm font-semibold text-night">TOUT EN UN</span>
         </div>
 

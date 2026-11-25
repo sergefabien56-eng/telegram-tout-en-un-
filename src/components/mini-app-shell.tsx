@@ -132,7 +132,7 @@ export function MiniAppShell({
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-          <Logo className="h-6 w-6" />
+          <Logo className="h-6 w-6" withName={false} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-night">{title}</span>
           {shops.length > 0 ? (
             <select

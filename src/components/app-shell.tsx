@@ -90,7 +90,7 @@ function Sidebar({
       >
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <Link href="/dashboard" className="focusable flex items-center gap-2" onClick={onClose}>
-            <Logo className="h-8 w-8" />
+            <Logo className="h-8 w-8" withName={false} />
             <span className="teu-rail-hide text-sm font-semibold text-night">TOUT EN UN</span>
           </Link>
           <div className="flex items-center gap-1">
