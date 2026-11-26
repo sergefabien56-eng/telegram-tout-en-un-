@@ -5,7 +5,7 @@ import { gotoSafely, login } from "./helpers/auth";
  * Section « Ventes et commandes » — refonte en **quatre rubriques**.
  *
  * A. Toutes les commandes (Historique, Annulées, Exporter)
- * B. À traiter (En attente, Prêtes à expédier, Factures à imprimer)
+ * B. À traiter (En attente, Prêtes à expédier, Étiquettes à imprimer)
  * C. Expédiées (Expédiées, Retours)
  * D. Villes & localités
  *
@@ -65,7 +65,7 @@ test("Chaque rubrique a sa propre page et son propre titre", async ({ page }) =>
     ["/commandes/a-traiter", "À traiter"],
     ["/commandes/a-traiter/en-attente", "En attente"],
     ["/commandes/a-traiter/pretes-a-expedier", "Prêtes à expédier"],
-    ["/commandes/a-traiter/factures", "Factures à imprimer"],
+    ["/commandes/a-traiter/etiquettes", "Étiquettes à imprimer"],
     ["/commandes/expediees", "Expédiées"],
     ["/commandes/retours", "Retours"],
     ["/commandes/villes", "Villes & localités"],
@@ -81,7 +81,7 @@ test("Chaque rubrique a sa propre page et son propre titre", async ({ page }) =>
   }
 });
 
-test("L'ancienne adresse des factures redirige vers sa nouvelle destination", async ({ page }) => {
+test("Les anciennes adresses des factures redirigent vers les étiquettes", async ({ page }) => {
   const email = `ventes-redir-e2e-${Date.now()}@exemple.ci`;
   await login(page, email, "MotDePasse123");
   await page.request.post("/api/shops", {
@@ -94,14 +94,16 @@ test("L'ancienne adresse des factures redirige vers sa nouvelle destination", as
     },
   });
 
-  const reponse = await page.request.get("/commandes/factures", { maxRedirects: 0 });
-  expect([301, 308]).toContain(reponse.status());
+  for (const ancienne of ["/commandes/factures", "/commandes/a-traiter/factures"]) {
+    const reponse = await page.request.get(ancienne, { maxRedirects: 0 });
+    expect([301, 308]).toContain(reponse.status());
 
-  await gotoSafely(page, "/commandes/factures");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { name: "Factures à imprimer" })).toBeVisible({
-    timeout: 30_000,
-  });
+    await gotoSafely(page, ancienne);
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("heading", { name: "Étiquettes à imprimer" })).toBeVisible({
+      timeout: 30_000,
+    });
+  }
 });
 
 test("Les fonctions déplacées restent accessibles", async ({ page }) => {

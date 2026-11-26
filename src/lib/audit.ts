@@ -32,6 +32,8 @@ export type AuditAction =
   | "shop.jumia_linked"
   | "shop.jumia_unlinked"
   | "shop.orders_synced"
+  | "shop.orders_auto_synced"
+  | "shop.labels_generated"
   | "shop.products_synced"
   | "shop.stocks_synced"
   | "shop.payments_synced"

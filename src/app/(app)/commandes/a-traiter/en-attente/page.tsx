@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 const SOUS_VUES = [
   { href: "/commandes/a-traiter/en-attente", label: "En attente" },
   { href: "/commandes/a-traiter/pretes-a-expedier", label: "Prêtes à expédier" },
-  { href: "/commandes/a-traiter/factures", label: "Factures à imprimer" },
+  { href: "/commandes/a-traiter/etiquettes", label: "Étiquettes à imprimer" },
 ];
 
 /**

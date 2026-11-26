@@ -1,11 +1,12 @@
 import { AppShell, type ShellShop } from "@/components/app-shell";
+import { AutoSync } from "@/components/auto-sync";
 import { MiniAppShell } from "@/components/mini-app-shell";
 import { TelegramThemeSync } from "@/components/telegram-theme-sync";
 import { UI_COOKIE } from "@/lib/cookies";
 import { listUserShops } from "@/lib/shops";
 import { SHOP_COOKIE } from "@/lib/current-shop";
 import { getSessionUser } from "@/lib/session";
-import { isRole, ROLE_PERMISSIONS } from "@/lib/permissions";
+import { isRole, ROLE_PERMISSIONS, roleHasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
@@ -23,8 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Boutique courante choisie par le vendeur (cookie `teu_shop`). Elle doit
   // piloter l'affichage : l'en-tête et les pages show the same boutique.
   const cookieShopId = (await cookies()).get(SHOP_COOKIE)?.value ?? null;
-  const currentShopId =
-    shops.find((shop) => shop.id === cookieShopId)?.id ?? shops[0]?.id ?? null;
+  const currentShopId = shops.find((shop) => shop.id === cookieShopId)?.id ?? shops[0]?.id ?? null;
 
   // Union des permissions sur toutes les boutiques de l'utilisateur.
   const permissions = new Set<string>();
@@ -44,6 +44,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     role: shop.role,
   }));
 
+  // Boutiques dont l'utilisateur peut consulter les commandes : ce sont les
+  // seules où la fraîcheur de la donnée a du sens.
+  //
+  // Le client ne sait pas si une boutique est rattachée à Jumia : c'est le
+  // serveur qui le décide (une boutique non rattachée n'est jamais périmée
+  // et ne déclenche aucune lecture).
+  const autoSyncShopIds = shops
+    .filter((shop) => isRole(shop.role) && roleHasPermission(shop.role, "orders:read"))
+    .map((shop) => shop.id);
+
   // Le cookie `teu_ui=mini` est posé lors de l'échange initData → session.
   const ui = (await cookies()).get(UI_COOKIE)?.value;
   const mini = ui === "mini";
@@ -59,18 +69,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         >
           {children}
         </MiniAppShell>
+        <AutoSync shopIds={autoSyncShopIds} />
       </TelegramThemeSync>
     );
   }
 
   return (
-    <AppShell
-      user={{ fullName: user.fullName, email: user.email }}
-      shops={shellShops}
-      permissions={[...permissions]}
-      currentShopId={currentShopId}
-    >
-      {children}
-    </AppShell>
+    <>
+      <AppShell
+        user={{ fullName: user.fullName, email: user.email }}
+        shops={shellShops}
+        permissions={[...permissions]}
+        currentShopId={currentShopId}
+      >
+        {children}
+      </AppShell>
+      <AutoSync shopIds={autoSyncShopIds} />
+    </>
   );
 }

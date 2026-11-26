@@ -20,7 +20,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "e2e": "playwright test",
-    "backup": "node scripts/backup.mjs"
+    "e2e:deps": "bash scripts/install-chromium-deps.sh",
+    "backup": "node scripts/backup.mjs",
+    "demo": "node scripts/demo-preview.mjs docs/demo-apercu.html",
+    "captures": "node scripts/captures.mjs docs/captures"
   },
   "dependencies": {
     "@neon/config": "^1.14.6",

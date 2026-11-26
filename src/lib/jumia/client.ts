@@ -13,8 +13,16 @@ import { decryptText, encryptText } from "@/lib/crypto";
  * - erreurs OAuth : `{ error, error_description }`.
  */
 
-export const JUMIA_TOKEN_URL =
-  process.env.JUMIA_API_BASE?.replace(/\/$/, "") ?? "https://vendor-api.jumia.com";
+/**
+ * Base de l'API Jumia Vendor Center.
+ *
+ * Lue **à l'appel** et non figée à l'import : la variable d'environnement
+ * peut alors être redirigée (serveur de test local) sans redémarrer le
+ * processus.
+ */
+export function jumiaApiBase(): string {
+  return process.env.JUMIA_API_BASE?.replace(/\/$/, "") ?? "https://vendor-api.jumia.com";
+}
 
 const CREDENTIALS_KEY = "jumia_credentials";
 const EXPIRY_SKEW_SECONDS = 60;
@@ -225,7 +233,7 @@ export async function exchangeAccessToken(
 
   let response: Response;
   try {
-    response = await fetch(`${JUMIA_TOKEN_URL}/token`, {
+    response = await fetch(`${jumiaApiBase()}/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,

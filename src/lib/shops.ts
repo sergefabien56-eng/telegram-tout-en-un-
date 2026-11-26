@@ -1,3 +1,4 @@
+import { isUuid } from "@/lib/ids";
 import { getDb, schema } from "@/db";
 import { generateToken, sha256Hex } from "@/lib/crypto";
 import { isRole, roleHasPermission, type Role } from "@/lib/roles";
@@ -182,6 +183,9 @@ export async function removeMember(
   shopId: string,
   targetUserId: string,
 ): Promise<MemberResult> {
+  if (!isUuid(targetUserId)) {
+    return { ok: false, reason: "Membre introuvable." };
+  }
   const access = await getRole(userId, shopId);
   if (!access || !roleHasPermission(access, "members:write")) {
     return { ok: false, reason: "Permission insuffisante (members:write)." };
@@ -214,6 +218,9 @@ export async function changeMemberRole(
   role: Role,
 ): Promise<MemberResult> {
   if (role === "owner") return { ok: false, reason: "Le rôle owner n'est pas attribuable." };
+  if (!isUuid(targetUserId)) {
+    return { ok: false, reason: "Membre introuvable." };
+  }
 
   const access = await getRole(userId, shopId);
   if (!access || !roleHasPermission(access, "members:write")) {

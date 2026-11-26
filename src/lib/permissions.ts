@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
  */
 export { ROLES, ALL_PERMISSIONS, ROLE_PERMISSIONS, isRole, roleHasPermission } from "@/lib/roles";
 import { ALL_PERMISSIONS, isRole, ROLE_PERMISSIONS, type Role } from "@/lib/roles";
+import { isUuid } from "@/lib/ids";
 
 export type ShopAccess = {
   shopId: string;
@@ -19,6 +20,9 @@ export type ShopAccess = {
 
 /** Rôle d'un utilisateur sur une boutique (null si aucun accès). */
 export async function getShopAccess(userId: string, shopId: string): Promise<ShopAccess | null> {
+  // Un identifiant malformé ne peut pas désigner une boutique : on le
+  // traite comme inexistant (404), jamais comme une erreur de base.
+  if (!isUuid(shopId)) return null;
   const db = getDb();
   const rows = await db
     .select({ role: schema.shopMembers.role })

@@ -56,7 +56,7 @@ async function session(context) {
     ["17-ventes-b-a-traiter", "/commandes/a-traiter?boutique=toutes"],
     ["18-ventes-b-en-attente", "/commandes/a-traiter/en-attente?boutique=toutes"],
     ["19-ventes-b-pretes-a-expedier", "/commandes/a-traiter/pretes-a-expedier?boutique=toutes"],
-    ["20-ventes-b-factures", "/commandes/a-traiter/factures?boutique=toutes"],
+    ["20-ventes-b-etiquettes", "/commandes/a-traiter/etiquettes?boutique=toutes"],
     ["21-ventes-c-expediees", "/commandes/expediees?boutique=toutes"],
     ["22-ventes-c-retours", "/commandes/retours?boutique=toutes"],
     ["23-ventes-d-villes", "/commandes/villes?boutique=toutes"],

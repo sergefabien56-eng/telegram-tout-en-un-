@@ -2,7 +2,7 @@ import {
   getAccessToken,
   getAccessTokenForAccount,
   getAccessTokenForShop,
-  JUMIA_TOKEN_URL,
+  jumiaApiBase,
   JumiaError,
 } from "./client";
 
@@ -55,9 +55,20 @@ export type JumiaAccountScope =
   /** Identifiant historique unique (repli). */
   | { legacy?: true };
 
+/**
+ * Paramètres de requête : une valeur, ou une liste de valeurs.
+ *
+ * La liste est envoyée en paramètres **répétés** (`?orderId=a&orderId=b`),
+ * comme l'exige `GET /orders/items`.
+ */
+export type JumiaQueryParams = Record<
+  string,
+  string | number | boolean | undefined | (string | number)[]
+>;
+
 export async function jumiaGet(
   path: string,
-  params?: Record<string, string | number | boolean | undefined>,
+  params?: JumiaQueryParams,
   scope?: JumiaAccountScope,
 ): Promise<Response> {
   const accessToken = !scope
@@ -68,9 +79,18 @@ export async function jumiaGet(
         ? await getAccessTokenForShop(scope.shopId)
         : await getAccessToken();
 
-  const url = new URL(`${JUMIA_TOKEN_URL}${path}`);
+  const url = new URL(`${jumiaApiBase()}${path}`);
   for (const [key, value] of Object.entries(params ?? {})) {
-    if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
+    if (value === undefined || value === "") continue;
+    if (Array.isArray(value)) {
+      // Paramètre répété : `?orderId=a&orderId=b`.
+      for (const item of value) {
+        if (item === undefined || item === "") continue;
+        url.searchParams.append(key, String(item));
+      }
+      continue;
+    }
+    url.searchParams.set(key, String(value));
   }
 
   let lastError = "";
@@ -130,7 +150,7 @@ export async function jumiaPost(
         ? await getAccessTokenForShop(scope.shopId)
         : await getAccessToken();
 
-  const url = new URL(`${JUMIA_TOKEN_URL}${path}`);
+  const url = new URL(`${jumiaApiBase()}${path}`);
 
   let lastError = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {

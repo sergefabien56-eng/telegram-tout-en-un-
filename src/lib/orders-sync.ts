@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { audit } from "@/lib/audit";
 import { getDb, schema } from "@/db";
 import { fetchAllOrderPages } from "@/lib/jumia/orders";
 import { normalizeOrder, upsertOrders } from "@/lib/orders";
+import { syncOrderItems } from "@/lib/order-items-sync";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, orderShopIds } from "@/lib/shop-guard";
 import { MAX_SYNC_WINDOW_DAYS, ORDERS_MAX_PAGES, ORDERS_PAGE_SIZE } from "@/lib/order-sync-policy";
@@ -29,6 +30,14 @@ export type SyncResult = {
    * ne doit jamais être présentée comme réussie.
    */
   partial?: boolean;
+  /** Articles de commande lus depuis Jumia. */
+  items?: number;
+  /** Articles insérés ou mis à jour en base. */
+  itemsSaved?: number;
+  /** Articles écartés : ils portaient l'identifiant d'une autre boutique. */
+  itemsSkipped?: number;
+  /** Commandes dont les articles n'ont pas pu être lus. */
+  itemsFailed?: number;
 };
 
 /** Formate une date en `YYYY-MM-DD` (UTC), format attendu par Jumia. */
@@ -188,6 +197,32 @@ export async function syncShopOrders(params: {
     });
     const { inserted, updated } = await upsertOrders(normalized);
 
+    // Les **articles** de ces commandes sont relus à leur tour : c'est à ce
+    // niveau que Jumia porte le statut d'expédition et le numéro de suivi,
+    // et c'est le niveau que l'impression des étiquettes utilise.
+    // Un échec de cette lecture n'annule pas la synchronisation des
+    // commandes : il est compté et signalé.
+    const externalIds = normalized
+      .map((row) => row.externalOrderId)
+      .filter((value): value is string => Boolean(value));
+    const localOrders = externalIds.length
+      ? await db
+          .select({ id: schema.orders.id })
+          .from(schema.orders)
+          .where(
+            and(
+              eq(schema.orders.shopId, params.shopId),
+              inArray(schema.orders.externalOrderId, externalIds),
+            ),
+          )
+      : [];
+    const items = await syncOrderItems({
+      shopId: params.shopId,
+      remoteShopId,
+      orderIds: localOrders.map((order) => order.id),
+      accountId: accountId ?? undefined,
+    });
+
     // Une synchronisation **partielle** (limite de pages atteinte) n'est pas
     // une réussite : la boutique est marquée « partial » pour que l'interface
     // ne présente jamais une lecture incomplète comme un succès.
@@ -221,6 +256,10 @@ export async function syncShopOrders(params: {
         pages,
         truncated,
         partial,
+        items: items.fetched,
+        itemsSaved: items.inserted + items.updated,
+        itemsSkipped: items.skipped,
+        itemsFailed: items.failed,
       },
     });
 
@@ -234,6 +273,10 @@ export async function syncShopOrders(params: {
       truncated,
       skipped: foreign.length,
       partial,
+      items: items.fetched,
+      itemsSaved: items.inserted + items.updated,
+      itemsSkipped: items.skipped,
+      itemsFailed: items.failed,
       followedUpdates: followUpdates,
       window: { from: isoDate(debut), to: isoDate(fin) },
     };

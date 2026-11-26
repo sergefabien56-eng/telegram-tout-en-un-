@@ -127,7 +127,7 @@ export const NAV_ITEMS: NavItem[] = [
     paths: [
       "/commandes/a-traiter/en-attente",
       "/commandes/a-traiter/pretes-a-expedier",
-      "/commandes/a-traiter/factures",
+      "/commandes/a-traiter/etiquettes",
     ],
     pathPrefixes: ["/commandes/a-traiter/"],
   },

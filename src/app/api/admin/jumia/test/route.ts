@@ -6,7 +6,7 @@ import { resolveDefaultAccount } from "@/lib/jumia/accounts";
 import {
   describeOAuthError,
   exchangeAccessToken,
-  JUMIA_TOKEN_URL,
+  jumiaApiBase,
   JumiaError,
   readAccountCredentials,
   readCredentials,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     let shopCount: number | null = null;
     let shopSample: string[] = [];
     try {
-      const shopsResponse = await fetch(`${JUMIA_TOKEN_URL}/shops`, {
+      const shopsResponse = await fetch(`${jumiaApiBase()}/shops`, {
         headers: { Authorization: `Bearer ${result.accessToken}`, Accept: "application/json" },
         signal: AbortSignal.timeout(20_000),
       });

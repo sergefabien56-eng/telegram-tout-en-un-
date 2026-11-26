@@ -5,6 +5,7 @@ import { OrderFilters } from "@/components/order-filters";
 import { SubNav } from "@/components/sub-nav";
 import { EmptyState } from "@/components/ui/empty-state";
 import { countOrdersForShops } from "@/lib/orders";
+import { countShipmentLabelsByStatus } from "@/lib/shipment-labels";
 import {
   isRefusedScope,
   orderScope,
@@ -24,8 +25,8 @@ export const metadata: Metadata = {
  * chacune leur propre contenu.
  *
  * Les compteurs affichés ici reprennent exactement les définitions des
- * sous-vues (préparation non confirmée / préparation confirmée / factures),
- * de sorte que l'utilisateur sache où aller avant de cliquer.
+ * sous-vues (préparation non confirmée / préparation confirmée / étiquettes
+ * disponibles), de sorte que l'utilisateur sache où aller avant de cliquer.
  */
 export default async function ATraiterPage({
   searchParams,
@@ -83,9 +84,10 @@ export default async function ATraiterPage({
 
   // Les compteurs sont calculés **en base**, avec les mêmes définitions que
   // les sous-vues : ils ne dépendent pas du nombre de lignes listées.
-  const [enAttenteCompteur, pretesCompteur] = await Promise.all([
+  const [enAttenteCompteur, pretesCompteur, compteursEtiquettes] = await Promise.all([
     countOrdersForShops(shopIds, { ...filtres, family: "en-attente" }),
     countOrdersForShops(shopIds, { ...filtres, family: "pretes-a-expedier" }),
+    countShipmentLabelsByStatus(shopIds),
   ]);
 
   const enAttente = enAttenteCompteur.orders;
@@ -115,11 +117,11 @@ export default async function ATraiterPage({
         "Préparation confirmée : tous les articles sont emballés, l'expédition reste à faire.",
     },
     {
-      href: "/commandes/a-traiter/factures",
-      label: "Factures à imprimer",
-      nombre: null,
+      href: "/commandes/a-traiter/etiquettes",
+      label: "Étiquettes à imprimer",
+      nombre: compteursEtiquettes.available,
       description:
-        "L'API Jumia Vendor Center utilisée ne fournit pas de factures : aucune facture n'est inventée ici.",
+        "Étiquettes d'expédition fournies par Jumia : prêtes à imprimer, en attente, ou refusées. Une étiquette n'est pas une facture.",
     },
   ];
 

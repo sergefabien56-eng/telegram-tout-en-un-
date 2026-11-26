@@ -70,7 +70,7 @@ describe("rubrique active", () => {
     expect(activeNavItem(items, "/commandes/a-traiter/pretes-a-expedier")?.key).toBe(
       "orders-action",
     );
-    expect(activeNavItem(items, "/commandes/a-traiter/factures")?.key).toBe("orders-action");
+    expect(activeNavItem(items, "/commandes/a-traiter/etiquettes")?.key).toBe("orders-action");
     expect(activeNavItem(items, "/commandes/expediees")?.key).toBe("orders-shipped");
     expect(activeNavItem(items, "/commandes/retours")?.key).toBe("orders-shipped");
     expect(activeNavItem(items, "/commandes/villes")?.key).toBe("orders-cities");

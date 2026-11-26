@@ -109,7 +109,40 @@ npm test          # Vitest (unitaires + intégration sur base réelle)
 npm run e2e       # Playwright (npx playwright install au préalable)
 ```
 
-État au 22/11/2026 : **245 tests réussis / 2 ignorés**, **58 E2E réussis**, typecheck, lint et build verts.
+Sur un poste **sans privilèges root** (CI, conteneur), Chromium manque de bibliothèques
+système. Elles s'installent **sans root** :
+
+```bash
+npm run e2e:deps  # extrait les .deb dans ~/.local/chromium-deps (rien n'est installé)
+```
+
+`playwright.config.ts` ajoute automatiquement ce chemin au `LD_LIBRARY_PATH` : `npm run e2e`
+fonctionne ensuite tel quel.
+
+État au 26/11/2026 : **373 tests réussis / 7 ignorés**, **79 E2E réussis**, typecheck, lint et build verts.
+
+Une **vérification globale** a été menée sur le build de production (application démarrée en
+`next start`, session réelle) : 46 pages et 62 routes API balayées, toutes répondent ; les
+redirections, l'isolation entre boutiques et les permissions par rôle sont contrôlées ; la
+connexion à l'API Jumia réelle est validée. Le détail des contrôles et des défauts corrigés
+figure dans `docs/etat-livraison.md` (§ « Vérification globale du 26/11/2026 »).
+
+### Synchronisation automatique
+
+L'API Vendor Center de Jumia n'expose **aucun webhook** : la seule façon de voir
+une nouvelle commande est de **relire** l'API. C'est fait automatiquement, sans
+que le vendeur clique quoi que ce soit :
+
+- **à l'écran** : les écrans Commandes et Tableau de bord vérifient toutes les
+  15 s si les données ont plus de 90 s ; une relecture part alors, et la page se
+  rafraîchit **seule** quand la nouvelle commande est arrivée ;
+- **en tâche planifiée** : `POST /api/cron/sync`, appelé toutes les 3 heures par
+  un cron GitHub Actions gratuit, garantit que les données sont à jour même
+  après une longue absence.
+
+La relecture rejoue 7 jours et suit les changements de statut des commandes plus
+anciennes. Elle **n'imprime aucune étiquette** (l'impression engage le vendeur
+auprès du transporteur) et ne modifie rien chez Jumia.
 
 Le périmètre multi-boutiques est couvert par un test d'intégration dédié
 (`src/lib/__tests__/dashboard-scope.integration.test.ts`) : une boutique inaccessible

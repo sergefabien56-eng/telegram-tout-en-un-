@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
+import { isUuid } from "@/lib/ids";
 import { audit } from "@/lib/audit";
 import { encryptText } from "@/lib/crypto";
 import {
@@ -85,6 +86,9 @@ export async function listJumiaAccounts(userId: string): Promise<PublicJumiaAcco
 
 /** Lecture interne d'un compte (existence + propriété). */
 async function findOwnedAccount(userId: string, accountId: string) {
+  // Un identifiant malformé ne désigne aucun compte : on le traite comme
+  // inexistant plutôt que de faire échouer la requête SQL.
+  if (!isUuid(accountId)) return null;
   const rows = await getDb()
     .select()
     .from(schema.jumiaAccounts)

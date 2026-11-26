@@ -149,7 +149,7 @@ test.describe.serial("accessibilité des pages connectées", () => {
       "/commandes/a-traiter",
       "/commandes/a-traiter/en-attente",
       "/commandes/a-traiter/pretes-a-expedier",
-      "/commandes/a-traiter/factures",
+      "/commandes/a-traiter/etiquettes",
       "/commandes/expediees",
       "/commandes/retours",
       "/commandes/villes",

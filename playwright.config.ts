@@ -1,4 +1,29 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * Bibliothèques système de Chromium, installées **sans root**.
+ *
+ * Le sandbox n'autorise pas l'installation de paquets système : les
+ * bibliothèques dont Chromium a besoin (`libnspr4`, `libnss3`, `libatk`…)
+ * sont donc extraites dans `~/.local/chromium-deps` par
+ * `scripts/install-chromium-deps.sh`. On les ajoute au chemin de recherche
+ * du chargeur pour que `npx playwright test` fonctionne tel quel.
+ *
+ * Si le dossier est absent, on ne fait rien : un environnement qui a les
+ * bibliothèques système n'en a pas besoin.
+ */
+const DEPS_DIR = join(process.env.HOME ?? "/root", ".local", "chromium-deps");
+const DEPS_LIBS = [
+  join(DEPS_DIR, "usr/lib/x86_64-linux-gnu"),
+  join(DEPS_DIR, "lib/x86_64-linux-gnu"),
+].filter((path) => existsSync(path));
+
+if (DEPS_LIBS.length > 0) {
+  const current = process.env.LD_LIBRARY_PATH ?? "";
+  process.env.LD_LIBRARY_PATH = [...DEPS_LIBS, current].filter(Boolean).join(":");
+}
 
 /**
  * Tests end-to-end (Phase 1+). Nécessite `npx playwright install`.

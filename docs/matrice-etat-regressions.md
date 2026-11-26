@@ -1,6 +1,6 @@
 # Matrice d'état, tests multi-support et régressions
 
-**Date :** 22 novembre 2026
+**Date :** 26 novembre 2026
 **Périmètre :** lot « refonte globale / modernisation / amélioration intelligente de Tout en Un ».
 **État :** réalisé et testé — **non publié** (en attente de validation du commanditaire).
 
@@ -205,13 +205,16 @@ Sauvegarde de la base au moment du déploiement : `backups/backup-2026-11-25-11-
 | Rubrique                    | Sous-vues                                                  | Adresse                                       | Permission    |
 | --------------------------- | ---------------------------------------------------------- | --------------------------------------------- | ------------- |
 | **A. Toutes les commandes** | Historique · Annulées                                      | `/commandes` · `/commandes/annulees`          | `orders:read` |
-| **B. À traiter**            | hub · En attente · Prêtes à expédier · Factures à imprimer | `/commandes/a-traiter` (+3)                   | `orders:read` |
+| **B. À traiter**            | hub · En attente · Prêtes à expédier · Étiquettes à imprimer | `/commandes/a-traiter` (+3)               | `orders:read` |
 | **C. Expédiées**            | Expédiées · Retours                                        | `/commandes/expediees` · `/commandes/retours` | `orders:read` |
 | **D. Villes & localités**   | —                                                          | `/commandes/villes`                           | `orders:read` |
 | hors menu                   | Clients · Exports de commandes                             | `/commandes/clients` · `/commandes/exports`   | `orders:read` |
 | détail                      | commande                                                   | `/commandes/[id]`                             | `orders:read` |
 
-`/commandes/factures` répond par une redirection permanente vers `/commandes/a-traiter/factures`.
+`/commandes/factures` et `/commandes/a-traiter/factures` répondent par une redirection
+permanente vers `/commandes/a-traiter/etiquettes` : la page a été **renommée**
+(« Factures à imprimer » → « Étiquettes à imprimer »), car l'API Vendor Center ne fournit pas
+de factures mais fournit les **étiquettes d'expédition** (`POST /orders/print-labels`).
 
 ### 7.2 Définitions des compteurs et des montants
 
@@ -263,6 +266,7 @@ Nouveaux fichiers de test :
 | Synchronisation réelle contre l'API Jumia | quota + secrets : le test automatisé simule la couche HTTP et vérifie les filtres, la pagination et l'absence de jeton |
 | Comportement au-delà de 5 pages           | dépend du quota réel du compte vendeur                                                                                 |
 | Factures                                  | l'API Vendor Center utilisée n'en fournit pas ; aucune n'est fabriquée                                                 |
+| Impression réelle d'une étiquette        | effet de bord réel chez Jumia (numéro de suivi attribué) : vérifié sur les **articles** (lecture seule), pas sur l'impression |
 | Rendu sur un téléphone Telegram réel      | l'anti-rebond du client n'est pas reproductible en test ; captures mobile fournies                                     |
 
 ### 7.6 Emplacements des preuves
@@ -303,7 +307,7 @@ Contrôle automatisé par `node scripts/verif-ventes.mjs` (nouveau script, dans 
 | B — À traiter                         | **5**               | 28 355 FCFA    | hub                                                                 |
 | B — En attente                        | **2**               | 14 618 FCFA    | 2 lignes                                                            |
 | B — Prêtes à expédier                 | **3**               | 13 737 FCFA    | 3 lignes                                                            |
-| B — Factures à imprimer               | —                   | —              | _API Vendor Center ne fournit pas de factures : rien n'est inventé_ |
+| B — Étiquettes à imprimer             | —                   | —              | _étiquettes fournies par Jumia : disponibles, en attente ou refusées_ |
 | C — Expédiées                         | **14**              | 68 371 FCFA    | 14 lignes                                                           |
 | C — Retours                           | **3**               | 20 747 FCFA    | 3 lignes                                                            |
 | D — Villes & localités                | 314 (hors annulées) | 1 548 526 FCFA | 79 localités agrégées                                               |
@@ -546,3 +550,106 @@ Les 28 captures de `docs/captures/` ont été régénérées avec le nouveau log
 | `npm run lint` | vert |
 | `npm test` | **335 réussis / 2 ignorés** |
 | `npx playwright test` (suite entière) | **76 réussis / 0 échec** — audits WCAG axe inclus |
+
+---
+
+## 12. Lot « Étiquettes à imprimer » — remplacement de « Factures à imprimer » (22/11/2026, revu le 26/11/2026)
+
+### 12.1 Ce qui a changé
+
+| Avant | Après |
+| --- | --- |
+| `/commandes/a-traiter/factures` — « Factures à imprimer » (page honnête, sans donnée) | `/commandes/a-traiter/etiquettes` — « Étiquettes à imprimer » (documents **réels** fournis par Jumia) |
+| Aucune étiquette | `POST /orders/print-labels` : PDF du colis, numéro de suivi, articles couverts |
+| Commande = seul niveau de détail | **article** (statut, suivi, colis) et **colis** deviennent des objets à part entière |
+| Aucune persistance binaire | tables `order_items` et `shipment_labels` (PDF en `bytea`, empreinte SHA-256) |
+
+Les deux anciennes adresses (`/commandes/factures`, `/commandes/a-traiter/factures`) répondent
+par une **redirection permanente** vers la nouvelle : rien n'est perdu, aucun lien ne casse.
+
+### 12.2 Les deux sections de la page
+
+| Section | Contenu | Origine |
+| --- | --- | --- |
+| **Prêtes à expédier** | étiquettes dont le PDF est disponible et téléchargeable | `shipment_labels.status = 'available'` |
+| **En attente** | documents pas encore arrivés **et** refus de Jumia (code + message exacts), distingués visuellement | `status = 'pending'` / `status = 'error'` |
+
+Le compteur de la section « En attente » indique la répartition : `0 document(s) pas encore
+disponible(s) · 1 refus(s) par Jumia`.
+
+### 12.3 Matrice de tests
+
+| Contrôle | Type | Résultat |
+| --- | --- | --- |
+| Clé de colis stable quel que soit l'ordre des articles | unitaire | **OK** |
+| Clé de colis distincte par boutique, commande et jeu d'articles | unitaire | **OK** |
+| La clé d'un article refusé ne peut pas entrer en collision avec celle d'un colis | unitaire | **OK** |
+| PDF accepté seulement si la signature `%PDF-` est présente | unitaire | **OK** |
+| Base64 invalide ou de longueur incorrecte refusé | unitaire | **OK** |
+| Empreinte SHA-256 calculée sur les **octets décodés** | unitaire | **OK** |
+| Montants locaux convertis en unités mineures (XOF sans décimale, NGN à deux) | unitaire | **OK** |
+| Succès `print-labels` : colis, pays, suivi, PDF, total | unitaire | **OK** |
+| Refus `print-labels` : code et message conservés **tels quels** | unitaire | **OK** |
+| Réponse **partielle** distinguable d'une réussite complète | unitaire | **OK** |
+| Colis sans PDF exploitable ignoré plutôt qu'inventé | unitaire | **OK** |
+| Enregistrement idempotent (2e impression du même colis → 1 ligne) | intégration (base réelle) | **OK** |
+| Trois états finaux coexistant, jamais fusionnés | intégration (base réelle) | **OK** |
+| Un article qui réussit après avoir échoué n'est plus listé en erreur | intégration (base réelle) | **OK** |
+| Étiquette d'une boutique hors périmètre jamais servie | intégration (base réelle) | **OK** |
+| Contrat `GET /orders/items` relu sur l'API réelle | manuel (`JUMIA_LIVE=1`) | **OK** — correspondance exacte |
+| Articles réellement synchronisés (2 boutiques, 320 commandes) | manuel (`JUMIA_LIVE=1`) | **337 articles**, 0 écarté |
+| Articles réellement imprimables | manuel (`JUMIA_LIVE=1`) | **0** — aucun à l'état `READY_TO_SHIP` |
+| Chaîne d'impression complète contre un serveur rejouant le contrat officiel | intégration | **OK** — 1 colis produit, 1 refus, 0 en attente ; PDF identique ; suivi reporté ; aucun doublon au second passage |
+| Rendu des deux sections + téléchargement du PDF | rejoué sur le serveur | **OK** |
+
+### 12.3 ter. Synchronisation automatique — la commande Jumia apparaît seule (26/11/2026)
+
+| Contrôle | Type | Résultat |
+| --- | --- | --- |
+| L'API Vendor Center n'expose aucun webhook | documentation officielle (`openapi.yaml`) | **0 occurrence** de `webhook` ; `/callback` = redirection OAuth |
+| Données périmées au-delà de 90 s | unitaire (base réelle) | **OK** |
+| Boutique jamais synchronisée → périmée | unitaire (base réelle) | **OK** |
+| Boutique synchronisée à l'instant → à jour | unitaire (base réelle) | **OK** |
+| Boutique non rattachée à Jumia → jamais périmée | unitaire (base réelle) | **OK** |
+| Synchronisation déjà en cours → aucun second lancement | unitaire (base réelle) | **OK** |
+| Tâche planifiée : ne liste que les boutiques rattachées, à un compte et périmées | unitaire (base réelle) | **OK** |
+| Déclenchement réel contre l'API Jumia | manuel | **OK** — relecture à 20:31, 10 articles relus, statut `ok` |
+| La page se rafraîchit **seule** quand la donnée change | E2E (navigateur) | **OK** — 3 observations, rafraîchissement détecté sans action |
+| Boutique inaccessible → jamais rafraîchie | E2E (navigateur) | **OK** — 404 |
+| Membre autorisé → état et déclenchement accessibles | E2E (navigateur) | **OK** — 200, aucun lancement sur une boutique non rattachée |
+| Contrôle de coût : rien à relire → aucun appel Jumia | unitaire | **OK** |
+
+**Limite assumée.** L'application **ne peut pas** recevoir l'évènement « une
+commande vient d'arriver » de Jumia : l'API ne le permet pas. Le pire délai
+avant affichage est donc d'environ **90 s + durée de la relecture** quand le
+vendeur garde l'écran ouvert, et d'au plus **3 heures** s'il revient après une
+longue absence (l'hébergeur endormant le service). C'est la limite de la
+plateforme, pas un raccourci de l'implémentation.
+
+### 12.3 bis. Vérification globale du 26/11/2026
+
+| Contrôle | Type | Résultat |
+| --- | --- | --- |
+| Inventaire des routes : 46 pages + 62 API = 111 routes au build | manuel | **OK** — réconciliation exacte |
+| Balayage HTTP des 46 pages (session réelle, build de production) | manuel | **46 / 46** répondent |
+| Balayage HTTP des 62 routes API | manuel | **62 / 62** répondent |
+| Page sans session → redirection ; API sans session → 401 | manuel | **OK** |
+| Boutique d'un autre propriétaire (lecture, génération) → 404 | manuel | **OK** |
+| Membre de rôle `stock` : `orders:write` → 403 | manuel | **OK** |
+| `/api/health` : base, secrets et migrations | manuel | **OK** — `migrations.ok = true` |
+| Base : contraintes, index uniques, orphelins, doublons | SQL | **0 orphelin**, **0 doublon**, unique **effectif** (`23505`) |
+| Migrations journal ↔ base | SQL | **19 / 19** |
+| Refresh tokens validés contre l'API Jumia réelle | manuel (`JUMIA_LIVE=1`) | **2 / 2 valides** |
+| Synchronisation de commandes sur l'API réelle | manuel (`JUMIA_LIVE=1`) | **ok** — 27 commandes lues |
+| Génération d'étiquettes sur boutique rattachée | manuel | **0 article éligible ⇒ 0 impression** déclenchée |
+| Téléchargement PDF : document original + SHA-256 ; tiers → 404 | manuel | **OK** |
+| Identifiant malformé (commande, boutique, compte, membre) | manuel | **404** — plus d'erreur 500 SQL |
+| Lecture live complète des articles | manuel (`JUMIA_LIVE=1`) | **14,8 s** (60 s avant la correction du `SELECT` par commande) |
+
+### 12.4 Ce qui n'a **pas** été fait, et pourquoi
+
+| Élément | Raison |
+| --- | --- |
+| Impression réelle d'une étiquette chez Jumia | effet de bord **externe** : un numéro de suivi est attribué au compte vendeur. Les **337 articles** synchronisés sont tous dans un état terminal (livré, expédié, annulé, échoué, retourné) : **0 article imprimable**, l'appel aurait été refusé. La chaîne complète est en revanche **prouvée** contre un serveur local rejouant le contrat officiel (`labels-print.e2e.test.ts`) |
+| Suite E2E rejouée | **fait** : `scripts/install-chromium-deps.sh` installe les bibliothèques Chromium **sans root** (`apt-get download` + extraction locale) ; la suite rejoue **76 réussis / 0 échec** |
+| Cron d'impression automatique | l'impression engage le vendeur auprès du transporteur : elle reste une **action explicite**, déclenchée depuis l'interface (permission `orders:write`) |

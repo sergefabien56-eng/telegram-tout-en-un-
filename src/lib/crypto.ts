@@ -58,6 +58,17 @@ export function sha256Hex(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Empreinte SHA-256 (hex) d'un contenu **binaire** — étiquettes PDF.
+ *
+ * L'empreinte prouve l'intégrité du document tel qu'il a été reçu : elle
+ * est calculée sur les octets décodés, pas sur la chaîne base64 (dont
+ * l'alphabet change la représentation sans changer le document).
+ */
+export function sha256HexOfBytes(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 /** Génère une valeur aléatoire opaque (URL-safe). */
 export function generateToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");

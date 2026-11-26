@@ -96,3 +96,146 @@ Le logo communiqué par le commanditaire remplace le placeholder « TU » dans t
 | Suite E2E complète (dont audits WCAG axe) | **76 réussis / 0 échec** |
 
 Détail : `docs/design-system.md` § 1.1 et `docs/matrice-etat-regressions.md` § 11.
+
+## Étiquettes d'expédition — « Factures à imprimer » devient « Étiquettes à imprimer » (22/11/2026, revu le 26/11/2026)
+
+La page **« Factures à imprimer »** était honnête mais vide : l'API Vendor Center ne fournit
+pas de factures. Or la même API fournit les **étiquettes d'expédition**
+(`POST /orders/print-labels`), documents réels, PDF à l'identique. La page est donc
+**renommée** et devient fonctionnelle.
+
+### Ce qui a été construit
+
+| Brique | Emplacement | Rôle |
+| --- | --- | --- |
+| Schéma | `src/db/schema.ts` (migration `0018`) | `order_items` (21 colonnes) et `shipment_labels` (17 colonnes, PDF en `bytea`) |
+| Client Jumia | `src/lib/jumia/order-items.ts` | `GET /orders/items` (plusieurs commandes par appel) et `POST /orders/print-labels` |
+| Persistance | `src/lib/order-items.ts` · `src/lib/shipment-labels.ts` | upsert idempotent des articles et des étiquettes, trois états finaux |
+| Job | `src/lib/labels-sync.ts` | relecture des articles, éligibilité, impression, enregistrement |
+| Routes | `POST /api/shops/:id/etiquettes/generer` · `GET /api/etiquettes/:id/pdf` | permission `orders:write` / `orders:read` + périmètre vérifié côté serveur |
+| Interface | `/commandes/a-traiter/etiquettes` | deux sections : **Prêtes à expédier** et **En attente** |
+
+### Vérifications réelles
+
+| Contrôle | Résultat |
+| --- | --- |
+| Contrat `GET /orders/items` relu sur l'API réelle | correspondance **exacte** des 17 champs (`trackingNumber`, `shipmentType`, `itemPriceLocal`, `country.code`, `product.sellerSku`…) |
+| Articles synchronisés depuis les 2 boutiques | **41 articles** (20 + 21), 0 écarté pour une autre boutique |
+| Articles imprimables (`READY_TO_SHIP` sans suivi) | **0** — aucun appel en écriture n'a donc été déclenché chez Jumia |
+| Rendu des deux sections (donnée réelle en base) | « Disponible » + `JG-00D-…` + bouton de téléchargement ; « Erreur Jumia » + code et message exacts |
+| Téléchargement du PDF | HTTP 200, `application/pdf`, `X-Content-SHA256`, octets identiques au document stocké |
+| Étiquette hors périmètre | **404** (aucune fuite entre boutiques) |
+| Redirections | `/commandes/factures` et `/commandes/a-traiter/factures` → **308** vers `/commandes/a-traiter/etiquettes` |
+
+### Règles appliquées
+
+1. Une étiquette n'est **disponible** qu'après décodage base64, vérification de la signature
+   `%PDF-`, empreinte SHA-256 et persistance réussie.
+2. Trois états **jamais fusionnés** : disponible, pas encore disponible, erreur Jumia. Chaque
+   transition remplace le précédent : un article ne peut pas être à la fois disponible et en
+   attente.
+3. Jumia ne renvoyant pas d'identifiant de colis, la clé d'idempotence est construite par nous
+   (SHA-256 de la boutique, de la commande et des articles **triés**) : relancer l'impression
+   ne crée jamais deux étiquettes pour le même colis.
+4. Une réponse **partielle** reste visible comme telle : les colis produits et les articles
+   refusés sont conservés séparément, avec le motif exact renvoyé par Jumia.
+
+### Tests
+
+| Suite | Commande | Résultat |
+| --- | --- | --- |
+| Unitaires (clés, décodage PDF, contrat `print-labels`) | `npx vitest run src/lib/__tests__/shipment-labels.test.ts src/lib/__tests__/print-labels.test.ts` | **15 réussis** |
+| Intégration (base réelle : idempotence, états, périmètre) | `npx vitest run src/lib/__tests__/shipment-labels.integration.test.ts` | **5 réussis** |
+| Contrat Jumia réel (lecture seule, opt-in `JUMIA_LIVE=1`) | `npx vitest run src/lib/__tests__/jumia-live.test.ts` | **2 réussis** |
+| Suite complète | `npm test` | **373 réussis / 7 ignorés** (55 fichiers passés, 3 ignorés) |
+| Chaîne d'impression complète (serveur Jumia simulé) | `npx vitest run src/lib/__tests__/labels-print.e2e.test.ts` | **2 réussis** |
+| End-to-end (suite entière) | `npx playwright test` | **79 réussis / 0 échec** |
+| Statique | `npm run typecheck` · `npm run lint` | verts |
+
+### Les deux points laissés ouverts — et leur résolution
+
+| Point laissé ouvert | Résolution |
+| --- | --- |
+| **Suite E2E non rejouable** (Chromium exige `libnspr4.so`, non installable sans root) | **Réglé.** `scripts/install-chromium-deps.sh` récupère les paquets avec `apt-get download` (aucun privilège), les extrait dans `~/.local/chromium-deps`, et `playwright.config.ts` ajoute ce chemin au `LD_LIBRARY_PATH`. La suite complète **rejoue : 76 réussis / 0 échec** |
+| **Impression réelle d'une étiquette** jamais déclenchée | **Diagnostic établi, pas un défaut.** La relecture complète des deux boutiques donne **337 articles**, dont **0 imprimable** : aucun n'est à l'état `READY_TO_SHIP`. Jumia refuse d'imprimer l'étiquette d'un colis déjà suivi ou dans un état terminal — l'appel aurait été refusé. La chaîne complète est en revanche **prouvée** de bout en bout par un serveur local rejouant le contrat officiel (voir ci-dessous) |
+
+### Preuve de la chaîne d'impression
+
+`src/lib/__tests__/labels-print.e2e.test.ts` fait tourner le **vrai** code de l'application
+(client HTTP, lecture des articles, éligibilité, décodage base64, validation `%PDF-`, empreinte
+SHA-256, persistance, relecture) contre un serveur local qui rejoue le contrat officiel de
+`POST /orders/print-labels` — réponse **201**, `success.labels[]` avec le PDF en base64,
+`error.orderItems[]` pour les refus.
+
+Résultat : **1 colis produit, 1 article refusé, 0 en attente** ; le PDF relu est identique à
+celui reçu ; le numéro de suivi est reporté sur l'article (qui n'est donc plus proposé à
+l'impression) ; relancer l'opération **ne crée aucun doublon**. Aucun appel n'est fait chez
+Jumia : aucun numéro de suivi n'est attribué sur un compte réel.
+
+Pour permissive qu'ait été l'API, l'éligibilité reste stricte : seuls les articles
+`READY_TO_SHIP` **sans** numéro de suivi sont proposés. Un compte dont tous les articles sont
+livrés, expédiés, annulés ou échoués n'a donc rien à imprimer — c'est un **fait de la
+donnée**, pas une limite du code.
+
+### Outillage ajouté
+
+| Outil | Rôle |
+| --- | --- |
+| `scripts/install-chromium-deps.sh` | installe les bibliothèques Chromium **sans root** (`npm run e2e:deps`) |
+| `playwright.config.ts` | rend ces bibliothèques visibles à Playwright, automatiquement |
+| `src/lib/__tests__/jumia-live.test.ts` | relecture du contrat `GET /orders/items` sur l'API réelle (opt-in `JUMIA_LIVE=1`) |
+| `src/lib/__tests__/jumia-printable-items.live.test.ts` | compte les articles réellement imprimables (opt-in `JUMIA_LIVE=1`) |
+| `src/lib/__tests__/labels-print.e2e.test.ts` | chaîne d'impression complète contre un serveur simulant Jumia |
+
+`JUMIA_API_BASE` est désormais lu **à l'appel** (`jumiaApiBase()`) et non figé à l'import :
+l'API peut être redirigée vers un serveur local sans redémarrer le processus.
+
+---
+
+## Vérification globale du 26/11/2026
+
+Contrôle de bout en bout sur le **build de production**, après avoir démarré l'application
+en `next start` (et non en développement) : routes, authentification, autorisations, API,
+base, tests, build et parcours E2E.
+
+### Ce qui a été contrôlé
+
+| Domaine | Contrôle | Résultat |
+| --- | --- | --- |
+| Inventaire des routes | 46 pages et 62 routes API relevées dans les fichiers ; 111 routes au build (pages + API + techniques) | **réconciliation exacte** |
+| Pages | balayage HTTP des 46 pages avec une session réelle | **46 / 46** répondent (200, 307 ou 308) |
+| API | balayage HTTP des 62 routes API (GET et POST) | **62 / 62** répondent ; les 405 sont des méthodes non prévues, pas des pannes |
+| Authentification | pages et API sans session | **307 vers `/login`** pour les pages, **401** pour les API |
+| Redirections | `/commandes/factures` et `/commandes/a-traiter/factures` | **308** vers `/commandes/a-traiter/etiquettes` |
+| Isolation | boutique d'un autre propriétaire (lecture, génération d'étiquettes) | **404** partout |
+| Permissions | membre de rôle `stock` : `orders:read` oui, `orders:write` non | **403** avec le motif exact, pas de fuite de données |
+| Santé | `/api/health` | `status: ok`, base et secrets détectés, migrations **ok** |
+| Base | contraintes, index uniques, orphelins, doublons | **0 orphelin**, **0 doublon**, index uniques **effectifs** (doublon rejeté : `23505`) |
+| Migrations | journal Drizzle ↔ base | **19 / 19** appliquées |
+| Connexion Jumia réelle | validation des refresh tokens + synchronisation de commandes | **2 comptes valides**, synchronisation **ok** (27 commandes lues) |
+| Génération d'étiquettes sur boutique réelle | `syncShopLabels` sur une boutique rattachée | **0 article éligible ⇒ 0 impression déclenchée**, 0 étiquette créée |
+| Téléchargement PDF | étiquette éphémère, propriétaire puis utilisateur tiers | **200** `application/pdf`, SHA-256 conforme, disposition correcte ; **404** pour un tiers |
+| Base après contrôle | nettoyage des données de test | **1 utilisateur, 2 boutiques, 320 commandes, 337 articles, 0 étiquette** |
+
+### Défauts trouvés et corrigés
+
+| Défaut | Gravité | Correction |
+| --- | --- | --- |
+| `/commandes/<identifiant non UUID>` renvoyait une **erreur 500** (erreur SQL `22P02` remontée à l'utilisateur) | réelle | `src/lib/ids.ts` : `isUuid()` ; la page et `getShopAccess()` traitent un identifiant malformé comme « introuvable » → **404** |
+| Identifiant de boutique, de compte Jumia ou de membre malformé : même chemin d'erreur SQL | réelle | même garde-fou appliqué dans `permissions.ts`, `jumia/accounts.ts` et `shops.ts` |
+| `upsertOrderItems` lisait les articles existants **une requête par commande** (320 requêtes pour une lecture complète) | performance | une seule requête large + filtrage du couple exact en mémoire : lecture live passée de **60 s à 14,8 s** |
+| Dates de statut figées au 22/11/2026 dans la documentation | documentaire | documentation remise à jour au 26/11/2026 |
+
+### Note sur le statut des migrations
+
+`/api/health` publie le résultat des migrations de démarrage. Un `null` observé en cours de
+manipulation venait du remplacement du dossier `.next` **sous un serveur déjà démarré** : le
+bundle d'instrumentation charges en mémoire ne correspondait plus au bundle servi. Sur un
+démarrage propre, `migrations.ok` vaut `true` et l'instrumentation journalise le résultat —
+comportement attendu, pas un défaut de l'application.
+
+### Résultat final
+
+Typecheck, lint et build verts ; **358 tests réussis / 7 ignorés** ; **76 tests E2E réussis /
+0 échec**. La connexion réelle à Jumia est opérationnelle, la chaîne d'impression est prouvée
+de bout en bout, et **aucune impression n'a été déclenchée sur un compte vendeur réel**.

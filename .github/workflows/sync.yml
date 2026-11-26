@@ -1,0 +1,62 @@
+name: Synchronisation automatique des commandes
+
+# Relecture périodique des boutiques rattachées à un compte vendeur Jumia.
+#
+# - toutes les 3 heures : appel de `POST /api/cron/sync` ;
+# - le serveur relit les commandes des boutiques dont les données sont
+#   périmées (fenêtre courte + suivi des changements de statut) ;
+# - la tâche ne fait **rien** si les données sont déjà à jour : elle ne
+#   consomme donc du quota Jumia que lorsqu'il y a quelque chose à relire.
+#
+# Pourquoi une tâche en plus du rafraîchissement à l'écran : l'hébergeur
+# gratuit endort le service quand personne ne consulte l'application. Cette
+# tâche garantit que les données sont déjà à jour quand le vendeur revient.
+#
+# L'API Vendor Center de Jumia n'expose aucun webhook : le polling est la
+# seule voie technique disponible.
+#
+# Prérequis : les secrets `APP_URL` et `CRON_SECRET`
+# (Settings → Secrets and Variables → Actions). Sans eux, le job se termine
+# proprement avec un message explicite.
+
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: synchronisation-automatique
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Relecture des boutiques rattachées
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::notice::APP_URL ou CRON_SECRET absent : relecture ignorée."
+            exit 0
+          fi
+          base="${APP_URL%/}"
+          echo "Relecture sur ${base}"
+          response="$(curl -sS -w '\n%{http_code}' -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "${base}/api/cron/sync")"
+          code="$(printf '%s' "${response}" | tail -n 1)"
+          body="$(printf '%s' "${response}" | sed '$d')"
+          echo "${body}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::La relecture automatique a échoué (HTTP ${code})."
+            exit 1
+          fi
+          echo "::notice::Relecture automatique terminée."

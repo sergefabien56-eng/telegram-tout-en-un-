@@ -34,3 +34,6 @@ uploads/
 
 # Sauvegardes de base (jamais commitées)
 backups/
+
+# Aperçu de démonstration (artefact généré, régénérable)
+docs/demo-apercu.html

@@ -127,6 +127,13 @@
       "when": 1795622391675,
       "tag": "0017_jumia_catalog_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795716405072,
+      "tag": "0018_shipping_labels",
+      "breakpoints": true
     }
   ]
 }

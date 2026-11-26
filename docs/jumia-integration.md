@@ -1,7 +1,7 @@
 # Intégration Jumia — TOUT EN UN BUSINESS MANAGER
 
 - **Version** : 0.1 (Phase 0 — cadrage)
-- **Date** : 22/11/2026
+- **Date** : 22/11/2026 (revu le 26/11/2026)
 - **Statut** : À valider. Les faits ci-dessous sont issus de la documentation officielle Jumia ; les points « à qualifier » sont explicites.
 
 ---
@@ -78,6 +78,55 @@ Jumia expose **deux** API distinctes. Il faut choisir (ou combiner) selon le pay
 
 > **Factures officielles** : si l'API fournit le document, on le telécharge, on calcule son **empreinte SHA-256**, on le stocke en l'état (jamais de modification de montants/dates/numéros). Si l'API ne le fournit pas → `storage_key = NULL` et mention **« Indisponible »**. Les documents produits par TOUT EN UN portent la mention **« Document interne — non officiel »**.
 
+### 2.4 bis Étiquettes d'expédition (document réel)
+
+> Une **étiquette d'expédition** n'est **pas** une facture. Ce sont deux
+> documents différents, fournis par deux endpoints différents. L'API Vendor
+> Center ne fournit pas les factures ; elle fournit les étiquettes.
+
+Contrat officiel de `POST /orders/print-labels` (spécification Vendor Center,
+relue le 22/11/2026) :
+
+| Élément                | Valeur                                                              |
+| ---------------------- | ------------------------------------------------------------------- |
+| Requête                | `{ "orderItemIds": ["<uuid>", …] }` — **200 identifiants maximum**    |
+| Réponse                | **HTTP 201**                                                        |
+| Succès                 | `success.labels[]` : `orderItemIds[]`, `countryCode`, `trackingNumber`, `label` (PDF **base64**) ; `success.total` |
+| Échec partiel          | `error.orderItems[]` : `id`, `response.code`, `response.message` ; `error.total` |
+
+La réponse est **partielle** possible : des colis produits **et** des articles
+refusés dans le même appel. Les deux branches sont conservées séparément —
+une réussite partielle n'est jamais présentée comme une réussite complète.
+
+Validations documentées par Jumia pour un appel accepté : les articles doivent
+être `READY_TO_SHIP`, **sans** numéro de suivi, du même pays, du même
+transporteur et du même mode d'expédition.
+
+**Règles appliquées par TOUT EN UN** (`src/lib/shipment-labels.ts`,
+`src/lib/labels-sync.ts`) :
+
+1. **Éligibilité** : seuls les articles `READY_TO_SHIP` **sans** numéro de
+   suivi sont proposés (Jumia refuse un colis déjà suivi).
+2. **Idempotence** : l'API ne renvoie **pas** d'identifiant de colis. La clé
+   durable est donc construite par nous : SHA-256 de la boutique, de la
+   commande et de la liste **triée** des articles couverts
+   (`packageKey`). Relancer l'impression ne crée jamais deux étiquettes pour
+   le même colis.
+3. **Document conforme** : une étiquette n'est enregistrée comme
+   *disponible* qu'après décodage base64, vérification de la signature
+   `%PDF-` et calcul de son empreinte **SHA-256** (calculée sur les octets
+   décodés, pas sur la chaîne base64).
+4. **Trois états finaux, jamais fusionnés** : `available` (disponible),
+   `pending` (pas encore disponible) et `error` (erreur Jumia, avec le code
+   et le message exacts). Chaque transition remplace l'état précédent : un
+   article ne peut pas être à la fois « disponible » et « en attente ».
+5. **PDF stocké tel quel** : les octets reçus ne sont **pas** modifiés. Le
+   téléchargement (`GET /api/etiquettes/:id/pdf`) renvoie le document
+   d'origine avec son empreinte dans l'en-tête `X-Content-SHA256`.
+
+Module : `src/lib/jumia/order-items.ts` (client) ·
+`src/lib/labels-sync.ts` (job) · Route : `POST /api/shops/:id/etiquettes/generer`.
+
 ### 2.5 Finance
 
 | Besoin               | Endpoint                                           | Notes                                                          |
@@ -117,6 +166,49 @@ lancer une synchronisation à la main pour voir ses données — l'écran
 (bouton « Tout synchroniser »).
 
 Module : `src/lib/full-sync.ts` · Route : `POST /api/shops/:id/sync`.
+
+### 3.1 bis. Synchronisation automatique — la nouvelle commande apparaît seule
+
+**Pourquoi c'est nécessaire.** L'API Vendor Center n'expose **aucun webhook** : la
+spec OpenAPI officielle (`vendorcenter.jumia.com/api-docs/openapi.yaml`) ne contient
+**zéro occurrence** de `webhook`, et le seul point de rappel (`/callback`) est la
+redirection OAuth du code d'autorisation. Les webhooks documentés par Jumia
+(`onOrderCreated`, `onOrderItemsStatusChanged`…) appartiennent à l'**API Seller
+Center**, une autre API, avec une autre authentification et un périmètre par
+vendeur — pas à l'API Vendor Center utilisée ici.
+
+La seule voie technique est donc le **polling** : relire périodiquement l'API.
+C'est ce que fait tout ERP connecté à une marketplace.
+
+**Deux mécanismes complémentaires.**
+
+| Mécanisme | Quand | Rôle |
+| --- | --- | --- |
+| **Rafraîchissement à l'écran** | le vendeur consulte les Commandes ou le tableau de bord | le navigateur interroge l'état de fraîcheur toutes les 15 s ; si les données ont plus de **90 s**, une relecture part ; quand elle produit du nouveau, la page se rafraîchit **seule** |
+| **Tâche planifiée** | toutes les **3 heures** (`POST /api/cron/sync`, cron GitHub Actions gratuit) | garantit que les données sont à jour **quand le vendeur arrive**, même après une longue période d'inactivité pendant laquelle l'hébergeur gratuit a endormi le service |
+
+**La relecture elle-même.** Fenêtre courte de **7 jours** et `followUpdates` :
+la relecture des commandes **plus anciennes** dont le statut a changé
+(`updatedAfter`) est indispensable — un colis qui passe « expédié » trois jours
+après sa création doit être vu.
+
+**Ce que la relecture automatique ne fait pas.** Elle n'imprime **aucune
+étiquette** : l'impression engage le vendeur auprès du transporteur, elle reste
+une action explicite (`orders:write`). Elle ne modifie **rien** chez Jumia : c'est
+une lecture seule du côté de la marketplace.
+
+**Garde-fous.**
+
+| Garde-fou | Effet |
+| --- | --- |
+| Périmé au-delà de 90 s | pas de lecture inutile |
+| Verrou `shops.sync_in_progress` | une seule relecture à la fois par boutique ; deux onglets ouverts ne doublent pas les appels |
+| Boutique non rattachée à Jumia | jamais périmée, aucun appel |
+| Permission `orders:read` | un membre qui peut lire les commandes bénéficie de la fraîcheur |
+| Client HTTP existant | 4 req/s, 200 req/min, back-off exponentiel, respect de `Retry-After` |
+
+Modules : `src/lib/auto-sync.ts` · Route : `GET|POST /api/shops/:id/auto-sync` ·
+Tâche planifiée : `POST /api/cron/sync` · Composant : `src/components/auto-sync.tsx`.
 
 ### 3.2 Garde-fou « une boutique, une donnée »
 
@@ -248,7 +340,12 @@ Les libellés exacts varient selon l'API ; ils sont normalisés avant classifica
    (une commande livrée ou expédiée n'est pas nécessairement encaissée). Les devises multiples ne
    sont pas additionnées : l'interface affiche « — » et l'explique.
 5. **Les factures ne sont pas inventées** : l'API Vendor Center utilisée ne fournit pas de
-   factures ; la page « Factures à imprimer » est honnête et renvoie vers le Vendor Center.
+   factures. La page a donc été **renommée** en « Étiquettes à imprimer » : elle porte les
+   **étiquettes d'expédition**, que l'API fournit réellement (`POST /orders/print-labels`).
+   Les deux documents ne sont jamais confondus.
+6. **Une étiquette n'est « disponible » que si le PDF est authentique** : décodage base64,
+   signature `%PDF-`, empreinte SHA-256 et persistance réussie. Tout le reste est « pas encore
+   disponible » ou « erreur Jumia », avec le motif exact renvoyé par Jumia.
 
 ### 5.4 Ce que l'API permet — et ne permet pas
 
@@ -256,7 +353,9 @@ Les libellés exacts varient selon l'API ; ils sont normalisés avant classifica
 | -------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Suivre les changements de statut d'une commande ancienne | `updatedAfter` / `updatedBefore` sur `GET /orders` [2] | la case « Relire aussi les commandes plus anciennes dont le statut a changé » est proposée par défaut ; sans elle, un changement postérieur à la création passerait inaperçu |
 | Filtrer par statut côté API                              | `status` sur `GET /orders` [2]                         | utilisé pour les lectures ciblées ; le filtrage fin se fait aussi **en base**, pour garantir que les compteurs et les listes décrivent le même ensemble                      |
-| Créer / lire une facture                                 | non couvert par l'API utilisée                         | page honnête, aucune donnée fabriquée                                                                                                                                        |
+| Créer / lire une facture                                 | non couvert par l'API utilisée                         | aucune donnée fabriquée ; l'API ne fournit pas de factures                                                                                                              |
+| Imprimer une étiquette d'expédition                    | `POST /orders/print-labels` (200 articles max, HTTP 201) | PDF stocké tel quel avec son empreinte SHA-256 ; trois états distincts : disponible, pas encore disponible, erreur Jumia                                                   |
+| Suivre un article au niveau colis                       | `GET /orders/items` (statut et suivi par article)     | l'expédition se joue article par article ; le détail de commande montre articles, colis et étiquettes                                                                     |
 | Connaître le motif d'un retour                           | non exposé par l'API de lecture                        | le motif est affiché **s'il figure dans la charge utile brute**, sinon il n'est pas deviné                                                                                   |
 
 ---

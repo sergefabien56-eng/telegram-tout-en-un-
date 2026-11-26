@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { JUMIA_TOKEN_URL } from "@/lib/jumia/client";
+import { jumiaApiBase } from "@/lib/jumia/client";
 
 /**
  * Pagination et filtres de `GET /orders`.
@@ -156,7 +156,7 @@ describe("GET /orders — filtres et pagination", () => {
     });
 
     // URL réellement construite, comme le fait la couche HTTP.
-    const url = new URL(`${JUMIA_TOKEN_URL}/orders`);
+    const url = new URL(`${jumiaApiBase()}/orders`);
     for (const [key, value] of Object.entries(requests[0]?.params ?? {})) {
       if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
     }

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -12,6 +13,22 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+/**
+ * Type PostgreSQL `bytea` (binaire).
+ *
+ * Drizzle ne fournit pas de type `bytea` : on le déclare ici. Il sert aux
+ * **étiquettes d'expédition** (PDF renvoyé par Jumia), stockées en base
+ * tant qu'aucun stockage objet n'est configuré — voir `docs/database.md`.
+ *
+ * `Buffer` est le format natif du pilote `pg` : aucune conversion n'est
+ * nécessaire à la lecture ni à l'écriture.
+ */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 /**
  * Schéma Phase 1 — voir docs/database.md.
@@ -430,6 +447,134 @@ export const orders = pgTable(
   (t) => [
     uniqueIndex("orders_shop_external_idx").on(t.shopId, t.externalOrderId),
     index("orders_shop_created_idx").on(t.shopId, t.remoteCreatedAt),
+  ],
+);
+
+/**
+ * ARTICLES DE COMMANDE — ce que Jumia appelle « order items ».
+ *
+ * La commande (`orders`) ne décrit que le niveau « commande ». L'expédition,
+ * elle, se joue **article par article** : chaque article a son propre statut,
+ * son propre numéro de suivi et son propre type d'expédition. C'est
+ * `GET /orders/items` qui les donne — et c'est cette table qui les conserve.
+ *
+ * Sans elle, impossible de savoir quel article est prêt à expédier, quel
+ * colis il forme, ni quel numéro de suivi lui est rattaché.
+ */
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Commande parente (clé étrangère locale). */
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    /** Identifiant de l'article chez Jumia (celui attendu par `print-labels`). */
+    externalItemId: text("external_item_id").notNull(),
+    /** Statut de l'article chez Jumia (PENDING, READY_TO_SHIP, SHIPPED…). */
+    status: text("status").notNull(),
+    /** Numéro de suivi du colis, une fois l'article expédié par le transporteur. */
+    trackingNumber: text("tracking_number"),
+    /** URL de suivi fournie par Jumia. */
+    trackingUrl: text("tracking_url"),
+    /** Type d'expédition (Own Warehouse, Dropshipping, Cross docking). */
+    shipmentType: text("shipment_type"),
+    /** Mode de livraison de la commande. */
+    deliveryOption: text("delivery_option"),
+    /** Jumia assure-t-elle elle-même l'expédition de cet article ? */
+    isFulfilledByJumia: boolean("is_fulfilled_by_jumia").notNull().default(false),
+    /** Nom du produit vendu. */
+    productName: text("product_name"),
+    /** SKU vendeur : c'est la clé qui relie l'article au catalogue local. */
+    sellerSku: text("seller_sku"),
+    /** URL de l'image principale du produit. */
+    productImageUrl: text("product_image_url"),
+    /** Pays de destination de la commande. */
+    countryCode: text("country_code"),
+    /** Devise des montants locaux de l'article. */
+    currency: text("currency").notNull().default("XOF"),
+    /** Prix unitaire local, en unités mineures (R3 : jamais de flottant). */
+    itemPriceMinor: integer("item_price_minor"),
+    /** Prix payé local, en unités mineures. */
+    paidPriceMinor: integer("paid_price_minor"),
+    /** Frais de port local, en unités mineures. */
+    shippingAmountMinor: integer("shipping_amount_minor"),
+    /** Date de passage de l'article au statut expédié. */
+    shippedDate: timestamp("shipped_date", { withTimezone: true }),
+    /** Réponse d'origine, pour retraiter sans perte. */
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("order_items_order_external_idx").on(t.orderId, t.externalItemId),
+    index("order_items_shop_status_idx").on(t.shopId, t.status),
+    index("order_items_order_idx").on(t.orderId),
+  ],
+);
+
+/**
+ * ÉTIQUETTES D'EXPÉDITION — documents PDF produits par `print-labels`.
+ *
+ * Une étiquette est un **document** : on la stocke avec son empreinte
+ * SHA-256, son PDF intact et l'identifiant du colis qu'elle désigne.
+ *
+ * `package_key` est la **clé d'idempotence** : elle dérive de la boutique,
+ * de la commande et des articles couverts. Relancer la génération pour la
+ * même commande ne crée donc jamais deux étiquettes pour le même colis.
+ *
+ * `status` distingue trois états finaux, jamais fusionnés :
+ * - `available` : le PDF est disponible et téléchargeable ;
+ * - `pending`  : la demande est partie, le PDF n'est pas encore arrivé ;
+ * - `error`    : Jumia a refusé (le motif est conservé dans `error_message`).
+ */
+export const shipmentLabels = pgTable(
+  "shipment_labels",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Commande concernée. */
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    /**
+     * Clé d'idempotence du colis : SHA-256 de la boutique, de la commande et
+     * de la liste triée des articles couverts.
+     */
+    packageKey: text("package_key").notNull(),
+    /** Identifiants des articles (Jumia) que l'étiquette couvre. */
+    orderItemIds: jsonb("order_item_ids").$type<string[]>().notNull(),
+    /** Numéro de suivi du colis, tel que renvoyé par Jumia. */
+    trackingNumber: text("tracking_number"),
+    /** Pays ISO du colis. */
+    countryCode: text("country_code"),
+    /** Statut du document : `available` | `pending` | `error`. */
+    status: text("status").notNull().default("pending"),
+    /** Code d'erreur Jumia (champ `error.orderItems[].response.code`). */
+    errorCode: text("error_code"),
+    /** Message d'erreur Jumia, conservé tel quel. */
+    errorMessage: text("error_message"),
+    /** PDF de l'étiquette (binaire, intact). */
+    pdf: bytea("pdf"),
+    /** Empreinte SHA-256 du PDF : prouve l'intégrité du document stocké. */
+    pdfSha256: text("pdf_sha256"),
+    /** Taille du PDF en octets. */
+    pdfSize: integer("pdf_size"),
+    /** Nombre d'articles couverts par l'étiquette. */
+    itemCount: integer("item_count").notNull().default(1),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Date de disponibilité effective du PDF. */
+    availableAt: timestamp("available_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("shipment_labels_package_key_idx").on(t.shopId, t.packageKey),
+    index("shipment_labels_order_idx").on(t.orderId),
+    index("shipment_labels_shop_status_idx").on(t.shopId, t.status),
   ],
 );
 

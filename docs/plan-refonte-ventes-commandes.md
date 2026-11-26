@@ -23,7 +23,7 @@
 | Ne pas marquer une sync partielle comme réussie                              | `truncated: true` → `lastSyncStatus = "ok"`                                                                                    | **défaut à corriger**                            |
 | En attente = préparation non confirmée                                       | Groupe `action` = `created, pending, processing, new` (mélange préparation **et** expédition)                                  | à séparer                                        |
 | Prêtes à expédier = préparation confirmée                                    | **Absent**                                                                                                                     | à créer                                          |
-| Factures à imprimer (uniquement les réelles)                                 | Page « Factures originales » : l'API ne fournit rien, page honnête                                                             | à reloger sous « À traiter »                     |
+| Étiquettes à imprimer (documents réels fournis par Jumia)                    | Page « Factures originales » : l'API ne fournit pas de factures, mais fournit les **étiquettes** (`POST /orders/print-labels`) | fait : `/commandes/a-traiter/etiquettes`         |
 | Expédiées = expédition réellement confirmée                                  | Groupe `shipped` = `shipped, pickedup`                                                                                         | conserver, préciser                              |
 | Retours tous ensemble, motif dans le détail                                  | Groupe `returned` = `returned, refunded, returnrequested, rma`                                                                 | compléter (motif dans le détail)                 |
 | Villes & localités (agrégats)                                                | **Absent**                                                                                                                     | à créer                                          |
@@ -102,7 +102,7 @@ Une donnée est signalée **incomplète** si :
 | **À traiter** `/commandes/a-traiter`          | `/commandes/a-traiter` — **hub**                                                              | Devient un point d'entrée vers 3 sous-vues à contenu propre                                                                                                                                                                                                                                |
 | _(nouveau)_                                   | `/commandes/a-traiter/en-attente`                                                             | Préparation non confirmée                                                                                                                                                                                                                                                                  |
 | _(nouveau)_                                   | `/commandes/a-traiter/pretes-a-expedier`                                                      | Préparation confirmée                                                                                                                                                                                                                                                                      |
-| **Factures originales** `/commandes/factures` | `/commandes/a-traiter/factures`                                                               | Page conservée (contenu honnête : l'API ne fournit pas de factures), **redirection permanente** depuis l'ancienne adresse                                                                                                                                                                  |
+| **Factures originales** `/commandes/factures` | `/commandes/a-traiter/etiquettes`                                                               | Page **renommée** en « Étiquettes à imprimer » (l'API ne fournit pas de factures mais fournit les étiquettes), **redirection permanente** depuis les deux anciennes adresses                                                                                                                                    |
 | **Expédiées** `/commandes/expediees`          | `/commandes/expediees` — sous-vue **Expédiées**                                               | Page conservée, contenu recentré sur l'expédition confirmée                                                                                                                                                                                                                                |
 | **Retours** `/commandes/retours`              | `/commandes/retours` — sous-vue de « Expédiées »                                              | Page conservée (tous retours, motif dans le détail) ; becomes l'onglet « Retours » d'« Expédiées »                                                                                                                                                                                         |
 | _(nouveau)_                                   | `/commandes/villes` — rubrique **Villes & localités**                                         | Page créée (agrégats, effectifs, échantillons)                                                                                                                                                                                                                                             |
@@ -128,7 +128,7 @@ Une donnée est signalée **incomplète** si :
 Sous-vues, atteintes par un **fil de sous-rubriques** propre à chaque page (et non par des ancres) :
 
 - A → Historique (`/commandes`) · Annulées (`/commandes/annulees`)
-- B → En attente · Prêtes à expédier · Factures à imprimer
+- B → En attente · Prêtes à expédier · Étiquettes à imprimer
 - C → Expédiées · Retours
 - D → (page unique, avec filtre boutique et période)
 
@@ -199,6 +199,7 @@ La Mini App consomme `navigation.config.ts` : la section B y affiche automatique
 | Synchronisation réelle contre l'API Jumia                 | quota + secrets ; le test automatisé simule la couche HTTP                         | à refaire après déploiement, sur les deux boutiques réelles |
 | Comportement du quota Jumia au-delà de 5 pages            | dépend du quota réel du compte                                                     | à observer en production                                    |
 | Lecture des factures                                      | l'API Vendor Center utilisée n'en fournit pas                                      | sans objet — aucune facture n'est fabriquée                 |
+| Impression des étiquettes d'expédition                     | `POST /orders/print-labels` (200 articles max, HTTP 201)                           | fait — PDF stocké tel quel, trois états distincts             |
 | Rendu exact sur un téléphone Telegram réel                | l'anti-rebond du client Telegram n'est pas reproductible en test                   | captures mobile (390 × 844) fournies                        |
 | `docs/captures` sur l'espace de nom `Ventes et commandes` | ~~le logo du bandeau se chevauche~~ — **corrigé** : logo officiel vectoriel et libellé unique (voir `design-system.md` § 1.1) | captures régénérées le 25/11/2026                          |
 
@@ -211,13 +212,13 @@ La Mini App consomme `navigation.config.ts` : la section B y affiche automatique
 | Rubrique                    | Sous-vues                                                  | Adresse                                                                     |
 | --------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
 | **A. Toutes les commandes** | Historique · Annulées                                      | `/commandes`, `/commandes/annulees`                                         |
-| **B. À traiter**            | hub · En attente · Prêtes à expédier · Factures à imprimer | `/commandes/a-traiter`, `…/en-attente`, `…/pretes-a-expedier`, `…/factures` |
+| **B. À traiter**            | hub · En attente · Prêtes à expédier · Étiquettes à imprimer | `/commandes/a-traiter`, `…/en-attente`, `…/pretes-a-expedier`, `…/etiquettes` |
 | **C. Expédiées**            | Expédiées · Retours                                        | `/commandes/expediees`, `/commandes/retours`                                |
 | **D. Villes & localités**   | —                                                          | `/commandes/villes`                                                         |
 | _(hors menu principal)_     | Clients · Exports de commandes                             | `/commandes/clients`, `/commandes/exports`                                  |
 | _(détail)_                  | commande                                                   | `/commandes/[id]`                                                           |
 
-L'ancienne adresse `/commandes/factures` répond par une **redirection permanente** vers `/commandes/a-traiter/factures` : rien n'est perdu.
+Les anciennes adresses `/commandes/factures` et `/commandes/a-traiter/factures` répondent par une **redirection permanente** vers `/commandes/a-traiter/etiquettes` : rien n'est perdu.
 
 ### 9.2 Fichiers créés
 
