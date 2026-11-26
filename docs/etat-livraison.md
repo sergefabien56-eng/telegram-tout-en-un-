@@ -275,3 +275,70 @@ lui-même répond `This repository moved. Please use the new location:
 git@github.com:sergfabien56-eng/telegram-tout-en-un-.git` — c'est bien le dépôt d'origine. Si un
 push futur échoue avec `Repository not found`, utiliser la variante capitalisée du nom de
 propriétaire.
+
+## Défaut corrigé : une commande « en attente » qui n'existait pas
+
+**Signalement.** « Sur MaxiShops j'ai une commande en attente alors réellement je n'ai rien. »
+
+### Ce que l'application affichait
+
+Une seule commande, sur **MaxiShopsCI** : la commande `325542321` (créée le 06/11/2026),
+2 articles, `packedItems = 1` sur 2, statut agrégé **« Multiple Status »**. Elle comptait
+dans l'onglet « En attente » de « À traiter ».
+
+### Ce que Jumia dit réellement
+
+Trois lectures directes de l'API Vendor Center, sans interprétation :
+
+| Lecture | Résultat |
+| --- | --- |
+| `GET /orders` (90 jours) | commande `325542321` présente, `status: "Multiple Status"`, `totalItems: 2`, `packedItems: 1`, `updatedAt: 2026-11-10T19:08:09Z` |
+| `GET /orders/items` (articles) | article 1 `CANCELED` (`statusDetail: "Duplicated order"`), article 2 `DELIVERED` (suivi `DS-AAC-325542321-9031`, expédié le 07/11) |
+| Base de l'application | **identique** : 1 article `CANCELED`, 1 article `DELIVERED` |
+
+La donnée de l'application était donc **juste**. Ce n'était pas une synchronisation
+manquante ni un statut périmé : la commande n'avait simplement **plus rien à préparer**
+depuis le 07/11.
+
+### Cause
+
+La famille d'une commande était décidée à partir du **statut agrégé** et du compteur
+`packedItems`. Pour une commande « Multiple Status », ce compteur compte les articles
+emballés — y compris celui qui avait été annulé, et celui qui était déjà livré. Le
+compteur indiquait « 1 sur 2 → préparation incomplète », et la commande partait donc
+dans « En attente ».
+
+Le statut global de Jumia ne dit rien de ce qu'il reste à faire. **Seuls les statuts
+d'articles le disent** — et l'application les stocke déjà.
+
+### Correctif
+
+La famille d'une commande à statut agrégé inconnu est désormais décidée **article par
+article** :
+
+- au moins un article encore à préparer → « en attente » ;
+- tous les articles restants `READY_TO_SHIP` → « prête à expédier » ;
+- plus aucun article à préparer → la commande **sort de « À traiter »** et rejoint
+  l'historique, classée d'après l'article le plus avancé (livrée, expédiée, échec de
+  livraison, retour, annulée) ;
+- sans information sur les articles → prudence : « en attente » (comportement inchangé).
+
+La classification est écrite **une seule fois**, en SQL (`orderFamilySql()`), et le code
+JS (`orderFamily()`) en est le miroir : les compteurs affichés et les listes ne peuvent
+donc pas diverger. Un test d'intégration compare les deux sur la base réelle.
+
+### Preuves
+
+| Contrôle | Avant | Après |
+| --- | --- | --- |
+| MaxiShopsCI — « En attente » | **1** | **0** |
+| MaxiShopsCI — « Livrées » | 127 | **128** (la commande `325542321` y rejoint) |
+| NKSF SHOP — « En attente » / « Prêtes à expédier » | 0 / 0 | 0 / 0 |
+| Commande `325542321` | classée « en attente » | classée **« livrées »** |
+| Page « À traiter » (application locale, session réelle) | « En attente : 1 » | **« En attente : 0 »** |
+
+Tests ajoutés : `order-status.test.ts` (19 tests, dont les 6 cas de la nouvelle règle),
+`orders-workspace.integration.test.ts` (fixture multi-statuts réelle, régression
+« ne présente pas en « à traiter » une commande dont tous les articles sont clos »).
+Suite complète : **380 tests réussis / 7 ignorés** ; **79 tests E2E réussis / 0 échec** ;
+typecheck, lint et build verts.

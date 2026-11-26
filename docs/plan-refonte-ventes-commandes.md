@@ -46,7 +46,9 @@ Mesure sur la base réelle (316 commandes, 2 boutiques) :
 | `PENDING`         | 1      | 0/1                            | **préparation non confirmée**                             |
 | `Multiple Status` | 1      | 1/2                            | **préparation partielle** (articles à statuts différents) |
 
-Le champ Jumia `packedItems` est le signal fiable de préparation ; `hasMultipleStatus` signale les commandes dont les articles n'ont pas le même statut.
+Le champ Jumia `packedItems` est le signal fiable de préparation **pour une commande dont le statut est un statut connu** ; `hasMultipleStatus` signale les commandes dont les articles n'ont pas le même statut.
+
+> **Exception — commande à statuts multiples.** Pour une commande `Multiple Status`, le statut global ne dit rien de ce qu'il reste à faire, et `packedItems` compte les articles emballés **y compris ceux qui ont ensuite été annulés ou livrés** : il ne peut pas servir à décider. La décision revient alors aux **statuts d'articles**, qui sont le seul niveau qui dise ce qui est encore dû (voir § 3.1).
 
 ---
 
@@ -58,7 +60,7 @@ Le champ Jumia `packedItems` est le signal fiable de préparation ; `hasMultiple
 
 | Famille                | Définition                                              | Statuts retenus                                                                       |
 | ---------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **En attente**         | préparation **non** confirmée                           | `PENDING`, `CREATED`, `NEW`, `PROCESSING`, et `Multiple Status` dont `packed < total` |
+| **En attente**         | préparation **non** confirmée                           | `PENDING`, `CREATED`, `NEW`, `PROCESSING`, et `Multiple Status` dont **au moins un article reste à préparer** |
 | **Prêtes à expédier**  | préparation **confirmée**, expédition **non** effectuée | `READY_TO_SHIP`, ou statut d'attente avec `packed ≥ total > 0`                        |
 | **Expédiées**          | expédition réellement confirmée                         | `SHIPPED`, `PICKED_UP`                                                                |
 | **Livrées**            | transaction terminée                                    | `DELIVERED` (restent dans l'historique)                                               |
@@ -66,7 +68,15 @@ Le champ Jumia `packedItems` est le signal fiable de préparation ; `hasMultiple
 | **Échec de livraison** | livraison échouée                                       | `FAILED` (distinct des annulées)                                                      |
 | **Retours**            | tous les retours, **quel que soit le motif**            | `RETURNED`, `REFUNDED`, `RETURN_REQUESTED`, `RMA`, `RETURN_WAITING_FOR_APPROVAL`      |
 
-Règle de prudence : **une commande à statuts multiples n'est jamais comptée comme « prête à expédier »**. Elle est comptée « en attente » avec la mention « préparation partielle (x/y) ».
+Règle de prudence : **une commande à statuts multiples n'est jamais comptée comme « prête à expédier »** sur la seule foi de son statut global. Elle est décidée **article par article** :
+
+- au moins un article encore à préparer (`PENDING`, `CREATED`, `NEW`, `PROCESSING`) → **« en attente »**, avec la mention « préparation partielle (x/y) » ;
+- tous les articles restants `READY_TO_SHIP` → **« prête à expédier »** ;
+- **plus aucun article à préparer** (tous annulés, livrés, expédiés, en échec ou retournés) → la commande **sort de « À traiter »** et rejoint l'historique, classée d'après l'article le plus avancé (livrée, expédiée, échec de livraison, retour, annulée).
+
+Sans information sur les articles (aucun article synchronisé), la prudence s'applique : la commande reste « en attente ».
+
+Cas réel (MaxiShopsCI, commande 325542321 du 06/11/2026) : un article annulé par Jumia (« Duplicated order ») et un article livré le 07/11. La commande n'avait **rien** à préparer et n'aurait jamais dû apparaître dans « À traiter ».
 
 ### 3.2 Compteurs
 

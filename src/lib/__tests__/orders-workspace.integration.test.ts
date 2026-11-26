@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getDb, schema } from "@/db";
+import { listItemStatusesByOrder } from "@/lib/order-items";
 import { hashPassword } from "@/lib/password";
 import {
   countOrdersForShops,
@@ -83,6 +84,23 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
       totalItems: 1,
       packedItems: 0,
     },
+    // Cas réel (MaxiShopsCI, commande 325542321) : statut agrégé « Multiple
+    // Status », 2 articles dont un seul emballé. Les statuts d'articles
+    // disent qu'un article a été annulé et l'autre livré : il ne reste rien
+    // à préparer, la commande ne doit donc **pas** apparaître dans
+    // « À traiter ».
+    {
+      ...base,
+      id: "aaaaaaaa-1111-4111-8111-aaaaaaaa0005",
+      number: `T5-${suffix}`,
+      status: "Multiple Status",
+      hasMultipleStatus: true,
+      totalAmount: { currency: "XOF", value: 50000 },
+      totalAmountLocal: { currency: "XOF", value: 50000 },
+      shippingAddress: { firstName: "I", lastName: "J", city: "Abidjan" },
+      totalItems: 2,
+      packedItems: 1,
+    },
   ];
 
   beforeAll(async () => {
@@ -117,12 +135,43 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
       return row ? [row] : [];
     });
     await upsertOrders(rows);
+
+    // Articles de la commande « Multiple Status » : un annulé, un livré.
+    // C'est le niveau qui dit ce qu'il reste à faire.
+    const multi = await db
+      .select({ id: schema.orders.id })
+      .from(schema.orders)
+      .where(
+        and(
+          eq(schema.orders.shopId, shopId),
+          eq(schema.orders.externalOrderId, "aaaaaaaa-1111-4111-8111-aaaaaaaa0005"),
+        ),
+      );
+    const multiId = multi[0]?.id;
+    if (multiId) {
+      await db.insert(schema.orderItems).values([
+        {
+          shopId,
+          orderId: multiId,
+          externalItemId: `T5-${suffix}-item-1`,
+          status: "CANCELED",
+        },
+        {
+          shopId,
+          orderId: multiId,
+          externalItemId: `T5-${suffix}-item-2`,
+          status: "DELIVERED",
+          trackingNumber: `T5-${suffix}-suivi`,
+          shippedDate: new Date("2026-11-07T17:11:38Z"),
+        },
+      ]);
+    }
   });
 
   it("compte les commandes du périmètre et la somme de leurs montants", async () => {
     const compteurs = await countOrdersForShops([shopId], {});
-    expect(compteurs.orders).toBe(4);
-    expect(compteurs.totalMinor).toBe(10000 + 20000 + 30000 + 40000);
+    expect(compteurs.orders).toBe(5);
+    expect(compteurs.totalMinor).toBe(10000 + 20000 + 30000 + 40000 + 50000);
     expect(compteurs.currencies).toEqual(["XOF"]);
   });
 
@@ -144,10 +193,12 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
     const villes = await listOrderCities([shopId], {});
     const abidjan = villes.find((ville) => ville.city === "Abidjan");
     const bouake = villes.find((ville) => ville.city === "Bouaké");
-    expect(abidjan?.orders).toBe(2);
+    expect(abidjan?.orders).toBe(3);
     expect(abidjan?.canceled).toBe(0);
     expect(abidjan?.failed).toBe(0);
-    expect(abidjan?.totalMinor).toBe(30000);
+    // T5 (multi-statuts : un article annulé, un livré) compte comme livrée.
+    expect(abidjan?.delivered).toBe(1);
+    expect(abidjan?.totalMinor).toBe(30000 + 50000);
     expect(bouake?.orders).toBe(2);
     expect(bouake?.canceled).toBe(1);
     expect(bouake?.totalMinor).toBe(70000);
@@ -157,17 +208,40 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
 
   it("sépare les familles de commandes comme le fait l'interface", async () => {
     const rows = await listOrdersForShops([shopId], { limit: 50 });
+    const statutsArticles = await listItemStatusesByOrder(
+      [shopId],
+      rows.map(({ order }) => order.id),
+    );
     const familles = rows.map(({ order }) =>
       orderFamily({
         status: order.status,
         packedItems: order.packedItems,
         totalItems: order.totalItems,
+        itemStatuses: statutsArticles.get(order.id) ?? [],
       }),
     );
     expect(familles.filter((famille) => famille === "en-attente")).toHaveLength(1);
     expect(familles.filter((famille) => famille === "pretes-a-expedier")).toHaveLength(1);
     expect(familles.filter((famille) => famille === "expediees")).toHaveLength(1);
     expect(familles.filter((famille) => famille === "annulees")).toHaveLength(1);
+    // La commande multi-statuts dont tous les articles sont clos est
+    // livrée, pas « à traiter ».
+    expect(familles.filter((famille) => famille === "livrees")).toHaveLength(1);
+  });
+
+  it("ne présente pas en « à traiter » une commande dont tous les articles sont clos", async () => {
+    // Régression : la commande 325542321 (MaxiShopsCI) affichait « en
+    // attente » alors qu'un article avait été annulé et l'autre livré.
+    // Le statut agrégé « Multiple Status » et le compteur `packedItems`
+    // ne disent rien de ce qu'il reste à faire : seuls les articles le
+    // disent.
+    const enAttente = await countOrdersForShops([shopId], { family: "en-attente" });
+    expect(enAttente.orders).toBe(1);
+    const listees = await listOrdersForShops([shopId], { family: "en-attente", limit: 50 });
+    expect(listees.map(({ order }) => order.status)).not.toContain("Multiple Status");
+
+    const livrees = await listOrdersForShops([shopId], { family: "livrees", limit: 50 });
+    expect(livrees.map(({ order }) => order.status)).toContain("Multiple Status");
   });
 
   it("restreint les compteurs à une famille de commandes", async () => {
@@ -177,9 +251,7 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
     const annulees = await countOrdersForShops(
       [shopId],
       {},
-      (order) =>
-        orderFamily({ ...order, packedItems: order.packedItems, totalItems: order.totalItems }) ===
-        "annulees",
+      (order) => order.family === "annulees",
     );
     expect(annulees.orders).toBe(1);
     expect(annulees.totalMinor).toBe(40000);
@@ -188,9 +260,7 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
     const parStatut = await countOrdersForShops(
       [shopId],
       { status: "CANCELED" },
-      (order) =>
-        orderFamily({ ...order, packedItems: order.packedItems, totalItems: order.totalItems }) ===
-        "annulees",
+      (order) => order.family === "annulees",
     );
     expect(parStatut.orders).toBe(1);
   });
@@ -210,12 +280,17 @@ describe.skipIf(!hasDb)("vues commandes : compteurs et agrégats (base réelle)"
     ] as const) {
       const enBase = await listOrdersForShops([shopId], { family: famille, limit: 50 });
       const enJs = await listOrdersForShops([shopId], { limit: 50 });
+      const statutsArticles = await listItemStatusesByOrder(
+        [shopId],
+        enJs.map(({ order }) => order.id),
+      );
       const attendu = enJs
         .filter(({ order }) => {
           const familleJs = orderFamily({
             status: order.status,
             packedItems: order.packedItems,
             totalItems: order.totalItems,
+            itemStatuses: statutsArticles.get(order.id) ?? [],
           });
           return famille === "hors-annulees" ? familleJs !== "annulees" : familleJs === famille;
         })

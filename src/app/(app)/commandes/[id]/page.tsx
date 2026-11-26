@@ -88,7 +88,12 @@ export default async function CommandeDetailPage({
     status: order.status,
     packedItems: order.packedItems,
     totalItems: order.totalItems,
-  });  const multi = hasMultipleStatuses({
+    // Les statuts d'articles décident de la famille quand le statut agrégé
+    // n'est pas connu (« Multiple Status ») : sans eux, une commande dont
+    // tous les articles sont clos semblerait encore « à traiter ».
+    itemStatuses: articles.map((article) => article.status),
+  });
+  const multi = hasMultipleStatuses({
     status: order.status,
     packedItems: order.packedItems,
     totalItems: order.totalItems,

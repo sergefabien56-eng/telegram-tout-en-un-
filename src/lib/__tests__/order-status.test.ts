@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  familyFromItemStatuses,
   hasMultipleStatuses,
   isPartiallyPacked,
   isPreparationConfirmed,
@@ -104,6 +105,91 @@ describe("famille d'une commande", () => {
     expect(orderFamily({ status: "STATUT_INCONNU", packedItems: 0, totalItems: 1 })).toBe(
       "en-attente",
     );
+  });
+});
+
+describe("commande à statut multiple : la décision revient aux articles", () => {
+  it("ne présente pas comme « en attente » une commande dont tous les articles sont clos", () => {
+    // Cas réel : MaxiShopsCI, commande 325542321 (06/11/2026). Un article
+    // annulé (« Duplicated order »), un article livré le 07/11. Il ne
+    // reste rien à préparer : la commande n'a rien à faire apparaître dans
+    // « À traiter », alors que `packedItems = 1` sur 2 articles laissait
+    // croire le contraire.
+    const commande = {
+      status: "Multiple Status",
+      packedItems: 1,
+      totalItems: 2,
+      itemStatuses: ["CANCELED", "DELIVERED"],
+    };
+    expect(orderFamily(commande)).toBe("livrees");
+    expect(orderFamily(commande)).not.toBe("en-attente");
+  });
+
+  it("classe une commande dont un article reste à préparer", () => {
+    expect(
+      orderFamily({
+        status: "Multiple Status",
+        packedItems: 1,
+        totalItems: 2,
+        itemStatuses: ["DELIVERED", "PENDING"],
+      }),
+    ).toBe("en-attente");
+  });
+
+  it("classe « prête à expédier » quand tous les articles restants le sont", () => {
+    expect(
+      orderFamily({
+        status: "Multiple Status",
+        packedItems: 1,
+        totalItems: 2,
+        itemStatuses: ["SHIPPED", "READY_TO_SHIP"],
+      }),
+    ).toBe("pretes-a-expedier");
+  });
+
+  it("classe selon l'article le plus avancé quand tout est clos", () => {
+    const cas: [string[], string][] = [
+      [["SHIPPED", "CANCELED"], "expediees"],
+      [["FAILED", "CANCELED"], "echec-livraison"],
+      [["RETURNED", "CANCELED"], "retours"],
+      [["CANCELED", "CANCELED"], "annulees"],
+      [["DELIVERED", "SHIPPED"], "livrees"],
+    ];
+    for (const [statuts, attendue] of cas) {
+      expect(familyFromItemStatuses(statuts)).toBe(attendue);
+      expect(
+        orderFamily({
+          status: "Multiple Status",
+          packedItems: 1,
+          totalItems: statuts.length,
+          itemStatuses: statuts,
+        }),
+      ).toBe(attendue);
+    }
+  });
+
+  it("ne conclut pas sans information sur les articles", () => {
+    // Aucun article connu : on ne peut rien conclure, on garde la prudence.
+    expect(familyFromItemStatuses([])).toBeNull();
+    expect(familyFromItemStatuses(null)).toBeNull();
+    // Statuts d'articles inconnus : aucune conclusion non plus.
+    expect(familyFromItemStatuses(["STATUT_INCONNU"])).toBeNull();
+    // Et l'ordre reste « en attente », sans information exploitable.
+    expect(
+      orderFamily({ status: "Multiple Status", packedItems: 1, totalItems: 2, itemStatuses: [] }),
+    ).toBe("en-attente");
+  });
+
+  it("ignore les statuts d'articles quand le statut global est connu", () => {
+    // Le statut global prime : une commande livrée reste livrée.
+    expect(
+      orderFamily({
+        status: "DELIVERED",
+        packedItems: 0,
+        totalItems: 2,
+        itemStatuses: ["PENDING", "PENDING"],
+      }),
+    ).toBe("livrees");
   });
 });
 

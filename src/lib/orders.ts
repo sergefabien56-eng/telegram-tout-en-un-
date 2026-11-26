@@ -15,11 +15,12 @@ import {
 import { getDb, schema } from "@/db";
 import { minorUnits } from "@/lib/money";
 import {
-  orderFamily,
+  ITEM_STATUS_A_TRAITER,
+  ITEM_STATUS_PRET,
   STATUS_ANNULEES,
   STATUS_ECHEC_LIVRAISON,
+  STATUS_EN_ATTENTE,
   STATUS_EXPEDIEES,
-  STATUS_HORS_ATTENTE,
   STATUS_LIVREES,
   STATUS_RETOURS,
   type OrderFamily,
@@ -280,10 +281,44 @@ export type OrderFilters = {
  * module : certains tests simulent la base (`schema` vide), et le module doit
  * rester importable sans elle.
  */
-export function orderFamilyCondition(famille: OrderFamily): SQL {
+/**
+ * Expression SQL donnant la **famille** d'une commande.
+ *
+ * C'est le miroir exact de `orderFamily()` (JS) : les compteurs affichés
+ * (calculés en base) et la classification des listes ne peuvent donc pas
+ * diverger.
+ *
+ * Cas particulier : quand le statut agrégé de la commande n'est pas un
+ * statut connu (« Multiple Status »), la décision revient aux **articles**.
+ * Le statut global de Jumia ne dit alors rien de ce qu'il reste à faire,
+ * et `packedItems` compte les articles emballés — y compris ceux qui ont
+ * ensuite été annulés ou livrés. Une commande dont tous les articles sont
+ * clos n'a rien à préparer : elle ne doit pas apparaître dans « À traiter ».
+ */
+/**
+ * Liste de statuts rendue **en littéral SQL**.
+ *
+ * Les valeurs viennent de constantes internes (les listes de statuts du
+ * projet), jamais d'une saisie utilisateur. Le littéral est nécessaire :
+ * l'expression doit être **strictement identique** dans le SELECT et le
+ * GROUP BY, ce qui n'est pas le cas avec des paramètres liés (Postgres
+ * compare les expressions après analyse, les `$1` et `$5` n'y sont pas
+ * interchangeables).
+ */
+function listeStatuts(values: readonly string[]): SQL {
+  const litteral = values
+    .map((value) => `'${value.replace(/'/g, "''")}'`)
+    .join(", ");
+  return sql.raw(litteral);
+}
+
+export function orderFamilySql(): SQL {
   // Statut Jumia normalisé : minuscules, sans espace, sans tiret ni
   // soubassement — même normalisation que `normalizeOrderStatus` en JS.
   const statut = sql`lower(regexp_replace(regexp_replace(regexp_replace(trim(${schema.orders.status}), '[\\s_-]+', '', 'g'), ' ', '', 'g'), '_', '', 'g'))`;
+
+  // Même normalisation, appliquée au statut d'un **article**.
+  const statutArticle = sql`lower(regexp_replace(regexp_replace(regexp_replace(trim(i.status), '[\\s_-]+', '', 'g'), ' ', '', 'g'), '_', '', 'g'))`;
 
   // Préparation confirmée : tous les articles sont emballés
   // (`packed >= total > 0`), ou — quand le total d'articles est inconnu —
@@ -293,50 +328,55 @@ export function orderFamilyCondition(famille: OrderFamily): SQL {
     OR (coalesce(${schema.orders.totalItems}, 0) = 0 AND ${statut} = 'readytoship')
   )`;
 
-  const horsAttente = sql`${statut} NOT IN (${sql.join(
-    STATUS_HORS_ATTENTE.map((value) => sql`${value}`),
-    sql`, `,
-  )})`;
+  const articleExiste = sql`EXISTS (
+    SELECT 1 FROM ${schema.orderItems} i WHERE i.order_id = ${schema.orders.id}
+  )`;
+  const articleATraiter = sql`EXISTS (
+    SELECT 1 FROM ${schema.orderItems} i
+     WHERE i.order_id = ${schema.orders.id}
+       AND ${statutArticle} IN (${listeStatuts(ITEM_STATUS_A_TRAITER)})
+  )`;
+  const articleATraiterPasPret = sql`EXISTS (
+    SELECT 1 FROM ${schema.orderItems} i
+     WHERE i.order_id = ${schema.orders.id}
+       AND ${statutArticle} IN (${listeStatuts(ITEM_STATUS_A_TRAITER)})
+       AND ${statutArticle} NOT IN (${listeStatuts(ITEM_STATUS_PRET)})
+  )`;
+  const avecArticle = (statuts: readonly string[]) => sql`EXISTS (
+    SELECT 1 FROM ${schema.orderItems} i
+     WHERE i.order_id = ${schema.orders.id}
+       AND ${statutArticle} IN (${listeStatuts(statuts)})
+  )`;
 
-  switch (famille) {
-    case "annulees":
-      return sql`${statut} IN (${sql.join(
-        STATUS_ANNULEES.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "hors-annulees":
-      // Historique : tout sauf les annulées, qui ont leur propre sous-vue.
-      return sql`${statut} NOT IN (${sql.join(
-        STATUS_ANNULEES.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "echec-livraison":
-      return sql`${statut} IN (${sql.join(
-        STATUS_ECHEC_LIVRAISON.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "retours":
-      return sql`${statut} IN (${sql.join(
-        STATUS_RETOURS.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "livrees":
-      return sql`${statut} IN (${sql.join(
-        STATUS_LIVREES.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "expediees":
-      return sql`${statut} IN (${sql.join(
-        STATUS_EXPEDIEES.map((value) => sql`${value}`),
-        sql`, `,
-      )})`;
-    case "pretes-a-expedier":
-      return sql`${horsAttente} AND ${preparation}`;
-    case "en-attente":
-      return sql`${horsAttente} AND NOT ${preparation}`;
-    default:
-      return sql`true`;
+  return sql`CASE
+    WHEN ${statut} IN (${listeStatuts(STATUS_ANNULEES)}) THEN 'annulees'
+    WHEN ${statut} IN (${listeStatuts(STATUS_ECHEC_LIVRAISON)}) THEN 'echec-livraison'
+    WHEN ${statut} IN (${listeStatuts(STATUS_RETOURS)}) THEN 'retours'
+    WHEN ${statut} IN (${listeStatuts(STATUS_LIVREES)}) THEN 'livrees'
+    WHEN ${statut} IN (${listeStatuts(STATUS_EXPEDIEES)}) THEN 'expediees'
+    WHEN ${statut} IN (${listeStatuts(STATUS_EN_ATTENTE)}) THEN (CASE WHEN ${preparation} THEN 'pretes-a-expedier' ELSE 'en-attente' END)
+    WHEN ${statut} = 'readytoship' THEN 'pretes-a-expedier'
+    ELSE (CASE
+      WHEN NOT ${articleExiste} THEN (CASE WHEN ${preparation} THEN 'pretes-a-expedier' ELSE 'en-attente' END)
+      WHEN ${articleATraiterPasPret} THEN 'en-attente'
+      WHEN ${articleATraiter} THEN 'pretes-a-expedier'
+      WHEN ${avecArticle(STATUS_LIVREES)} THEN 'livrees'
+      WHEN ${avecArticle(STATUS_EXPEDIEES)} THEN 'expediees'
+      WHEN ${avecArticle(STATUS_ECHEC_LIVRAISON)} THEN 'echec-livraison'
+      WHEN ${avecArticle(STATUS_RETOURS)} THEN 'retours'
+      WHEN ${avecArticle(STATUS_ANNULEES)} THEN 'annulees'
+      ELSE 'en-attente'
+    END)
+  END`;
+}
+
+export function orderFamilyCondition(famille: OrderFamily): SQL {
+  const familleSql = orderFamilySql();
+  if (famille === "hors-annulees") {
+    // Historique : tout sauf les annulées, qui ont leur propre sous-vue.
+    return sql`${familleSql} <> 'annulees'`;
   }
+  return sql`${familleSql} = ${famille}`;
 }
 
 export async function listOrdersForShops(
@@ -436,11 +476,7 @@ export async function listOrderCustomers(
 export async function countOrdersForShops(
   shopIds: string[],
   filters: OrderFilters = {},
-  include?: (order: {
-    status: string;
-    packedItems: number | null;
-    totalItems: number | null;
-  }) => boolean,
+  include?: (order: { family: OrderFamily }) => boolean,
 ): Promise<{ orders: number; totalMinor: number; currencies: string[] }> {
   const ids = shopIds.filter((id) => id.trim().length > 0);
   if (ids.length === 0) return { orders: 0, totalMinor: 0, currencies: [] };
@@ -451,40 +487,30 @@ export async function countOrdersForShops(
   if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
   if (filters.family) conditions.push(orderFamilyCondition(filters.family));
 
-  // Le regroupement par statut et par état de préparation permet d'appliquer
-  // la famille **après** la requête : le total affiché reste ainsi le
+  // Le regroupement se fait sur la **famille** — la même définition que celle
+  // du filtre SQL et que celle du code JS. Le total affiché reste ainsi le
   // montant exact des commandes listées.
+  // L'expression doit être **la même** dans le SELECT et le GROUP BY :
+  // c'est Postgres qui exige que les colonnes citées par une expression
+  // groupée le soient aussi.
+  const familleSql = orderFamilySql();
   const rows = await db
     .select({
       orders: count(),
       totalMinor: sum(schema.orders.totalAmountMinor),
       currency: schema.orders.currency,
-      status: schema.orders.status,
-      packedItems: schema.orders.packedItems,
-      totalItems: schema.orders.totalItems,
+      family: familleSql,
     })
     .from(schema.orders)
     .where(and(...conditions))
-    .groupBy(
-      schema.orders.currency,
-      schema.orders.status,
-      schema.orders.packedItems,
-      schema.orders.totalItems,
-    );
+    .groupBy(schema.orders.currency, familleSql);
 
   let orders = 0;
   let totalMinor = 0;
   const currencies = new Set<string>();
   for (const row of rows) {
     const nombre = Number(row.orders ?? 0);
-    if (
-      include &&
-      !include({
-        status: row.status ?? "",
-        packedItems: row.packedItems,
-        totalItems: row.totalItems,
-      })
-    ) {
+    if (include && !include({ family: row.family as OrderFamily })) {
       continue;
     }
     orders += nombre;
@@ -525,17 +551,18 @@ export async function listOrderCities(
   if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
   if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
 
+  const familleSql = orderFamilySql();
   const rows = await db
     .select({
       city: schema.orders.customerCity,
       currency: schema.orders.currency,
-      status: schema.orders.status,
+      family: familleSql,
       totalMinor: sum(schema.orders.totalAmountMinor),
       n: count(),
     })
     .from(schema.orders)
     .where(and(...conditions))
-    .groupBy(schema.orders.customerCity, schema.orders.currency, schema.orders.status);
+    .groupBy(schema.orders.customerCity, schema.orders.currency, familleSql);
 
   const parVille = new Map<
     string,
@@ -569,7 +596,10 @@ export async function listOrderCities(
     const nombre = Number(row.n ?? 0);
     entry.orders += nombre;
     entry.totalMinor += Number(row.totalMinor ?? 0);
-    const famille = orderFamily({ status: row.status ?? "" });
+    // La famille vient de la base : elle est donc exactement celle du filtre
+    // appliqué aux listes (aucune divergence possible entre l'agrégat et
+    // les sous-vues).
+    const famille = row.family as OrderFamily;
     if (famille === "livrees") entry.delivered += nombre;
     else if (famille === "expediees") entry.shipped += nombre;
     else if (famille === "annulees") entry.canceled += nombre;

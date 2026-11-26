@@ -96,12 +96,40 @@ export const STATUS_HORS_ATTENTE = [
   ...STATUS_EXPEDIEES,
 ];
 
+/**
+ * Statuts d'**article** qui signifient : cet article demande encore une
+ * action au vendeur.
+ *
+ * Le statut agrégé d'une commande ne suffit pas toujours. Pour une commande
+ * « Multiple Status », Jumia renvoie un statut global qui ne dit rien de ce
+ * qu'il reste à faire, et le compteur `packedItems` compte les articles
+ * emballés — y compris ceux qui ont ensuite été annulés ou livrés. Seuls les
+ * statuts d'articles disent ce qui est encore dû.
+ */
+export const ITEM_STATUS_A_TRAITER = [
+  "pending",
+  "created",
+  "new",
+  "processing",
+  "readytoship",
+];
+
+/** Statuts d'article qui signifient : l'article est prêt à partir. */
+export const ITEM_STATUS_PRET = ["readytoship"];
+
 export type OrderStatusInput = {
   status: string;
   /** Nombre d'articles préparés (champ Jumia `packedItems`). */
   packedItems?: number | null;
   /** Nombre total d'articles (champ Jumia `totalItems`). */
   totalItems?: number | null;
+  /**
+   * Statuts des articles de la commande, quand ils sont connus.
+   *
+   * Ils ne sont nécessaires que pour les commandes dont le statut agrégé
+   * n'est pas un statut terminal connu (« Multiple Status »).
+   */
+  itemStatuses?: readonly string[] | null;
 };
 
 /**
@@ -132,6 +160,52 @@ export function isPartiallyPacked(order: OrderStatusInput): boolean {
 }
 
 /**
+ * Famille déduite des statuts d'articles.
+ *
+ * C'est le seul niveau qui dise ce qu'il **reste** à faire : le statut
+ * agrégé d'une commande « Multiple Status » masque la situation réelle, et
+ * `packedItems` compte les articles emballés, même ceux qui ont ensuite été
+ * annulés ou livrés.
+ *
+ * Cas réel (MaxiShopsCI, commande 325542321) : un article annulé et un
+ * article livré. La commande n'a plus rien à préparer : elle ne doit pas
+ * apparaître dans « À traiter ».
+ *
+ * `null` = aucune conclusion possible (aucun article connu, ou statuts
+ * d'articles tous inconnus) : l'appelant conserve alors son comportement
+ * par défaut.
+ */
+export function familyFromItemStatuses(
+  statuses: readonly string[] | null | undefined,
+): OrderFamily | null {
+  if (!statuses || statuses.length === 0) return null;
+  const normalises = statuses.map(normalizeOrderStatus);
+
+  // Des articles restent à traiter : la commande est à traiter, elle aussi.
+  const aTraiter = normalises.filter((statut) => ITEM_STATUS_A_TRAITER.includes(statut));
+  if (aTraiter.length > 0) {
+    // Tous les articles restants sont prêts à partir : plus rien à emballer.
+    return aTraiter.every((statut) => ITEM_STATUS_PRET.includes(statut))
+      ? "pretes-a-expedier"
+      : "en-attente";
+  }
+
+  // Plus aucun article à traiter : la commande est close. Elle est classée
+  // d'après l'article le plus avancé, l'ordre ci-dessous étant celui de
+  // l'avancement réel d'un colis.
+  if (normalises.some((statut) => STATUS_LIVREES.includes(statut))) return "livrees";
+  if (normalises.some((statut) => STATUS_EXPEDIEES.includes(statut))) return "expediees";
+  if (normalises.some((statut) => STATUS_ECHEC_LIVRAISON.includes(statut))) {
+    return "echec-livraison";
+  }
+  if (normalises.some((statut) => STATUS_RETOURS.includes(statut))) return "retours";
+  if (normalises.some((statut) => STATUS_ANNULEES.includes(statut))) return "annulees";
+
+  // Statuts d'articles inconnus : aucune conclusion.
+  return null;
+}
+
+/**
  * Famille d'une commande, selon les définitions du projet.
  *
  * L'ordre de test est important : une commande livrée ou annulée n'est
@@ -148,7 +222,11 @@ export function orderFamily(order: OrderStatusInput): OrderFamily {
     return isPreparationConfirmed(order) ? "pretes-a-expedier" : "en-attente";
   }
   if (normalized === "readytoship") return "pretes-a-expedier";
-  // Statut inconnu (ex. « Multiple Status ») : jamais compté comme prêt.
+  // Statut inconnu (ex. « Multiple Status ») : la décision revient aux
+  // articles, seul niveau qui dise ce qu'il reste à faire. Sans information
+  // sur les articles, on reste prudent (jamais « prête à expédier »).
+  const parArticles = familyFromItemStatuses(order.itemStatuses);
+  if (parArticles) return parArticles;
   return isPreparationConfirmed(order) ? "pretes-a-expedier" : "en-attente";
 }
 

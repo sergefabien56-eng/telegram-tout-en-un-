@@ -170,6 +170,40 @@ export async function listOrderItemsForOrders(
 }
 
 /**
+ * Statuts des articles, groupés par commande.
+ *
+ * Ils sont la seule information qui dise ce qu'il **reste** à faire dans une
+ * commande au statut agrégé « Multiple Status » : le statut global de Jumia
+ * ne dit rien, et `packedItems` compte les articles emballés — y compris
+ * ceux qui ont ensuite été annulés ou livrés.
+ */
+export async function listItemStatusesByOrder(
+  shopIds: string[],
+  orderIds: string[],
+): Promise<Map<string, string[]>> {
+  const shops = shopIds.filter((id) => id.length > 0);
+  const orders = orderIds.filter((id) => id.length > 0);
+  const parCommande = new Map<string, string[]>();
+  if (shops.length === 0 || orders.length === 0) return parCommande;
+  const db = getDb();
+  const rows = await db
+    .select({ orderId: schema.orderItems.orderId, status: schema.orderItems.status })
+    .from(schema.orderItems)
+    .where(
+      and(
+        inArray(schema.orderItems.shopId, shops),
+        inArray(schema.orderItems.orderId, orders),
+      ),
+    );
+  for (const row of rows) {
+    const liste = parCommande.get(row.orderId) ?? [];
+    liste.push(row.status);
+    parCommande.set(row.orderId, liste);
+  }
+  return parCommande;
+}
+
+/**
  * Compteur d'articles **éligibles à l'impression** : prêts à expédier
  * (`READY_TO_SHIP`) et sans numéro de suivi — Jumia refuse d'imprimer une
  * étiquette pour un colis déjà suivi.
