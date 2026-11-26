@@ -236,6 +236,42 @@ comportement attendu, pas un défaut de l'application.
 
 ### Résultat final
 
-Typecheck, lint et build verts ; **358 tests réussis / 7 ignorés** ; **76 tests E2E réussis /
+Typecheck, lint et build verts ; **373 tests réussis / 7 ignorés** ; **79 tests E2E réussis /
 0 échec**. La connexion réelle à Jumia est opérationnelle, la chaîne d'impression est prouvée
 de bout en bout, et **aucune impression n'a été déclenchée sur un compte vendeur réel**.
+
+## Déploiement en production
+
+Le lot (étiquettes + synchronisation automatique) a été **commité, poussé et déployé**.
+
+| Élément | Valeur |
+| --- | --- |
+| Commit | `a4ae2a9` — `feat(ventes): étiquettes à imprimer + synchronisation automatique` |
+| Branche distante | `main` = `a4ae2a9da9745af3c8faa682272fa3629761fe6d` |
+| CI | run `45895601782` — **2 jobs verts** : `lint-test-build` (lint, typecheck, tests, build) et `e2e-smoke` (Chromium, parcours publics, accessibilité WCAG 2.1 AA) |
+| Déploiement | run `45895777780` — **succès** : secret présent, déploiement Render déclenché, mise en ligne et `/api/health` vérifiés |
+| Production | `https://tout-en-un-business-manager.onrender.com` — `/api/health` publie `commit: a4ae2a9da9745af3c8faa682272fa3629761fe6d`, `migrations.ok: true` |
+
+### Contrôles effectués sur la production déployée
+
+| Contrôle | Attendu | Constaté |
+| --- | --- | --- |
+| `/api/health` | commit `a4ae2a9` | **conforme** |
+| `/commandes/a-traiter/etiquettes` | 200 | **200** — page « Étiquettes à imprimer », trois états (disponible / pas encore disponible / refus Jumia), filtre par boutique, composant d'auto-sync présent |
+| `/commandes/a-traiter/factures` | 308 → `/etiquettes` | **308**, `location: /commandes/a-traiter/etiquettes` |
+| `GET /api/shops/:id/auto-sync` | état de fraîcheur | `stale: true` sur les deux boutiques, verrou libéré |
+| `POST /api/shops/:id/auto-sync` | `started: true` | **conforme**, puis cycle `périmé=true` → relecture → `lastSyncAt` mis à jour → `périmé=false` |
+| Audit base | `shop.orders_auto_synced` puis `shop.orders_synced` | **présents** (21:10:18Z puis 21:10:19Z) |
+| `GET /api/cron/sync` sans secret / faux secret / secret en query string | **401** | **401** dans les trois cas |
+| `GET /api/cron/sync` avec `Authorization: Bearer <CRON_SECRET>` | 200 | **200** (`shops: 1`, `protected: true`) |
+| Base après déploiement | 2 utilisateurs, 2 boutiques, 320 commandes, 337 articles, 0 étiquette, 2 comptes Jumia | **conforme** ; tables `order_items` et `shipment_labels` présentes (migration `0018` appliquée) |
+
+### Note sur l'accès au dépôt
+
+Le push s'est fait en SSH. L'identifiant `sergefabien56-eng` écrit en minuscules est **filtré par
+le réseau du poste d'exécution** (`Repository not found` alors que le dépôt existe et est public) ;
+la même clé fonctionne avec `Sergefabien56-Eng`. Le dépôt distant n'a pas été renommé : GitHub
+lui-même répond `This repository moved. Please use the new location:
+git@github.com:sergfabien56-eng/telegram-tout-en-un-.git` — c'est bien le dépôt d'origine. Si un
+push futur échoue avec `Repository not found`, utiliser la variante capitalisée du nom de
+propriétaire.

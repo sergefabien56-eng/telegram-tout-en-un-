@@ -121,6 +121,10 @@ fonctionne ensuite tel quel.
 
 État au 26/11/2026 : **373 tests réussis / 7 ignorés**, **79 E2E réussis**, typecheck, lint et build verts.
 
+**En production** depuis le 26/11/2026 (commit `a4ae2a9`) :
+`https://tout-en-un-business-manager.onrender.com` — la CI verte déclenche le déploiement
+Render, et `/api/health` publie le commit réellement en ligne.
+
 Une **vérification globale** a été menée sur le build de production (application démarrée en
 `next start`, session réelle) : 46 pages et 62 routes API balayées, toutes répondent ; les
 redirections, l'isolation entre boutiques et les permissions par rôle sont contrôlées ; la
