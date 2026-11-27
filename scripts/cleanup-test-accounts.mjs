@@ -20,12 +20,30 @@ const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false 
  * On peut cibler un motif précis avec `--email=<fragment>`.
  */
 const extra = process.argv.find((arg) => arg.startsWith("--email="))?.split("=")[1];
-// Tous les comptes de test utilisent l'adresse de démonstration `@exemple.ci`
-// (domaine réservé) : le motif est large pour ne laisser aucun résidu.
+/**
+ * Comptes **protégés** : ils ne sont jamais des comptes de test, même s'ils
+ * portent une adresse `@exemple.ci`.
+ *
+ * Le compte de démonstration (`scripts/demo-account.mjs`) sert à montrer
+ * l'application avec les vraies boutiques : le supprimer à chaque passage
+ * de la suite de tests le ferait disparaître et laisserait l'utilisateur
+ * sans accès. Il est donc explicitement préservé.
+ */
+const PROTECTED_EMAILS = ["demo-captures@exemple.ci"];
+/**
+ * Le domaine `@exemple.ci` est réservé (RFC 2606) et partagé par tous les
+ * harnais : le motif est large pour ne laisser aucun résidu. Les comptes
+ * protégés en sont exemptés.
+ */
 const TEST_EMAIL_RE = extra ?? ".*@exemple\\.ci$";
+/** Fragment SQL : exclut les comptes protégés de la sélection. */
+const nonProtege = `NOT (email = ANY($2::text[]))`;
 
 // 1. Journal d'audit rattaché aux comptes de test (avant suppression des comptes).
-const ids = await pool.query(`SELECT id FROM users WHERE email ~ $1`, [TEST_EMAIL_RE]);
+const ids = await pool.query(
+  `SELECT id FROM users WHERE email ~ $1 AND ${nonProtege}`,
+  [TEST_EMAIL_RE, PROTECTED_EMAILS],
+);
 const userIds = ids.rows.map((row) => row.id);
 let auditDeleted = 0;
 if (userIds.length > 0) {
@@ -50,9 +68,10 @@ if (userIds.length > 0) {
 }
 
 // 3. Comptes de test.
-const res = await pool.query(`DELETE FROM users WHERE email ~ $1 RETURNING id, email`, [
-  TEST_EMAIL_RE,
-]);
+const res = await pool.query(
+  `DELETE FROM users WHERE email ~ $1 AND ${nonProtege} RETURNING id, email`,
+  [TEST_EMAIL_RE, PROTECTED_EMAILS],
+);
 console.log(`Comptes supprimés : ${res.rowCount}`);
 for (const row of res.rows) console.log(`  - ${row.email} (${row.id})`);
 console.log(`Lignes d'audit rattachées supprimées : ${auditDeleted}`);
@@ -92,8 +111,9 @@ if (withOrphans) {
 // purge, le verrou anti-abus (5 échecs / 15 min par IP) bloque les tests suivants.
 if (withAttempts) {
   const attempts = await pool.query(
-    `DELETE FROM login_attempts WHERE email ~ $1 OR ip IN ('::1', '127.0.0.1')`,
-    [TEST_EMAIL_RE],
+    `DELETE FROM login_attempts
+      WHERE (email ~ $1 AND ${nonProtege}) OR ip IN ('::1', '127.0.0.1')`,
+    [TEST_EMAIL_RE, PROTECTED_EMAILS],
   );
   console.log(`Tentatives de connexion purgées : ${attempts.rowCount ?? 0}`);
 }
@@ -102,5 +122,12 @@ const shops = await pool.query(`SELECT count(*)::int AS n FROM shops`);
 const users = await pool.query(`SELECT count(*)::int AS n FROM users`);
 console.log(
   `Reste en base : ${users.rows[0].n} utilisateur(s), ${shops.rows[0].n} boutique(s), ${audit.rows[0].n} ligne(s) d'audit`,
+);
+const proteges = await pool.query(
+  `SELECT email FROM users WHERE email = ANY($1::text[])`,
+  [PROTECTED_EMAILS],
+);
+console.log(
+  `Comptes protégés conservés : ${proteges.rows.map((row) => row.email).join(", ") || "(aucun)"}`,
 );
 await pool.end();

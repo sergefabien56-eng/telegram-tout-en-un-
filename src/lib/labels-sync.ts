@@ -98,8 +98,8 @@ export async function syncShopLabels(params: {
   }
 
   try {
-    // 1. Commandes candidates : celles qui portent au moins un article prêt
-    //    à expédier et sans numéro de suivi.
+    // 1. Commandes candidates : celles qui portent au moins un article
+    //    livrable dont l'étiquette n'a pas encore été obtenue.
     const candidates = await listCandidateOrders(
       params.shopId,
       params.orderIds && params.orderIds.length > 0 ? params.orderIds : undefined,

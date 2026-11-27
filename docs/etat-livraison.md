@@ -534,3 +534,19 @@ simulé, y compris l'absence de doublon), `labels-real-shop.test.ts` (sur
 boutique réelle : après l'opération plus aucun article n'est éligible, et
 une seconde passe ne crée aucune étiquette), `shipment-labels.*`
 (5 + 10 tests).
+
+## Compte de démonstration : protégé du nettoyage E2E — 27/11/2026
+
+Défaut trouvé en vérifiant les étiquettes en production : après chaque
+passage de la suite E2E, le compte de démonstration
+`demo-captures@exemple.ci` **avait disparu de la base** (login 401).
+
+Cause : le nettoyage de fin de suite (`e2e/helpers/purge-test-accounts.ts`
+et `scripts/cleanup-test-accounts.mjs`) supprime tout compte dont
+l'adresse finit par `@exemple.ci` — le domaine réservé partagé par tous
+les harnais. Le compte de démonstration en fait partie : il était effacé
+à chaque run.
+
+Corrigé : une liste de comptes **protégés** (`PROTECTED_EMAILS`) est
+exclue des suppressions dans les deux chemins de nettoyage. Aucun test
+E2E n'utilise ce compte : la protection ne fausse aucun test.

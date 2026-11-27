@@ -192,8 +192,8 @@ export default async function EtiquettesPage({
       </Section>
 
       <Section
-        title="Prêtes à expédier"
-        description="Étiquettes disponibles : le document PDF est prêt à être imprimé et collé sur le colis."
+        title="Étiquettes disponibles"
+        description="Le document PDF est prêt à être imprimé et collé sur le colis."
       >
         {disponibles.length === 0 ? (
           <EmptyState

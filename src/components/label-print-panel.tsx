@@ -125,10 +125,11 @@ export function LabelPrintPanel({
 
       {typeof eligibleCount === "number" ? (
         <p className="text-xs text-muted">
-          {eligibleCount} article(s) prêt(s) à expédier et sans numéro de suivi :{" "}
+          {eligibleCount} article(s) en attente d&apos;expédition ou prêt(s) à expédier, dont
+          l&apos;étiquette n&apos;a pas encore été demandée :{" "}
           {eligibleCount > 0
             ? "ils seront proposés à l'impression."
-            : "aucun article à imprimer pour le moment. Jumia refuse d'imprimer une étiquette pour un colis déjà suivi."}
+            : "aucun article à imprimer pour le moment. Jumia refuse d'imprimer une étiquette pour un article annulé, expédié ou livré."}
         </p>
       ) : null}
 

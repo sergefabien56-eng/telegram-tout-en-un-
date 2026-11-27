@@ -11,6 +11,20 @@ import type { Pool } from "pg";
 export const TEST_EMAIL_PATTERN = ".*@exemple\\.ci$";
 
 /**
+ * Comptes **protégés** : jamais supprimés, même s'ils portent une adresse
+ * `@exemple.ci`.
+ *
+ * Le compte de démonstration (`scripts/demo-account.mjs`) sert à montrer
+ * l'application avec les vraies boutiques. Le supprimer à chaque passage de
+ * la suite E2E le ferait disparaître : l'utilisateur se retrouverait sans
+ * accès, et les captures de l'application ne seraient plus possibles.
+ *
+ * La même liste existe dans `scripts/cleanup-test-accounts.mjs` : les deux
+ * chemins de nettoyage doivent protéger ce compte.
+ */
+export const PROTECTED_EMAILS = ["demo-captures@exemple.ci"];
+
+/**
  * Supprime boutiques, membres, comptes de test et tentatives de connexion.
  *
  * `shops.owner_user_id` est en RESTRICT : les boutiques et les membres sont
@@ -20,17 +34,21 @@ export async function purgeTestAccounts(
   pool: Pool,
   options: { alsoAttempts?: boolean } = {},
 ): Promise<{ shops: number; members: number; users: number; attempts: number }> {
+  const protectedEmails = options.protectedEmails ?? PROTECTED_EMAILS;
   const members = await pool.query(
-    `DELETE FROM shop_members WHERE user_id IN (SELECT id FROM users WHERE email ~ $1)`,
-    [TEST_EMAIL_PATTERN],
+    `DELETE FROM shop_members WHERE user_id IN (
+       SELECT id FROM users WHERE email ~ $1 AND NOT (email = ANY($2::text[])))`,
+    [TEST_EMAIL_PATTERN, protectedEmails],
   );
   const shops = await pool.query(
-    `DELETE FROM shops WHERE owner_user_id IN (SELECT id FROM users WHERE email ~ $1)`,
-    [TEST_EMAIL_PATTERN],
+    `DELETE FROM shops WHERE owner_user_id IN (
+       SELECT id FROM users WHERE email ~ $1 AND NOT (email = ANY($2::text[])))`,
+    [TEST_EMAIL_PATTERN, protectedEmails],
   );
-  const users = await pool.query(`DELETE FROM users WHERE email ~ $1 RETURNING id`, [
-    TEST_EMAIL_PATTERN,
-  ]);
+  const users = await pool.query(
+    `DELETE FROM users WHERE email ~ $1 AND NOT (email = ANY($2::text[])) RETURNING id`,
+    [TEST_EMAIL_PATTERN, protectedEmails],
+  );
   let attempts = 0;
   if (options.alsoAttempts !== false) {
     const deleted = await pool.query(`DELETE FROM login_attempts`);
