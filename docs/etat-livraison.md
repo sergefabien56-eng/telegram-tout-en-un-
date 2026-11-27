@@ -550,3 +550,36 @@ les harnais. Le compte de démonstration en fait partie : il était effacé
 Corrigé : une liste de comptes **protégés** (`PROTECTED_EMAILS`) est
 exclue des suppressions dans les deux chemins de nettoyage. Aucun test
 E2E n'utilise ce compte : la protection ne fausse aucun test.
+
+## Thème : le mode « Système » ne survivait pas au rechargement — 27/11/2026
+
+**Symptôme** : en mode sombre, appuyer sur « Filtrer » rebasculait
+l'interface en clair. En mode clair, rien ne changeait — d'où une impression
+de « parfois ».
+
+**Cause** : le bouton « Filtrer » soumet un formulaire GET **natif** : la
+page est rechargée entièrement, et le thème est relu par le script inline
+`ThemeScript`. Ce script traitait la valeur `"system"` comme « pas sombre » :
+
+```js
+var d = v ? v === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+```
+
+Pour `v = "system"`, `d` valait `false` : l'interface repassait en clair à
+chaque rechargement, alors que le système — lui — était en mode sombre.
+
+**Corrigé** : les trois choix sont distingués (`dark` → sombre, `light` →
+clair, `system` → préférence du système), et le script suit désormais les
+changements de préférence du système en direct.
+
+**Preuve** : reproduction avant correction (système en mode sombre) :
+
+| Situation | Avant | Après |
+| --- | --- | --- |
+| Aucun choix enregistré | sombre | sombre |
+| Choix « Système », au chargement | **clair** | sombre |
+| Après un clic sur « Filtrer » | **clair** | sombre |
+
+Test de non-régression `e2e/apparence-theme.spec.ts` (3 scénarios) : il
+**échoue** avec l'ancien script (2 échecs sur 3) et passe avec la
+correction.
