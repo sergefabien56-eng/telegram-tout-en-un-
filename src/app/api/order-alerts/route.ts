@@ -6,6 +6,7 @@ import {
   listActiveOrderAlerts,
   reconcileOrderAlerts,
 } from "@/lib/order-alerts";
+import { startAutoSync } from "@/lib/auto-sync";
 
 /**
  * GET /api/order-alerts — alertes de commandes du périmètre de l'utilisateur.
@@ -49,6 +50,19 @@ export async function GET(request: Request) {
   // immédiatement au lieu d'attendre la fin du délai de déduplication.
   const force = new URL(request.url).searchParams.get("force") === "1";
   await reconcilierSiNecessaire(shopIds, force);
+
+  // **Relire Jumia si les données sont périmées.** Sans cela, une commande
+  // arrivée chez Jumia ne pourrait entrer dans les alertes qu'à la
+  // synchronisation suivante : la cloche, qui interroge cette route toutes
+  // les minutes, ne verrait jamais la commande nouvelle tant que le vendeur
+  // resterait sur une autre page. La relecture est **non bloquante** : la
+  // réponse part tout de suite, la commande est picked par le polling
+  // suivant (60 s plus tard).
+  for (const shop of scope.allowed) {
+    void startAutoSync({ userId: user.id, shopId: shop.id }).catch((error) => {
+      console.error("[alertes] relecture impossible", shop.id, error);
+    });
+  }
 
   const [alerts, unread] = await Promise.all([
     listActiveOrderAlerts({ userId: user.id, shopIds }),

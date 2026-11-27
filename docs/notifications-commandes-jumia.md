@@ -35,10 +35,15 @@ arrivées pendant l'absence du vendeur.
   Telegram direct (`src/lib/telegram-service.ts`,
   `src/lib/coherence-alerts.ts`) ne sont **pas** utilisés par ce module.
 - **La synchronisation continue en arrière-plan** quand l'interface est
-  fermée : la tâche planifiée `POST /api/cron/sync` (toutes les 3 h) et le
-  polling à l'écran rejouent l'API Vendor Center. Les alertes sont
-  recalculées **à la fin de chaque relecture** (`syncShopOrders`), donc
-  elles existent même si le vendeur n'a jamais ouvert l'application.
+  fermée : la tâche planifiée `POST /api/cron/sync` (toutes les 3 h) rejoue
+  l'API Vendor Center. Les alertes sont recalculées **à la fin de chaque
+  relecture** (`syncShopOrders`), donc elles existent même si le vendeur n'a
+  jamais ouvert l'application.
+- **La cloche relit Jumia** quand les données sont périmées : la route
+  `GET /api/order-alerts` déclenche une relecture non bloquante si la
+  dernière remonte de plus de 90 s. Sans cela, une commande arrivée chez
+  Jumia n'aurait d'alerte qu'à la synchronisation suivante, quelle que soit
+  la page ouverte. Avec elle, l'alerte apparaît **dans la minute**.
 - **Le module ne modifie jamais un statut de commande** par lui-même. Seule
   une réponse de Jumia fait foi.
 
