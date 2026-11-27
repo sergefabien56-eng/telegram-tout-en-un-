@@ -496,3 +496,41 @@ synchronisation, 69 s après la commande :
 > `b2b38de5-108f-43ee-8220-0874db3b2d99` — accepté par Jumia (suivi
 > `DS-FAJ-385851761-8118`)
 
+## Étiquettes d'expédition — défaut de sélection corrigé (27/11/2026)
+
+**Symptôme** : la page « Étiquettes à imprimer » ne montrait jamais rien —
+« Articles à imprimer : 0 », aucune étiquette disponible, aucune étiquette
+en attente. La table `shipment_labels` était vide.
+
+**Cause** : le filtre d'éligibilité exigeait `READY_TO_SHIP` **et**
+l'absence de numéro de suivi. Cette condition ne peut **jamais** être
+satisfaite : Jumia n/met un article en `READY_TO_SHIP` qu'après son
+emballage, donc il a forcément déjà un numéro de suivi. Résultat : aucun
+article sélectionnable, donc aucun appel `POST /orders/print-labels`, donc
+aucune étiquette — le module n'avait jamais pu fonctionner.
+
+La règle réelle de l'API Vendor Center (`orders@print-labels`) est plus
+simple : Jumia refuse un article **annulé, expédié ou livré**, pas un
+article déjà suivi. La sélection locale est désormais :
+
+1. statut livrable : `PENDING` ou `READY_TO_SHIP` ;
+2. aucune étiquette déjà obtenue pour cet article (les refus restent
+   ré-essayables).
+
+**Preuve réelle** — deux étiquettes obtenues de Jumia pour MaxiShopsCI :
+
+| Commande | Article | Suivi | PDF stocké | Empreinte |
+| --- | --- | --- | --- | --- |
+| 358145761 | `9328395e-6c6d-4a15-a1b9-9b4fc91b3f00` | `DS-EAH-358145761-4492` | 49 571 octets, en-tête `%PDF-` | SHA-256 `78db778a6a535390…` |
+| 385851761 | `b2b38de5-108f-43ee-8220-0874db3b2d99` | `DS-FAJ-385851761-8118` | 49 173 octets, en-tête `%PDF-` | SHA-256 `d46b7725475d4a04…` |
+
+Le PDF n'est enregistré comme *disponible* qu'après décodage base64,
+vérification de l'en-tête `%PDF-` et calcul de son empreinte SHA-256. Le
+numéro de suivi du colis est reporté sur l'article, qui n'est alors plus
+proposé à l'impression : **un colis n'est jamais réimprimé chez Jumia**.
+
+Tests : `labels-print.e2e.test.ts` (chaîne complète sur serveur Jumia
+simulé, y compris l'absence de doublon), `labels-real-shop.test.ts` (sur
+boutique réelle : après l'opération plus aucun article n'est éligible, et
+une seconde passe ne crée aucune étiquette), `shipment-labels.*`
+(5 + 10 tests).

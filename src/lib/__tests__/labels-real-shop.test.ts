@@ -3,20 +3,24 @@ import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { syncShopLabels } from "@/lib/labels-sync";
+import { countPrintableItems } from "@/lib/order-items";
 
 /**
  * Génération d'étiquettes sur une boutique **réellement rattachée** à Jumia.
  *
- * Sûr par construction : la chaîne n'appelle `POST /orders/print-labels`
- * que s'il existe un article `READY_TO_SHIP` **sans numéro de suivi**.
- * L'inventaire live a établi qu'il n'y en a aucun : l'opération doit donc
- * se terminer sur 0, sans aucun engagement d'impression chez Jumia.
+ * La règle d'éligibilité est celle de l'API : un article livrable
+ * (`PENDING` ou `READY_TO_SHIP`) **dont l'étiquette n'a pas encore été
+ * obtenue**. Le test vérifie la propriété qui compte :
+ *
+ * - après l'opération, **aucun** article éligible ne reste sans étiquette ;
+ * - une seconde passe **ne crée aucune étiquette supplémentaire** : un
+ *   colis déjà imprimé n'est jamais réimprimé chez Jumia.
  *
  * Le test est ignoré si l'environnement n'a aucun compte vendeur Jumia
  * (CI sans identifiants) : il n'y a alors rien à prouver.
  */
 describe("génération d'étiquettes sur boutique réelle", () => {
-  it("ne déclenche aucune impression quand aucun article n'est éligible", async () => {
+  it("n'imprime jamais deux fois la même étiquette", async () => {
     const db = getDb();
     const shop = (
       await db
@@ -46,14 +50,24 @@ describe("génération d'étiquettes sur boutique réelle", () => {
     });
     console.log(`  ${shop.name} → ${JSON.stringify(result)}`);
 
+    expect(result.ok).toBe(true);
+    // Après l'opération, plus aucun article n'est éligible : chaque colis
+    // livrable a reçu son étiquette.
+    expect(await countPrintableItems([shop.id])).toBe(0);
+
+    // Seconde passe : aucune étiquette supplémentaire, aucun nouvel
+    // engagement d'impression chez Jumia.
+    const relance = await syncShopLabels({
+      userId: shop.ownerUserId,
+      shopId: shop.id,
+    });
     const after = await db
       .select({ id: schema.shipmentLabels.id })
       .from(schema.shipmentLabels);
 
-    expect(result.ok).toBe(true);
-    // Aucun article éligible ⇒ aucune étiquette, aucun appel d'impression.
-    expect(result.items).toBe(0);
-    expect(result.packages).toBe(0);
+    expect(relance.ok).toBe(true);
+    expect(relance.items).toBe(0);
+    expect(relance.packages).toBe(0);
     expect(after.length).toBe(before.length);
   });
 });

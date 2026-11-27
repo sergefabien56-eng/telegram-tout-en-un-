@@ -24,6 +24,10 @@ import { listShipmentLabels, getShipmentLabel } from "@/lib/shipment-labels";
  */
 
 /** PDF minimal mais valide. */
+/** Article que Jumia accepte d'étiqueter ; l'autre est refusé. */
+const ARTICLE_A = "41ea7c3b-20f0-466d-a095-e6e909298180";
+const ARTICLE_B = "c0aa1673-fd99-4f9e-a511-6cefdbdde266";
+
 const PDF = Buffer.from(
   "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n",
   "latin1",
@@ -44,8 +48,6 @@ describe("impression d'une étiquette — chaîne complète (serveur Jumia simul
   let ownerId = "";
   let shopId = "";
   let orderId = "";
-  const ARTICLE_A = "41ea7c3b-20f0-466d-a095-e6e909298180";
-  const ARTICLE_B = "c0aa1673-fd99-4f9e-a511-6cefdbdde266";
 
   beforeAll(async () => {
     // --- Serveur qui rejoue le contrat officiel -------------------------
@@ -322,6 +324,11 @@ describe("impression d'une étiquette — chaîne complète (serveur Jumia simul
     // Une étiquette disponible + un refus : toujours deux lignes.
     expect(labels.filter((row) => row.status === "available")).toHaveLength(1);
     expect(labels.filter((row) => row.status === "error")).toHaveLength(1);
+
+    // L'article **déjà étiqueté** n'est pas redemandé : le colis existe
+    // chez Jumia, on ne l'imprime pas deux fois.
+    const dernierAppel = appels[appels.length - 1];
+    expect(dernierAppel?.orderItemIds).not.toContain(ARTICLE_A);
   });
 });
 
@@ -335,32 +342,32 @@ async function handlePrint(
   appels.push({ orderItemIds: ids });
 
   // Réponse **partielle** : un colis produit, un article refusé.
-  const [premier, ...autres] = ids;
+  // Seul ARTICLE_A est livrable : les autres articles sont refusés par
+  // Jumia, **de façon stable** — c'est ce qui permet de vérifier qu'une
+  // relance ne crée pas de second colis.
+  const acceptes = ids.filter((id) => id === ARTICLE_A);
+  const refuses = ids.filter((id) => id !== ARTICLE_A);
   res.writeHead(201, { "Content-Type": "application/json" });
   res.end(
     JSON.stringify({
       success: {
-        labels: premier
-          ? [
-              {
-                orderItemIds: [premier],
-                countryCode: "CI",
-                trackingNumber: "JG-00D-393842527-9589",
-                label: PDF.toString("base64"),
-              },
-            ]
-          : [],
-        total: premier ? 1 : 0,
+        labels: acceptes.map((id) => ({
+          orderItemIds: [id],
+          countryCode: "CI",
+          trackingNumber: "JG-00D-393842527-9589",
+          label: PDF.toString("base64"),
+        })),
+        total: acceptes.length,
       },
       error: {
-        orderItems: autres.map((id) => ({
+        orderItems: refuses.map((id) => ({
           id,
           response: {
             code: "not_allowed_status",
             message: "Only order items in pending and ready to ship status can be cancelled",
           },
         })),
-        total: autres.length,
+        total: refuses.length,
       },
     }),
   );

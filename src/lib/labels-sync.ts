@@ -1,9 +1,10 @@
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { audit } from "@/lib/audit";
 import { printLabels, PRINT_LABELS_MAX_ITEMS } from "@/lib/jumia/order-items";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { syncOrderItems } from "@/lib/order-items-sync";
+import { labelItemConditions } from "@/lib/order-items";
 import {
   decodeLabelPdf,
   upsertAvailableLabel,
@@ -33,9 +34,10 @@ export type LabelsSyncResult = {
  *
  * Trois règles guident l'opération :
  *
- * 1. **Éligibilité** : seuls les articles `READY_TO_SHIP` **sans numéro de
- *    suivi** peuvent être imprimés — Jumia refuse un colis déjà suivi, et
- *    l'API le signale explicitement.
+ * 1. **Éligibilité** : seuls les articles **livrables** (`PENDING` ou
+ *    `READY_TO_SHIP`) dont l'étiquette n'a pas encore été obtenue peuvent
+ *    être imprimés. Jumia refuse un article annulé, expédié ou livré ;
+ *    l'API le signale explicitement par article refusé.
  * 2. **Idempotence** : la clé d'un colis dérive de la boutique, de la
  *    commande et des articles couverts. Relancer l'opération met à jour la
  *    même ligne au lieu d'en créer une seconde.
@@ -288,8 +290,7 @@ export async function syncShopLabels(params: {
 }
 
 /**
- * Commandes portant au moins un article prêt à expédier et sans numéro de
- * suivi.
+ * Commandes portant au moins un article **éligible à l'impression**.
  */
 async function listCandidateOrders(
   shopId: string,
@@ -297,11 +298,7 @@ async function listCandidateOrders(
   period: { from?: Date | undefined; to?: Date | undefined } = {},
 ): Promise<string[]> {
   const db = getDb();
-  const conditions = [
-    eq(schema.orders.shopId, shopId),
-    sql`upper(${schema.orderItems.status}) = 'READY_TO_SHIP'`,
-    sql`${schema.orderItems.trackingNumber} is null`,
-  ];
+  const conditions = [eq(schema.orders.shopId, shopId), ...labelItemConditions([shopId])];
   if (orderIds && orderIds.length > 0) {
     conditions.push(inArray(schema.orders.id, orderIds));
   }
@@ -330,10 +327,8 @@ async function listEligibleItems(
     .from(schema.orderItems)
     .where(
       and(
-        eq(schema.orderItems.shopId, shopId),
+        ...labelItemConditions([shopId]),
         inArray(schema.orderItems.orderId, orderIds),
-        sql`upper(${schema.orderItems.status}) = 'READY_TO_SHIP'`,
-        sql`${schema.orderItems.trackingNumber} is null`,
       ),
     );
   return rows;

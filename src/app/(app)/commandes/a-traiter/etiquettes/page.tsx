@@ -160,7 +160,7 @@ export default async function EtiquettesPage({
 
       <section className="grid gap-4 sm:grid-cols-3">
         <Kpi
-          label="Prêtes à expédier"
+          label="Étiquettes disponibles"
           value={compteurs.available}
           hint="Étiquettes dont le PDF est disponible et téléchargeable."
           icon={<Printer className="h-4 w-4" aria-hidden="true" />}
@@ -174,7 +174,7 @@ export default async function EtiquettesPage({
         <Kpi
           label="Articles à imprimer"
           value={eligibles}
-          hint="Articles prêts à expédier et sans numéro de suivi : Jumia refuse d'imprimer une étiquette pour un colis déjà suivi."
+          hint="Articles en attente d'expédition ou prêts à expédier, dont l'étiquette n'a pas encore été demandée. Jumia refuse un article annulé, expédié ou livré."
         />
       </section>
 

@@ -204,9 +204,48 @@ export async function listItemStatusesByOrder(
 }
 
 /**
- * Compteur d'articles **éligibles à l'impression** : prêts à expédier
- * (`READY_TO_SHIP`) et sans numéro de suivi — Jumia refuse d'imprimer une
- * étiquette pour un colis déjà suivi.
+ * Statuts d'un article pour lesquels Jumia peut encore fournir une
+ * étiquette d'expédition.
+ *
+ * Jumia refuse un article annulé, expédié ou livré : seuls l'article en
+ * attente d'expédition (`PENDING`) et l'article prêt à expédier
+ * (`READY_TO_SHIP`) restent imprimables.
+ */
+export const LABEL_ITEM_STATUSES = ["PENDING", "READY_TO_SHIP"];
+
+/**
+ * Condition SQL : un article **peut** recevoir une étiquette.
+ *
+ * Deux règles, vérifiées sur l'API réelle :
+ *
+ * 1. l'article est dans un statut livrable (`PENDING` ou `READY_TO_SHIP`) ;
+ * 2. **aucune étiquette n'a encore été obtenue pour lui** : on ne redemande
+ *    pas un document déjà disponible. Seules les étiquettes en erreur
+ *    restent ré-essayables.
+ *
+ * L'ancien filtre exigeait `READY_TO_SHIP` **et** l'absence de numéro de
+ * suivi : il ne pouvait jamais être satisfait (un article prêt à expédier a
+ * forcément déjà un suivi, Jumia le refuse), donc aucune étiquette n'a
+ * jamais pu être demandée. La règle de Jumia est plus simple : elle refuse
+ * l'article **annulé, expédié ou livré**, pas l'article déjà suivi.
+ */
+export function labelItemConditions(shopIds: string[]) {
+  return [
+    inArray(schema.orderItems.shopId, shopIds),
+    inArray(sql`upper(${schema.orderItems.status})`, LABEL_ITEM_STATUSES),
+    sql`NOT EXISTS (
+      SELECT 1 FROM shipment_labels sl
+       WHERE sl.shop_id = ${schema.orderItems.shopId}
+         AND sl.order_item_ids @> to_jsonb(${schema.orderItems.externalItemId})
+         AND sl.status <> 'error'
+    )`,
+  ];
+}
+
+/**
+ * Compteur d'articles **éligibles à l'impression** : articles livrables
+ * (en attente d'expédition ou prêts à expédier) dont l'étiquette n'a pas
+ * encore été obtenue.
  *
  * La période porte sur la **date de création de la commande**, comme le
  * reste de l'interface « Ventes et commandes ».
@@ -218,11 +257,7 @@ export async function countPrintableItems(
   const shops = shopIds.filter((id) => id.length > 0);
   if (shops.length === 0) return 0;
   const db = getDb();
-  const conditions = [
-    inArray(schema.orderItems.shopId, shops),
-    sql`upper(${schema.orderItems.status}) = 'READY_TO_SHIP'`,
-    sql`${schema.orderItems.trackingNumber} is null`,
-  ];
+  const conditions = labelItemConditions(shops);
   if (filters.from) conditions.push(gte(schema.orders.remoteCreatedAt, filters.from));
   if (filters.to) conditions.push(lte(schema.orders.remoteCreatedAt, filters.to));
 
