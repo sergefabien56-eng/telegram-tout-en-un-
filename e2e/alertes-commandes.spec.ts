@@ -503,6 +503,63 @@ test.describe("notifications — commandes Jumia", () => {
     await expect(page.getByText(/1 article\(s\) à préparer/)).toBeVisible();
   });
 
+  test("un article déjà emballé n'est pas proposé à l'emballage", async ({ page }) => {
+    const email = `alertes-e2e-${Date.now()}@exemple.ci`;
+    await login(page, email, "MotDePasse123");
+    const created = await page.request.post("/api/shops", {
+      data: {
+        name: "BOUTIQUE ALERTES E2E 9",
+        platform: "jumia",
+        externalShopId: `E2E-ALERTES-9-${Date.now()}`,
+        country: "CI",
+        currency: "XOF",
+      },
+    });
+    const payload = (await created.json().catch(() => null)) as {
+      data?: { id?: string };
+    } | null;
+    const shopId = payload?.data?.id ?? "";
+
+    const externalOrderId = `E2E-ALERTES-CMD9-${Date.now()}`;
+    await insererCommandes(shopId, [
+      {
+        externalOrderId,
+        orderNumber: "E2E-A9",
+        status: "PENDING",
+        totalItems: 1,
+        packedItems: 1,
+        ageHours: 2,
+        articles: [
+          { externalItemId: `E2E-A9-1-${Date.now()}`, status: "PENDING" },
+        ],
+      },
+    ]);
+    // Jumia laisse l'article en PENDING mais lui attribue un numéro de
+    // suivi à l'empaquetage : l'article est déjà emballé.
+    await avecBase(async (pool) => {
+      await pool.query(
+        `UPDATE order_items SET tracking_number = 'DS-E2E-EMBALLE'
+          WHERE order_id = (SELECT id FROM orders WHERE external_order_id = $1)`,
+        [externalOrderId],
+      );
+    });
+
+    const commande = await avecBase(async (pool) => {
+      const result = await pool.query(`SELECT id FROM orders WHERE external_order_id = $1`, [
+        externalOrderId,
+      ]);
+      return result.rows[0]?.id as string;
+    });
+
+    const reponse = await page.request.get(`/api/orders/${commande}/preparation`);
+    const body = (await reponse.json().catch(() => null)) as {
+      data?: { itemsToPrepare: string[]; articles: { packed: boolean; needsPreparation: boolean }[] };
+    };
+    expect(body?.data?.itemsToPrepare).toHaveLength(0);
+    expect(body?.data?.articles[0]?.packed).toBe(true);
+    expect(body?.data?.articles[0]?.needsPreparation).toBe(false);
+  });
+
   test("le seuil de préparation est réglable par boutique", async ({ page }) => {
     const email = `alertes-e2e-${Date.now()}@exemple.ci`;
     await login(page, email, "MotDePasse123");

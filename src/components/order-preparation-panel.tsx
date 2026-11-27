@@ -32,6 +32,7 @@ type Article = {
   countryCode: string | null;
   shipmentType: string | null;
   needsPreparation: boolean;
+  packed: boolean;
   readyToShip: boolean;
 };
 
@@ -241,7 +242,11 @@ export function OrderPreparationPanel({
             </thead>
             <tbody>
               {etat.articles.map((article) => {
-                const selectionnable = article.needsPreparation || article.readyToShip;
+                // Sélectionnable s'il reste à emballer, s'il est déjà
+                // emballé (il ne reste qu'à le marquer prêt à expédier) ou
+                // s'il est déjà prêt à expédier.
+                const selectionnable =
+                  article.needsPreparation || article.packed || article.readyToShip;
                 return (
                   <tr key={article.id} className="border-b border-border last:border-0">
                     <td className="py-2.5 pr-3">
@@ -268,6 +273,12 @@ export function OrderPreparationPanel({
                     </td>
                     <td className="py-2.5 pr-3">
                       <span className="badge badge-neutral">{article.statusLabel}</span>
+                      {article.packed && !article.readyToShip ? (
+                        <span className="mt-1 block text-[11px] text-muted">
+                          Emballée (suivi {article.trackingNumber}) — reste à marquer « prête à
+                          expédier »
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-2.5 pr-3 text-muted">{article.countryCode ?? "—"}</td>
                     <td className="py-2.5 pr-3 text-muted">{article.shipmentType ?? "—"}</td>

@@ -440,3 +440,59 @@ ne fabrique donc aucune alerte.
   inventée par l'application.
 - **La notification Telegram hors application** : hors périmètre, et
   volontairement absente.
+## Test réel sur une commande Jumia genuine — 27/11/2026
+
+Une **vraie** commande est arrivée chez MaxiShopsCI pendant la livraison :
+commande **385851761** (`c3e3f87c-5d61-4975-a504-b16fcc5dfb16`), créée chez
+Jumia le 27/11 à 18:54:03, 1 article (`b2b38de5-108f-43ee-8220-0874db3b2d99`,
+SKU `VBR1`), 4 169 XOF, retrait point relais Yopougon. Le module a été
+exercé **de bout en bout** sur elle, via l'API de production.
+
+| Étape | Résultat réel |
+| --- | --- |
+| Synchronisation automatique | Commande détectée à 18:55:12, **69 s** après sa création chez Jumia |
+| Alerte créée | `nouvelle_commande` / `info`, **sans intervention** (voir le texte ci-dessous) |
+| `GET /api/orders/<id>/preparation` | 200 — famille `en-attente`, 1 article à emballer, Jumia propose **1 seul** transporteur : `CI-VDO-Own-Yop-Station` |
+| `POST {action: "pack"}` | **200** — Jumia crée le colis : vrai numéro de suivi `DS-FAJ-385851761-8118` |
+| Alerte après `pack` | **Résolue automatiquement** : « La commande est préparée : elle n'attend plus d'action. » |
+| `POST {action: "ready_to_ship"}` | **200** — confirmation de Jumia, article passé à `READY_TO_SHIP` |
+| Contrôle direct `GET /orders/items` | `status: READY_TO_SHIP`, `trackingNumber: DS-FAJ-385851761-8118`, **`shippedDate: null`** |
+
+Le dernier point est la preuve que « Prêt à expédier » n'est **pas**
+« expédié » : la commande est prête à partir, le transporteur ne l'a pas
+encore prise en charge.
+
+### Défaut trouvé et corrigé par ce test réel
+
+Après l'emballage, Jumia **laisse l'article en `PENDING`** : seul le numéro
+de suivi atteste que le colis est créé. Le module proposait donc encore cet
+article comme « à préparer » — une seconde préparation aurait été refusée
+par Jumia (« article déjà emballé »).
+
+Corrigé : un article qui porte un numéro de suivi est considéré comme
+**emballé**, il n'est plus proposé à l'emballage ; il reste sélectionnable
+pour le passage « prête à expédier ». Tests ajoutés :
+`order-preparation.test.ts` (7 tests, dont le cas réel) et un scénario E2E
+« un article déjà emballé n'est pas proposé à l'emballage ».
+
+### Textes produits par le module (commande réelle 385851761)
+
+**1. Alerte « nouvelle commande »** — créée automatiquement par la
+synchronisation, 69 s après la commande :
+
+> **Nouvelle commande reçue — 385851761**
+>
+> Boutique MaxiShopsCI. Commande 385851761, reçue le 27/11 18:55 : elle attend
+> sa préparation depuis 1 min. Le seuil préventif est de 24 h : il permet de
+> traiter les commandes les plus anciennes en premier. Ce seuil est un repère
+> de priorisation, pas une annulation automatique.
+
+**2. Résolution automatique** — après la préparation confirmée par Jumia :
+
+> La commande est préparée : elle n'attend plus d'action.
+
+**3. Résultat par article** — après `pack` puis « prête à expédier » :
+
+> `b2b38de5-108f-43ee-8220-0874db3b2d99` — accepté par Jumia (suivi
+> `DS-FAJ-385851761-8118`)
+

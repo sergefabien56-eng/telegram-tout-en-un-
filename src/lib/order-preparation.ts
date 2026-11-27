@@ -40,8 +40,10 @@ export type PreparationArticle = {
   trackingNumber: string | null;
   countryCode: string | null;
   shipmentType: string | null;
-  /** L'article attend encore une préparation. */
+  /** L'article attend encore une préparation (emballage). */
   needsPreparation: boolean;
+  /** L'article est déjà emballé : Jumia lui a attribué un numéro de suivi. */
+  packed: boolean;
   /** L'article est déjà prêt à partir (confirmé par Jumia). */
   readyToShip: boolean;
 };
@@ -67,17 +69,29 @@ export type PreparationState = {
 /**
  * Un article attend-il encore une préparation (emballage) ?
  *
- * Un article déjà « prêt à expédier » n'attend **plus** d'emballage : il est
- * exclu, sinon Jumia refuserait le lot (« article déjà emballé »).
+ * Deux signaux disent qu'un article est **déjà emballé** :
+ * - son statut est `READY_TO_SHIP` ;
+ * - il porte un **numéro de suivi** : Jumia le crée au moment de
+ *   l'emballage, et l'article reste alors en `PENDING` jusqu'au passage
+ *   « prête à expédier ». Sans cette seconde condition, l'interface
+ *   proposerait de réemballer un article déjà emballé — et Jumia refuserait
+ *   le lot (« article déjà emballé »).
  */
-export function needsPreparation(status: string): boolean {
+export function needsPreparation(status: string, trackingNumber?: string | null): boolean {
   const normalise = normalizeOrderStatus(status);
-  return ITEM_STATUS_A_TRAITER.includes(normalise) && !ITEM_STATUS_PRET.includes(normalise);
+  if (!ITEM_STATUS_A_TRAITER.includes(normalise)) return false;
+  if (ITEM_STATUS_PRET.includes(normalise)) return false;
+  return !trackingNumber;
 }
 
 /** Un article est-il déjà prêt à expédier (confirmé par Jumia) ? */
 export function isReadyToShip(status: string): boolean {
   return ITEM_STATUS_PRET.includes(normalizeOrderStatus(status));
+}
+
+/** L'article est-il emballé (numéro de suivi attribué par Jumia) ? */
+export function isPacked(trackingNumber?: string | null): boolean {
+  return typeof trackingNumber === "string" && trackingNumber.length > 0;
 }
 
 /**
@@ -110,7 +124,8 @@ export function buildPreparationState(params: {
     trackingNumber: item.trackingNumber,
     countryCode: item.countryCode,
     shipmentType: item.shipmentType,
-    needsPreparation: needsPreparation(item.status),
+    needsPreparation: needsPreparation(item.status, item.trackingNumber),
+    packed: isPacked(item.trackingNumber),
     readyToShip: isReadyToShip(item.status),
   }));
 
