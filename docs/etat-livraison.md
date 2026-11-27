@@ -397,6 +397,27 @@ Résultats : **414 tests unitaires + intégration réussis / 7 ignorés** (61
 fichiers) · **88 tests E2E réussis / 0 échec** · typecheck, lint et build
 verts.
 
+## Mise en production
+
+Commits `011ace1` (module) et `2ac75e7` (correction de la résolution), poussés
+sur `main`. CI verte, workflow « Déploiement Render » vert.
+
+Contrôles sur `https://tout-en-un-business-manager.onrender.com` :
+
+| Contrôle | Résultat |
+| --- | --- |
+| `/api/health` | HTTP 200, `commit: 2ac75e7c17fdd19dac3a13a1dafe89d2a64a029f` |
+| Migration `0019` | appliquée au démarrage du service (`migrations.ok = true`) |
+| `GET /api/order-alerts` (session réelle) | HTTP 200 — **0 alerte**, 0 non vue, 2 boutiques au périmètre |
+| `GET /alertes` | HTTP 200 — section « Commandes Jumia » et réglage du seuil présents |
+| `GET /commandes/<commande réelle>` | HTTP 200 — section « Préparation » présente, mention « Prêt à expédier n'est pas expédié » |
+| `GET /api/orders/<commande réelle>/preparation` | HTTP 200 — famille `pretes-a-expedier`, article `Prête à expédier` avec son **vrai** numéro de suivi, aucun transporteur proposé (aucun article à emballer) |
+
+Les **0 alerte** en production sont le résultat correct : sur les données
+réelles, aucune commande n'attend sa préparation (la commande du jour est
+déjà `READY_TO_SHIP`, la commande à statuts multiples est close). Le module
+ne fabrique donc aucune alerte.
+
 ## Ce qui n'est **pas** testé
 
 - **Les appels en écriture chez Jumia** (`POST /orders/pack`,
