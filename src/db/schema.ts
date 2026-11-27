@@ -396,6 +396,87 @@ export const notifications = pgTable(
   ],
 );
 
+/**
+ * ALERTES DE COMMANDES — le module « Notifications — commandes Jumia ».
+ *
+ * Une alerte décrit un **problème** attached à une commande (ou à une
+ * boutique, pour la synchronisation). Elle est **partagée** par tous les
+ * utilisateurs autorisés de la boutique : chacun la voit, chacun peut la
+ * marquer comme vue, mais il n'y a qu'une seule alerte par commande et par
+ * problème — pas de doublon.
+ *
+ * Le contenu et la priorité évoluent avec la situation : une alerte « délai »
+ * passe de `warning` à `critical` quand le seuil préventif est dépassé.
+ * L'alerte est **résolue** quand la commande ne justifie plus l'alerte.
+ *
+ * Ces alertes sont **in-application uniquement** (web et Mini App Telegram) :
+ * aucun message Telegram, aucun e-mail n'est envoyé.
+ */
+export const orderAlerts = pgTable(
+  "order_alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** Boutique concernée. */
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "cascade" }),
+    /** Commande concernée ; `null` pour une alerte de boutique (synchronisation). */
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    /**
+     * Nature du problème : `nouvelle_commande`, `delai_24h`, `synchronisation`.
+     * Une alerte par (boutique, commande, nature) : le même problème ne
+     * remonte jamais deux fois.
+     */
+    kind: text("kind").notNull(),
+    /** Clé de déduplication : `boutique:commande:nature` (ou `boutique:nature`). */
+    dedupeKey: text("dedupe_key").notNull(),
+    /** `info`, `warning` ou `critical` — la priorité évolue avec la situation. */
+    priority: text("priority").notNull().default("info"),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    /** `active` ou `resolved`. */
+    status: text("status").notNull().default("active"),
+    /** Instant de la première détection (jamais modifié ensuite). */
+    firstDetectedAt: timestamp("first_detected_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Dernière mise à jour du contenu ou de la priorité. */
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Instant de résolution, si l'alerte a été résolue. */
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    /** Raison de la résolution (« la commande a été expédiée », etc.). */
+    resolution: text("resolution"),
+    /** Détails de la situation (âge de la commande, articles concernés…). */
+    metadata: jsonb("metadata"),
+  },
+  (t) => [
+    uniqueIndex("order_alerts_dedupe_key_idx").on(t.dedupeKey),
+    index("order_alerts_shop_status_idx").on(t.shopId, t.status),
+    index("order_alerts_order_idx").on(t.orderId),
+  ],
+);
+
+/**
+ * ALERTES VUES — ce que chaque utilisateur a déjà regardé.
+ *
+ * L'alerte est partagée, la lecture est personnelle : une commande reçue
+ * pendant l'absence d'un gestionnaire doit être « non vue » pour lui, même
+ * si un autre l'a déjà ouverte.
+ */
+export const orderAlertReads = pgTable(
+  "order_alert_reads",
+  {
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => orderAlerts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.alertId, t.userId] })],
+);
+
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: jsonb("value"),
@@ -443,10 +524,24 @@ export const orders = pgTable(
     remoteUpdatedAt: timestamp("remote_updated_at", { withTimezone: true }),
     raw: jsonb("raw"),
     syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Première fois que l'application a vu cette commande.
+     *
+     * C'est la date de **réception côté application**, qui n'est pas la date
+     * de création chez Jumia : une commande peut être vieille et n'être
+     * repérée qu'à la première synchronisation. C'est cette date qui permet
+     * de dire « nouvelle commande reçue pendant votre absence ».
+     *
+     * `null` pour les commandes déjà enregistrées avant l'existence de cette
+     * colonne : leur date de réception n'est pas connue, et inventer la date
+     * du jour serait un faux.
+     */
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("orders_shop_external_idx").on(t.shopId, t.externalOrderId),
     index("orders_shop_created_idx").on(t.shopId, t.remoteCreatedAt),
+    index("orders_shop_first_seen_idx").on(t.shopId, t.firstSeenAt),
   ],
 );
 

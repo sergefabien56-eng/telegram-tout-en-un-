@@ -342,3 +342,80 @@ Tests ajoutés : `order-status.test.ts` (19 tests, dont les 6 cas de la nouvelle
 « ne présente pas en « à traiter » une commande dont tous les articles sont clos »).
 Suite complète : **380 tests réussis / 7 ignorés** ; **79 tests E2E réussis / 0 échec** ;
 typecheck, lint et build verts.
+
+---
+
+# Module « Notifications — commandes Jumia » — 27/11/2026
+
+Lot livré : alertes de commandes **in-application** (web + Mini App Telegram),
+avec préparation des articles et demande de passage « Prêtes à expédier »
+sans ouvrir Vendor Center. Détail complet : `docs/notifications-commandes-jumia.md`.
+
+## Périmètre tenu
+
+- **In-application uniquement** : aucun message Telegram, e-mail ou push. Les
+  helpers capables d'envoyer un Telegram direct (`src/lib/telegram-service.ts`,
+  `src/lib/coherence-alerts.ts`) ne sont pas utilisés par ce module.
+- **La synchronisation continue en arrière-plan** : la tâche planifiée
+  (`POST /api/cron/sync`, toutes les 3 h) et le polling à l'écran n'ont pas
+  changé. Les alertes sont recalculées à la fin de chaque relecture, donc
+  elles existent même si le vendeur n'a pas ouvert l'application.
+- **Le seuil de 24 h est préventif**, jamais une heure d'annulation : le texte
+  des alertes le dit explicitement, et le seuil est configurable par boutique.
+
+## Base de données
+
+Migration `0019_order_alerts` :
+
+- `order_alerts` — une alerte active par commande (clé unique
+  `dedupe_key = boutique:commande`), avec priorité, contenu, résolution ;
+- `order_alert_reads` — lecture **personnelle** (clé primaire composite) ;
+- `orders.first_seen_at` — heure de première réception par l'application,
+  `null` pour les commandes antérieures à la colonne (leur date de réception
+  n'est pas connue : la date du jour serait un faux).
+
+Aucune donnée n'est inventée : les commandes de test sont supprimées, les
+alertes ne portent que des faits lisibles en base.
+
+## Tests — ce qui est testé
+
+| Scénario exigé | Couverture |
+| --- | --- |
+| Nouvelle commande, application ouverte | E2E (`alertes-commandes.spec.ts`) + intégration |
+| Arrivée pendant l'absence, rattrapée à la réouverture | E2E (alerte **non vue** présentée) + intégration (lecture personnelle : un utilisateur qui a vu n'a pas signalé l'autre) |
+| Alerte avant / après 24 h | Unitaire (18 tests), intégration, E2E |
+| Renforcement de l'alerte (escalade) | Unitaire + intégration + E2E (priorité `critical`, alerte réveillée) |
+| Changement de statut de la commande | Intégration + E2E (alerte résolue avec sa raison) |
+| Absence de doublons | Intégration (réconciliation rejouée 3×) + E2E (une seule alerte) |
+| Synchronisation en panne | Intégration + E2E (alerte `synchronisation`, résolue au retour) |
+| Statuts d'articles mixtes | Intégration (article livré + annulé → aucune alerte) + E2E (1 `PENDING` + 1 `DELIVERED` → 1 article à préparer) |
+| Utilisateur non autorisé | E2E : rôle `stock` → **403** sur l'action de préparation ; `owner` → le contrôle des articles prend le relais (400) |
+| Succès / refus / réponse partielle Jumia | Unitaire (`jumia-order-preparation.test.ts`, 7 tests) : succès complet, réussite partielle (article par article), refus complet, enveloppe vide, refus global |
+| Décodage réel des transporteurs Jumia | Sonde **lecture seule** exécutée sur l'API réelle (HTTP 200, format conforme) |
+
+Résultats : **414 tests unitaires + intégration réussis / 7 ignorés** (61
+fichiers) · **88 tests E2E réussis / 0 échec** · typecheck, lint et build
+verts.
+
+## Ce qui n'est **pas** testé
+
+- **Les appels en écriture chez Jumia** (`POST /orders/pack`,
+  `POST /orders/ready-to-ship`) n'ont **pas** été exécutés en conditions
+  réelles : aucune commande Jumia réelle n'était dans un état « à préparer »,
+  et modifier une commande réelle d'un client n'a pas étéjugé acceptable sans
+  demande explicite. Leur comportement est couvert par :
+  - le décodage des réponses (tests unitaires, enveloppes conformes à la
+    documentation officielle) ;
+  - le contrat de la spec Vendor Center (`orderItemIds` / `orderItems`,
+    réponses 201 avec succès **et** erreurs par article, rôle **VC - Order
+    Manager**) ;
+  - une lecture réelle de `GET /orders/shipment-providers` (HTTP 200), qui
+    confirme le format réel des transporteurs ;
+  - le contrôle des droits et des articles côté serveur, testé en E2E.
+- **Le délai de préparation officiel par boutique et par processus** : l'API
+  Vendor Center n'expose aucun endpoint de délai (liste complète des chemins
+  de la spec OpenAPI vérifiée). Le seuil est donc une règle saisie par le
+  vendeur, réglable par boutique, avec 24 h par défaut — jamais une valeur
+  inventée par l'application.
+- **La notification Telegram hors application** : hors périmètre, et
+  volontairement absente.

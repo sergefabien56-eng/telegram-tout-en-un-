@@ -7,6 +7,7 @@ import { syncOrderItems } from "@/lib/order-items-sync";
 import { accountIdForShop } from "@/lib/jumia/accounts";
 import { belongsToShop, orderShopIds } from "@/lib/shop-guard";
 import { MAX_SYNC_WINDOW_DAYS, ORDERS_MAX_PAGES, ORDERS_PAGE_SIZE } from "@/lib/order-sync-policy";
+import { reconcileOrderAlerts } from "@/lib/order-alerts";
 
 export type SyncResult = {
   ok: boolean;
@@ -264,6 +265,16 @@ export async function syncShopOrders(params: {
     });
 
     await releaseLock();
+
+    // Les alertes de commandes sont recalculées à la fin de chaque relecture :
+    // elles existent donc même lorsque l'application est fermée, et sont
+    // présentées comme non vues à la réouverture.
+    try {
+      await reconcileOrderAlerts({ shopIds: [params.shopId] });
+    } catch (error) {
+      console.error("[orders-sync] alertes non recalculées", error);
+    }
+
     return {
       ok: true,
       orders: kept.length,

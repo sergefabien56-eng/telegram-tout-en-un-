@@ -16,6 +16,8 @@ import {
   orderStatusLabel,
 } from "@/lib/order-status";
 import { listShipmentLabels, LABEL_STATUS_AVAILABLE, LABEL_STATUS_PENDING } from "@/lib/shipment-labels";
+import { OrderPreparationPanel } from "@/components/order-preparation-panel";
+import { can } from "@/lib/permissions";
 
 export const metadata: Metadata = {
   title: "Détail de la commande",
@@ -178,6 +180,18 @@ export default async function CommandeDetailPage({
           Le détail d&apos;une commande n&apos;affiche ni nom, ni téléphone, ni adresse : ces
           informations ne sont pas enregistrées par l&apos;application.
         </p>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="text-sm font-semibold text-night">Préparation</h2>
+        <p className="mt-1 text-xs text-muted">
+          Préparez les articles puis demandez le passage « Prêtes à expédier » sans ouvrir Vendor
+          Center. Jumia reste la source de vérité : « Prêt à expédier » n&apos;est pas « expédié ».
+        </p>
+        <OrderPreparationPanel
+          orderId={order.id}
+          canWrite={await can(user.id, order.shopId, "orders:write")}
+        />
       </section>
 
       <section className="card p-5">

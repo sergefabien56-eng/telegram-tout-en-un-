@@ -14,6 +14,14 @@ import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScopeBar } from "@/components/ui/scope-bar";
 import { ShopScopeSelect } from "@/components/shop-scope-select";
+import { OrderAlertsList } from "@/components/order-alerts-list";
+import { AlertDeadlineControl } from "@/components/alert-deadline-control";
+import {
+  DEFAUT_DELAI_PREVENTIF_H,
+  readDeadlines,
+  reconcileOrderAlerts,
+} from "@/lib/order-alerts";
+import { can } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +96,12 @@ export default async function AlertesPage({
   const shops = await listUserShops(user.id);
   const shopNames = new Map(shops.map((shop) => [shop.id, shop.name]));
   const alerts: UnifiedAlert[] = [];
+
+  // Alertes de commandes Jumia : elles sont calculées à partir de l'état
+  // réel des commandes et de l'état de synchronisation. La réconciliation
+  // est idempotente : l'appeler ici ne crée aucun doublon.
+  await reconcileOrderAlerts({ shopIds });
+  const seuils = await readDeadlines(shopIds);
 
   // 1. Alertes de cohérence (envoyées au vendeur par le contrôle planifié).
   const coherenceRows = await db
@@ -229,7 +243,25 @@ export default async function AlertesPage({
           title="Aucune alerte"
           description="Cohérence, stocks, versements et synchronisations : rien ne demande d'action sur ce périmètre. Les alertes de cohérence sont produites par le contrôle quotidien — elles apparaîtront ici dès qu'une dérive sera détectée."
         />
-      ) : (
+      ) : null}
+
+      <Section
+        title="Commandes Jumia"
+        description="Commandes reçues et commandes qui attendent encore leur préparation. Le seuil de 24 h est un repère de priorisation, pas une heure limite d'annulation."
+      >
+        <OrderAlertsList userId={user.id} shopIds={shopIds} />
+        {shopIds.length === 1 ? (
+          <div className="mt-4 border-t border-border pt-4">
+            <AlertDeadlineControl
+              shopId={shopIds[0] ?? ""}
+              hours={seuils.get(shopIds[0] ?? "") ?? DEFAUT_DELAI_PREVENTIF_H}
+              canEdit={await can(user.id, shopIds[0] ?? "", "orders:write")}
+            />
+          </div>
+        ) : null}
+      </Section>
+
+      {alerts.length > 0 ? (
         <Section
           title={`${alerts.length} alerte(s)`}
           description="Une alerte = une action à mener. Les alertes de cohérence renvoient au diagnostic, qui en donne la preuve chiffrée."
@@ -267,7 +299,7 @@ export default async function AlertesPage({
             ))}
           </ul>
         </Section>
-      )}
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <AlertKindCard

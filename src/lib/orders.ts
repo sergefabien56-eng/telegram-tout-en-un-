@@ -164,7 +164,10 @@ export async function upsertOrders(rows: OrderInsert[]): Promise<{
   for (const row of rows) {
     await db
       .insert(schema.orders)
-      .values(row)
+      // `firstSeenAt` est l'instant où l'application a reçu la commande la
+      // première fois : il est posé à l'insertion et **jamais** réécrit
+      // ensuite (la clause de conflit ne le touche pas).
+      .values({ ...row, firstSeenAt: row.firstSeenAt ?? new Date() })
       .onConflictDoUpdate({
         target: [schema.orders.shopId, schema.orders.externalOrderId],
         set: {

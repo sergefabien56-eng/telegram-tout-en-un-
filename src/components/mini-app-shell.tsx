@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import { navIcon } from "@/components/nav-icons";
 import { Modal } from "@/components/modal";
+import { OrderAlertsBell } from "@/components/order-alerts-bell";
 import { activeNavItem, NAV_ITEMS, NAV_SECTIONS } from "@/navigation.config";
 
 type MiniAppShellProps = {
@@ -134,6 +135,9 @@ export function MiniAppShell({
           </button>
           <Logo className="h-6 w-6" withName={false} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-night">{title}</span>
+          {/* Alertes de commandes : uniquement dans l'application. La Mini App
+              n'envoie aucun message Telegram, e-mail ou push. */}
+          <OrderAlertsBell compact />
           {shops.length > 0 ? (
             <select
               value={shopId}

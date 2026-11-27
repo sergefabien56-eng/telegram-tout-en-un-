@@ -13,6 +13,7 @@ import { navIcon } from "@/components/nav-icons";
 import { SpaceSearch } from "@/components/space-search";
 import { Logo } from "@/components/logo";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { OrderAlertsBell } from "@/components/order-alerts-bell";
 import { QuickActions } from "@/components/quick-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { applySidebarState, readSidebarState, type SidebarState } from "@/lib/sidebar-state";
@@ -316,6 +317,11 @@ export function AppShell({ user, shops, permissions, currentShopId, children }: 
           <SpaceSearch variant="compact" />
 
           <NotificationsBell />
+
+          {/* Alertes de commandes Jumia : nouvelle commande, délai de
+              préparation, données possiblement incomplètes. In-application
+              uniquement : rien n'est envoyé en dehors de l'application. */}
+          <OrderAlertsBell />
 
           <ThemeToggle />
 
