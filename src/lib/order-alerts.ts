@@ -527,6 +527,11 @@ export async function reconcileOrderAlerts(params: {
   const alertOrderStatuses = await listItemStatusesByOrder(shopIds, alertOrderIds);
 
   // --- Alertes de commande ----------------------------------------------
+  // Commandes qui attendent vraiment une action, selon le **même** classement
+  // que l'interface (statut d'articles compris). C'est ce set qui décide de
+  // la résolution : une commande absente de la liste n'a plus d'alerte.
+  const commandesEnAttente = new Set<string>();
+
   for (const order of candidates) {
     const shop = shops.find((row) => row.id === order.shopId);
     if (!shop) continue;
@@ -540,6 +545,7 @@ export async function reconcileOrderAlerts(params: {
       itemStatuses: candidateStatuses.get(order.id) ?? [],
     });
     if (famille !== "en-attente") continue;
+    commandesEnAttente.add(order.id);
 
     const computed = computeOrderAlert({
       now,
@@ -575,22 +581,6 @@ export async function reconcileOrderAlerts(params: {
         status: "active",
         firstDetectedAt: now,
         updatedAt: now,
-        metadata,
-      });
-      activesByKey.set(key, {
-        id: "",
-        shopId: order.shopId,
-        orderId: order.id,
-        kind: computed.kind,
-        dedupeKey: key,
-        priority: computed.priority,
-        title: computed.title,
-        body: computed.body,
-        status: "active",
-        firstDetectedAt: now,
-        updatedAt: now,
-        resolvedAt: null,
-        resolution: null,
         metadata,
       });
       result.created += 1;
@@ -630,11 +620,10 @@ export async function reconcileOrderAlerts(params: {
   }
 
   // --- Résolution des alertes qui ne sont plus justifiées ----------------
-  const candidateIdsSet = new Set(candidates.map((row) => row.id));
   for (const alert of actives) {
     if (alert.kind === "synchronisation") continue;
     if (!alert.orderId) continue;
-    if (candidateIdsSet.has(alert.orderId)) continue;
+    if (commandesEnAttente.has(alert.orderId)) continue;
     const order = alertOrderById.get(alert.orderId);
     const raison = order
       ? raisonResolution(order, alertOrderStatuses.get(alert.orderId) ?? [])
